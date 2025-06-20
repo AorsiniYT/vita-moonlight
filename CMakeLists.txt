@@ -79,64 +79,28 @@ add_executable(${PROJECT_NAME}.elf
 	libgamestream/sps.c
 	libgamestream/xml.c
 
-	third_party/libuuid/src/clear.c
-	third_party/libuuid/src/compare.c
-	third_party/libuuid/src/copy.c
-	third_party/libuuid/src/gen_uuid.c
-	third_party/libuuid/src/isnull.c
-	third_party/libuuid/src/pack.c
-	third_party/libuuid/src/parse.c
-	third_party/libuuid/src/unpack.c
-	third_party/libuuid/src/unparse.c
-	third_party/libuuid/src/uuid_time.c
-
-	third_party/h264bitstream/h264_nal.c
-	third_party/h264bitstream/h264_sei.c
-	third_party/h264bitstream/h264_stream.c
-
-	third_party/moonlight-common-c/src/AudioStream.c
-	third_party/moonlight-common-c/src/ByteBuffer.c
-	third_party/moonlight-common-c/src/Connection.c
-	third_party/moonlight-common-c/src/ConnectionTester.c
-	third_party/moonlight-common-c/src/ControlStream.c
-	third_party/moonlight-common-c/src/FakeCallbacks.c
-	third_party/moonlight-common-c/src/InputStream.c
-	third_party/moonlight-common-c/src/LinkedBlockingQueue.c
-	third_party/moonlight-common-c/src/Misc.c
-	third_party/moonlight-common-c/src/Platform.c
-	third_party/moonlight-common-c/src/PlatformCrypto.c
-	third_party/moonlight-common-c/src/PlatformSockets.c
-	third_party/moonlight-common-c/src/RecorderCallbacks.c
-	third_party/moonlight-common-c/src/RtpAudioQueue.c
-	third_party/moonlight-common-c/src/RtpVideoQueue.c
-	third_party/moonlight-common-c/src/RtspConnection.c
-	third_party/moonlight-common-c/src/RtspParser.c
-	third_party/moonlight-common-c/src/SdpGenerator.c
-	third_party/moonlight-common-c/src/SimpleStun.c
-	third_party/moonlight-common-c/src/VideoDepacketizer.c
-	third_party/moonlight-common-c/src/VideoStream.c
-	third_party/moonlight-common-c/reedsolomon/rs.c
-
-	third_party/enet/callbacks.c
-	third_party/enet/compress.c
-	third_party/enet/host.c
-	third_party/enet/list.c
-	third_party/enet/packet.c
-	third_party/enet/peer.c
-	third_party/enet/protocol.c
-	third_party/enet/unix.c
-
-	third_party/inih/ini.c
-
 	src/keyboardsystem.c
 	src/input/keyboardkeys.c
 	src/gui/ui_keyboard.c
 	src/input/touchabsolute.c
 )
 
+# Forzar el enlace de mbedtls, mbedx509 y mbedcrypto para VitaSDK personalizado
+set(USE_MBEDTLS ON)
+
+# Por defecto, solo enlazamos curl y el resto de libs estándar:
 target_link_libraries(${PROJECT_NAME}.elf
 	-lexpat
 	-lcurl
+	-lmbedtls
+	-lmbedx509
+	-lmbedcrypto
+	moonlight-common-c
+	enet
+	h264bitstream
+	inih
+	libuuid
+	mdns
 	-lz
 	-lssl
 	-lcrypto
@@ -189,3 +153,5 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 
 add_dependencies(${PROJECT_NAME}.velf ${PROJECT_NAME}.elf)
 add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo)
+
+add_subdirectory(third_party)
