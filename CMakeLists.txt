@@ -18,7 +18,7 @@ set(TITLE_ID "XYZZ00002")
 set(TITLE "Moonlight")
 set(VERSION_MAJOR "0")
 set(VERSION_MINOR "11")
-set(VERSION_PATCH "0")
+set(VERSION_PATCH "2")
 
 execute_process(COMMAND
 	python -c "print('%02d.%02d' % (${VERSION_MAJOR}, ${VERSION_MINOR}))"
