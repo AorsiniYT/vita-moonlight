@@ -2,3 +2,6 @@ build/*
 .DS_Store
 .cache/*
 compile_commands.json
+venv/*
+mdns_discovery.py
+.vscode/tasks.json

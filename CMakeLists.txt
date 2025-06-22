@@ -43,7 +43,7 @@ include_directories(
 	third_party/h264bitstream/
 	third_party/enet/include/
 	third_party/inih/
-	third_party/mdns/
+	third_party/mdnsniff/
 )
 
 
@@ -100,7 +100,7 @@ target_link_libraries(${PROJECT_NAME}.elf
 	h264bitstream
 	inih
 	libuuid
-	mdns
+	mdnsniff
 	-lz
 	-lssl
 	-lcrypto
@@ -111,7 +111,6 @@ target_link_libraries(${PROJECT_NAME}.elf
 	-lSceCtrl_stub
 	-lSceTouch_stub
 	-lSceNet_stub
-	-lSceSysmodule_stub
 	-lSceNetCtl_stub
 	-lScePower_stub
 	-lSceVideodec_stub

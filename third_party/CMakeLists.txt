@@ -37,11 +37,6 @@ add_library(libuuid STATIC
 )
 target_include_directories(libuuid PUBLIC libuuid/src)
 
-add_library(mdns STATIC
-    mdns/mdns.c
-)
-target_include_directories(mdns PUBLIC mdns)
-
 add_library(moonlight-common-c STATIC
     moonlight-common-c/src/AudioStream.c
     moonlight-common-c/src/ByteBuffer.c
@@ -67,3 +62,8 @@ add_library(moonlight-common-c STATIC
     moonlight-common-c/reedsolomon/rs.c
 )
 target_include_directories(moonlight-common-c PUBLIC moonlight-common-c/src moonlight-common-c/reedsolomon)
+
+add_library(mdnsniff STATIC
+    mdnsniff/udp_sniffer_vita.c
+)
+target_include_directories(mdnsniff PUBLIC mdnsniff)
