@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## 0.12.0
 
 * Add support for multi-touch touchscreen mode (Sunshine compatible) and absolute mouse mode.
@@ -26,6 +27,8 @@
   * ip4.png: IP change confirmation dialog (shows old/new IP).
   * ip5.png: Search device function showing a found local device.
 
+=======
+>>>>>>> cf0943e (Update changelog and version to 0.11.2)
 ## 0.11.2
 
 * More reliable and user-friendly automatic pairing.
