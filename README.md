@@ -1,62 +1,26 @@
 # Vita Moonlight Motion
 
-Vita Moonlight Motion is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
+**Version 0.11.4**
 
----
+This project is a PlayStation Vita port of Moonlight, with major improvements and updates.
 
-## What's New
+## What's New in 0.11.4
 
-- **Multi-touch touchscreen mode:** New tablet-style mode compatible with Sunshine, with true multitouch support and native gestures (e.g. pinch-to-zoom).
-- **Improved Absolute Mouse mode:** Cursor always follows the main finger, right click with two-finger tap, natural two-finger scrolling.
-- **Exclusive touch mode selection:** Choose between "Touch Mouse Absolute" (mouse gestures) or "Touchscreen (Sunshine multitouch)" (multitouch tablet) in the settings menu.
-- **No ghost cursor:** In touchscreen mode, the host cursor is hidden and no mouse clicks are sent.
-- **Physical controls always active:** Gamepad controls work in both touch modes.
-- **Refined gesture and touch experience:** Improved logic for right click, scrolling, and multitouch gestures.
-- **Host status indicator dots:** Green (online), yellow (IP change pending), red (offline/disconnected).
-- **Robust host status checking:** Background scan thread and mDNS sniffer.
-- **Manual refresh:** Press TRIANGLE (△) in the main menu or device search to refresh host/device status instantly.
-- **IP change confirmation dialog:** Always shows old and new IP, and always asks for confirmation.
-- **UI and logic robust to missing/empty host fields.**
-- **Improved debug logging and error handling.**
-- **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
-- **Elevated floating keyboard:** The virtual keyboard now appears above the app, never covering the main screen (see screenshot below).
-- **Updated libraries:** All dependencies and core libraries (moonlight-common-c, enet, inih) have been updated for better compatibility and stability.
-- **New modular mDNS sniffer:** Fast and reliable device discovery on your local network.
-- **Many bugfixes and code cleanups.**
-
----
-
-## Screenshots
-
-<p align="center">
-  <img src="docs/keyboard.jpg" alt="Floating keyboard in Steam app" width="400"/>
-  <br><b>Floating keyboard in a Steam app using Moonlight</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip1.png" alt="Host waiting for IP update (yellow)" width="400"/>
-  <br><b>Host waiting for IP update (yellow)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip2.png" alt="Host online (green)" width="400"/>
-  <br><b>Host online (green)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip3.png" alt="Host offline/disconnected (red)" width="400"/>
-  <br><b>Host offline/disconnected (red)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip4.png" alt="IP change confirmation dialog" width="400"/>
-  <br><b>IP change confirmation dialog (shows old/new IP)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip5.png" alt="Search device function" width="400"/>
-  <br><b>Search device function showing a found local device</b>
-</p>
+- Host status indicator dots: green (online), yellow (IP change pending), red (offline/disconnected).
+- Robust host status checking with background scan thread and mDNS sniffer.
+- Manual refresh of host status with TRIANGLE (△) in main menu and device search.
+- IP change confirmation dialog now always shows old and new IP, and always asks for confirmation.
+- Host status and menu only refresh when status actually changes or user requests it.
+- Improved debug logging for all host and menu transitions.
+- UI and logic are now robust even if host fields are empty or uninitialized.
+- All UI messages for search device and refresh are now in English.
+- Added screenshots to documentation (see docs/):
+  - keyboard.png: Floating keyboard in a Steam app using Moonlight.
+  - ip1.png: Host waiting for IP update (yellow).
+  - ip2.png: Host online (green).
+  - ip3.png: Host offline/disconnected (red).
+  - ip4.png: IP change confirmation dialog (shows old/new IP).
+  - ip5.png: Search device function showing a found local device.
 
 ---
 
@@ -103,6 +67,27 @@ If you prefer to build manually:
  cmake ..
  make
 ```
+
+---
+
+## Note about colors in vita2d
+
+Screenshots and documentation are available in the `docs/` folder.
+
+- `keyboard.png`: Floating keyboard in a Steam app using Moonlight.
+- `ip1.png`: Host waiting for IP update (yellow).
+- `ip2.png`: Host online (green).
+- `ip3.png`: Host offline/disconnected (red).
+- `ip4.png`: IP change confirmation dialog (shows old/new IP).
+- `ip5.png`: Search device function showing a found local device.
+
+---
+
+## Contributing
+
+1. Fork this repository
+2. Write code
+3. Send Pull Requests
 
 ---
 

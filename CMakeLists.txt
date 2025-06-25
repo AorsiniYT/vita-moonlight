@@ -22,8 +22,8 @@ include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 set(TITLE_ID "XYZZ00002")
 set(TITLE "Moonlight")
 set(VERSION_MAJOR "0")
-set(VERSION_MINOR "12")
-set(VERSION_PATCH "0")
+set(VERSION_MINOR "11")
+set(VERSION_PATCH "4")
 
 execute_process(COMMAND
 	python -c "print('%02d.%02d' % (${VERSION_MAJOR}, ${VERSION_MINOR}))"
@@ -85,8 +85,6 @@ add_executable(${PROJECT_NAME}.elf
 	libgamestream/sps.c
 	libgamestream/xml.c
 
-<<<<<<< HEAD
-=======
 	third_party/libuuid/src/clear.c
 	third_party/libuuid/src/compare.c
 	third_party/libuuid/src/copy.c
@@ -136,7 +134,6 @@ add_executable(${PROJECT_NAME}.elf
 
 	third_party/inih/ini.c
 
->>>>>>> 399e90b (Actualizacion grande)
 	src/keyboardsystem.c
 	src/input/keyboardkeys.c
 	src/gui/ui_keyboard.c

@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## 0.12.0
 
 * Add support for multi-touch touchscreen mode (Sunshine compatible) and absolute mouse mode.
@@ -9,6 +10,8 @@
 * Improved logic for right click and scroll gestures.
 * Many bugfixes and refinements to touch and gesture experience.
 
+=======
+>>>>>>> 2ecfab5 (feat: Update to version 0.11.4 with host status improvements and UI enhancements)
 ## 0.11.4
 
 * Host status indicator dots: green (online), yellow (IP change pending), red (offline/disconnected).
@@ -27,8 +30,11 @@
   * ip4.png: IP change confirmation dialog (shows old/new IP).
   * ip5.png: Search device function showing a found local device.
 
+<<<<<<< HEAD
 =======
 >>>>>>> cf0943e (Update changelog and version to 0.11.2)
+=======
+>>>>>>> 2ecfab5 (feat: Update to version 0.11.4 with host status improvements and UI enhancements)
 ## 0.11.2
 
 * More reliable and user-friendly automatic pairing.
