@@ -14,6 +14,16 @@ Vita Moonlight Motion is a PlayStation Vita port of Moonlight, with major improv
 
 ---
 
+## How to open the Floating Keyboard
+
+> **To open the elevated floating keyboard at any time, press:**
+>
+> **START + LEFT**
+>
+> This shortcut will always open the virtual keyboard in elevated mode, never covering the main screen. Works in all touch modes.
+
+---
+
 ## What's New
 
 - **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
