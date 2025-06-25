@@ -542,9 +542,10 @@ inline void vitainput_process(void) {
     connection_minimize();
   }
 
-  // Atajo: Start + Left para abrir el teclado
-  if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT)) {
-    open_keyboard();
+  // Atajo: Start + Left para abrir el teclado (solo en flanco de subida)
+  if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT) &&
+      !((pad_old.buttons & SCE_CTRL_START) && (pad_old.buttons & SCE_CTRL_LEFT))) {
+    keyboardsystem_open_keyboard();
   }
 
   // analogs
@@ -919,10 +920,4 @@ void vitainput_start(void) {
 void vitainput_stop(void) {
   active_input_thread = false;
   active_motion_threads = false;
-}
-
-void open_keyboard(void) {
-    // Abre el teclado IME sin texto inicial, solo para cerrar/enter
-    char dummy[2] = "";
-    ime_dialog_string(dummy, "", "");
 }
