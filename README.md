@@ -4,6 +4,16 @@ Vita Moonlight Motion is a PlayStation Vita port of Moonlight, with major improv
 
 ---
 
+## How to open the Pause Menu
+
+> **To open the pause menu at any time (even in any touch mode), press:**
+> 
+> **START + L + R**
+>
+> This shortcut works regardless of the selected touch mode (Absolute Mouse or Touchscreen). Use it to access the in-game pause/options menu quickly.
+
+---
+
 ## What's New
 
 - **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
