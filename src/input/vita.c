@@ -71,6 +71,7 @@ typedef struct input_data {
 } input_data;
 
 void check_for_double_click(input_data *curr);
+inline void update_touch_points();
 
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
@@ -212,6 +213,18 @@ inline uint8_t read_backscreen() {
 }
 
 
+// Nueva función: solo actualiza touch.points y touch.finger
+static inline void update_touch_points() {
+  touch.finger = 0;
+  for (int i = 0; i < front.reportNum; i++) {
+    int x = lerp(front.report[i].x, 1919, WIDTH);
+    int y = lerp(front.report[i].y, 1087, HEIGHT);
+    touch.points[touch.finger].x = x;
+    touch.points[touch.finger].y = y;
+    touch.finger += 1;
+  }
+}
+
 inline uint8_t read_frontscreen() {
   for (int i = 0; i < front.reportNum; i++) {
     int x = lerp(front.report[i].x, 1919, WIDTH);
@@ -245,10 +258,7 @@ inline uint8_t read_frontscreen() {
       }
     }
 
-    // FIXME if touch same section using multiple finger, they can count finger
-    touch.points[touch.finger].x = x;
-    touch.points[touch.finger].y = y;
-    touch.finger += 1;
+    // Ya no actualiza touch.points ni touch.finger aquí
   }
   return 0;
 }
@@ -484,11 +494,30 @@ inline void vitainput_process(void) {
   memset(&curr, 0, sizeof(input_data));
   sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
   sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
-
   sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
   sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
-  read_frontscreen();
+  // Siempre actualizar los puntos táctiles del frente
+  update_touch_points();
+  // Siempre procesar las esquinas del back (para compatibilidad o futuros usos)
   read_backscreen();
+  // --- SOLO PROCESAR SPECIAL KEYS Y ESQUINAS DEL FRENTE SI NO HAY MODO ABSOLUTO ACTIVO ---
+  if (!config.absolute_mouse && !config.touchscreen_mode) {
+    read_frontscreen();
+    special(config.special_keys.nw,
+            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW),
+            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW));
+    special(config.special_keys.ne,
+            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE),
+            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE));
+    special(config.special_keys.sw,
+            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW),
+            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW));
+    special(config.special_keys.se,
+            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE),
+            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE));
+    // Si en el futuro se añade lógica de esquinas/special keys del frente, debe ir aquí dentro
+  }
+  // --- FIN BLOQUE SPECIAL KEYS/ESQUINAS DEL FRENTE ---
 
   sceRtcGetCurrentTick(&current);
 
@@ -511,6 +540,11 @@ inline void vitainput_process(void) {
   // Atajo: Start + L + R para pausar/desplegar menú de pausa
   if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_L1) && (pad.buttons & SCE_CTRL_R1)) {
     connection_minimize();
+  }
+
+  // Atajo: Start + Left para abrir el teclado
+  if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT)) {
+    open_keyboard();
   }
 
   // analogs
