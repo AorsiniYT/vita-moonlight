@@ -195,6 +195,12 @@ add_custom_target(param.sfo ALL
 	COMMAND vita-mksfoex -s TITLE_ID=${TITLE_ID} -s APP_VER=${APP_VER} "${TITLE}" param.sfo
 )
 
+# Actualizar versión en template.xml automáticamente antes de empaquetar el VPK (solo la línea visual)
+add_custom_target(update_template_version ALL
+    COMMAND sed -i '/<str size=\"18.*>v[0-9]*\.[0-9]*\.[0-9]*<\\/str>/s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}/' sce_sys/livearea/contents/template.xml
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 add_custom_target(${PROJECT_NAME}.vpk ALL
 	COMMAND vita-make-fself -s -c ${PROJECT_NAME}.velf eboot.bin
 	COMMAND vita-pack-vpk -s param.sfo -b eboot.bin
@@ -207,7 +213,7 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 )
 
 add_dependencies(${PROJECT_NAME}.velf ${PROJECT_NAME}.elf)
-add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo)
+add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo update_template_version)
 
 add_subdirectory(third_party)
 
