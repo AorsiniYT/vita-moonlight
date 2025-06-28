@@ -2,7 +2,12 @@
 
 Vita Moonlight Motion is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, and device management.
 
----
+## Upcoming Features
+
+- **Swap R1/L1 <-> R2/L2:** Option to swap the functions of R1/L1 and R2/L2 directly from the configuration menu, for greater flexibility and comfort.
+- **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
+
+Stay tuned for more improvements!
 
 ## How to open the Pause Menu
 
@@ -131,6 +136,6 @@ If you prefer to build manually:
 >
 > If the color does not look as expected, swap the byte order (use BGR instead of RGB).
 
----
 
 Thanks to all contributors and the Moonlight community!
+
