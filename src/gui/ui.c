@@ -57,7 +57,7 @@ void stop_host_scan() {}
 #endif
 
 int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
-  menu_entry *menu = (menu_entry*)context;
+  // menu_entry *menu = (menu_entry*)context; // Variable no usada
 #ifdef __vita__
   extern volatile int g_host_status_changed;
   extern volatile int g_host_scan_thread_status;
@@ -97,7 +97,7 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
       device_info_t *info = &known_devices.devices[host_idx];
       mdns_log("[UI] Mostrando diálogo de actualización de IP pendiente para %s: %s", info->name, pending_ip_update);
-      int res = ui_check_ip_update(info, pending_ip_update);
+      ui_check_ip_update(info, pending_ip_update); // Variable 'res' no usada
       // Tras recargar, buscar el puntero actualizado y loguear si no se encuentra
       device_info_t *updated = find_device(info->name);
       if (updated) {
@@ -137,6 +137,8 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
       exit_menu = 1;
     } else if (st.status == HOST_ONLINE) {
       mdns_log("[UI] Host %s is ONLINE. Connecting normally.", info->name);
+      mdns_log("[UI] Deteniendo escaneo de hosts antes de conectar");
+      stop_host_scan();
       ui_connect_paired_device(info);
       exit_menu = 2;
     } else {
@@ -158,16 +160,22 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
       break;
     case MAIN_MENU_CONNECT_RESUME:
       mdns_log("[UI] Seleccionado: Resume connection");
+      mdns_log("[UI] Deteniendo escaneo de hosts antes de reanudar conexión");
+      stop_host_scan();
       ui_connect_resume();
       exit_menu = 2;
       break;
     case MAIN_MENU_SETTINGS:
       mdns_log("[UI] Seleccionado: Settings");
+      mdns_log("[UI] Deteniendo escaneo de hosts antes de entrar a Settings");
+      stop_host_scan();
       ui_settings_menu();
       exit_menu = 0;
       break;
     case MAIN_MENU_QUIT:
       mdns_log("[UI] Seleccionado: Quit");
+      mdns_log("[UI] Deteniendo escaneo de hosts antes de salir");
+      stop_host_scan();
       if (connection_get_status() != LI_DISCONNECTED) {
         connection_terminate();
       }
@@ -248,11 +256,10 @@ int ui_main_menu() {
 #else
         st = check_host_status(cur);
 #endif
-        unsigned int color = 0;
-        const char* color_str = "";
-        // Mostrar amarillo si hay cambio de IP pendiente para este host
-        bool ip_changed = (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0);
-        bool ip_pending = (pending_ip_update_idx == i && pending_ip_update[0] != '\0');
+        // unsigned int color = 0; // No usado
+        // const char* color_str = ""; // No usado
+        // bool ip_changed = (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0); // No usado
+        // bool ip_pending = (pending_ip_update_idx == i && pending_ip_update[0] != '\0'); // No usado
         MENU_ENTRY(MAIN_MENU_CONNECT_PAIRED + i, cur->name, false);
         int real_idx = idx - 1;
         menu[real_idx].is_host_entry = true;

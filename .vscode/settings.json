@@ -11,6 +11,8 @@
         "clib.h": "c",
         "client.h": "c",
         "limelight.h": "c",
-        "expat.h": "c"
+        "expat.h": "c",
+        "check_host.h": "c",
+        "touchabsolute.h": "c"
     }
 }

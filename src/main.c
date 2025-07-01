@@ -26,6 +26,7 @@
 #include "platform.h"
 
 #include "input/vita.h"
+#include "input/touchabsolute.h"
 #include "input/keyboardkeys.h"
 #include "keyboardsystem.h"
 

@@ -71,7 +71,7 @@ typedef struct input_data {
 } input_data;
 
 void check_for_double_click(input_data *curr);
-inline void update_touch_points();
+static inline void update_touch_points();
 
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
@@ -478,15 +478,15 @@ inline void check_for_double_click(input_data *curr) {
 
 
 // Callback para enviar eventos de mouse absoluto
-static void send_absolute_mouse_event(int x, int y, bool down) {
-    if (down) {
-        // Usar las dimensiones de referencia de la pantalla Vita
-        LiSendMousePositionEvent(x, y, 960, 544);
-        LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
-    } else {
-        LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
-    }
-}
+// static void send_absolute_mouse_event(int x, int y, bool down) {
+//     if (down) {
+//         // Usar las dimensiones de referencia de la pantalla Vita
+//         LiSendMousePositionEvent(x, y, 960, 544);
+//         LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
+//     } else {
+//         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+//     }
+// }
 
 inline void vitainput_process(void) {
   memset(&pad, 0, sizeof(pad));
@@ -571,9 +571,9 @@ inline void vitainput_process(void) {
         LiSendMousePositionEvent(x, y, WIDTH, HEIGHT);
       }
       // Click izquierdo y derecho según número de dedos
-      static int prev_finger_count = 0;
-      static int left_down = 0;
-      static int right_down = 0;
+      static int prev_finger_count __attribute__((unused)) = 0;
+      static int left_down __attribute__((unused)) = 0;
+      static int right_down __attribute__((unused)) = 0;
       // Click izquierdo: solo con un dedo
       static int prev_one_finger = 0;
       if (touch.finger == 1 && !prev_one_finger) {
@@ -584,11 +584,11 @@ inline void vitainput_process(void) {
         prev_one_finger = 0;
       }
       // Scroll y click derecho con dos dedos (exclusivos)
-      static int two_finger_active = 0;
-      static int two_finger_scroll = 0;
-      static int two_finger_start_y = 0;
-      static int two_finger_last_y = 0;
-      static int right_click_sent = 0;
+      static int two_finger_active __attribute__((unused)) = 0;
+      static int two_finger_scroll __attribute__((unused)) = 0;
+      static int two_finger_start_y __attribute__((unused)) = 0;
+      static int two_finger_last_y __attribute__((unused)) = 0;
+      static int right_click_sent __attribute__((unused)) = 0;
       const int SCROLL_THRESHOLD = 12; // píxeles mínimos para considerar scroll
       if (touch.finger == 2) {
         int avg_y = (touch.points[0].y + touch.points[1].y) / 2;
@@ -683,7 +683,7 @@ inline void vitainput_process(void) {
     }
   } else if (config.touchscreen_mode) {
     // --- Touchscreen multitouch Sunshine tipo tableta gráfica ---
-    static bool mouse_released = false;
+    static bool mouse_released __attribute__((unused)) = false;
     if (!mouse_released) {
       LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
       LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
@@ -692,7 +692,7 @@ inline void vitainput_process(void) {
       vita_debug_log("[TOUCHSCREEN] Mouse liberado y fuera de pantalla");
       mouse_released = true;
     }
-    static uint8_t prev_finger_active[10] = {0};
+    static uint8_t prev_finger_active[10] __attribute__((unused)) = {0};
     for (int i = 0; i < 10; ++i) {
       int x = (i < touch.finger) ? touch.points[i].x : 0;
       int y = (i < touch.finger) ? touch.points[i].y : 0;
@@ -713,7 +713,7 @@ inline void vitainput_process(void) {
     }
     // NO bloque de mouse ni gestos
   } else {
-    static bool mouse_released = false;
+    static bool mouse_released __attribute__((unused)) = false;
     mouse_released = false;
     // mouse y gestos solo si no está en modo touchscreen
     switch (front_state) {
