@@ -1,6 +1,16 @@
-# Vita Moonlight Motion
+# Vita Moonlight
 
-Vita Moonlight Motion is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, and device management.
+Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
+
+## Documentation
+
+More information can find [moonlight-docs][1], [moonlight-embedded][2], and our [wiki][3].
+If you need more help, join the #vita-help channel in [discord][4].
+
+[1]: https://github.com/moonlight-stream/moonlight-docs/wiki
+[2]: https://github.com/irtimmer/moonlight-embedded/wiki
+[3]: https://github.com/xyzz/vita-moonlight/wiki
+[4]: https://discord.gg/atkmxxT
 
 ## Upcoming Features
 
@@ -80,15 +90,6 @@ Stay tuned for more improvements!
 
 ---
 
-## Credits
-
-- Current improvements and maintenance: **AorsiniYT**
-- Based on the work of:
-  - [MetalfaceScout/vita-moonlight-motion](https://github.com/MetalfaceScout/vita-moonlight-motion)
-  - [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight)
-  - [moonlight-stream/moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c)
-
----
 
 ## Build Requirements
 
