@@ -8,6 +8,9 @@
         "chrono": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "config.h": "c"
-}
+        "clib.h": "c",
+        "client.h": "c",
+        "limelight.h": "c",
+        "expat.h": "c"
+    }
 }
