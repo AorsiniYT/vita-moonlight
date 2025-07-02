@@ -1,0 +1,9 @@
+{
+    "dialog": {
+        "connect": "连接",
+        "settings": "设置",
+        "info": "信息",
+        "close": "关闭",
+        "title": "主机选项"
+    }
+}

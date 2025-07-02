@@ -1,220 +1,245 @@
-cmake_minimum_required(VERSION 3.2)
 
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-  if(DEFINED ENV{VITASDK})
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
-  else()
-    message(FATAL_ERROR "Please define VITASDK to point to your SDK path!")
-  endif()
+cmake_minimum_required(VERSION 3.10)
+
+set(BOREALIS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/borealis/library)
+
+# build options
+include(${BOREALIS_LIBRARY}/cmake/commonOption.cmake)
+
+# Dependencies
+option(USE_SHARED_LIB "Whether to use shared libs provided by system" OFF)
+cmake_dependent_option(USE_SYSTEM_FMT "" OFF "NOT USE_SHARED_LIB" ON)
+cmake_dependent_option(USE_SYSTEM_TINYXML2 "" OFF "NOT USE_SHARED_LIB" ON)
+cmake_dependent_option(USE_SYSTEM_TWEENY "" OFF "NOT USE_SHARED_LIB" ON)
+
+## Soporte solo para Windows y PSVita
+
+# toolchain
+include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
+
+# project info
+project(moonlight_vita)
+
+## Forzar rutas de OpenSSL para MinGW/Windows (antes de cualquier add_subdirectory o find_package)
+message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+if(WIN32)
+  set(OPENSSL_ROOT_DIR "${CMAKE_SOURCE_DIR}/openssl-mingw" CACHE PATH "" FORCE)
+  set(OPENSSL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/openssl-mingw/include" CACHE PATH "" FORCE)
+  set(OPENSSL_CRYPTO_LIBRARY "${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libcrypto.a" CACHE FILEPATH "" FORCE)
+  set(OPENSSL_SSL_LIBRARY "${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libssl.a" CACHE FILEPATH "" FORCE)
+  set(OPENSSL_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY};${OPENSSL_SSL_LIBRARY}" CACHE STRING "" FORCE)
 endif()
-add_compile_options(-g3 -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
-
-
-project(moonlight)
-
-include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
-# NOTE: To update the version shown in the UI and VPK, edit the following lines:
-#   set(VERSION_MAJOR "0")
-#   set(VERSION_MINOR "11")
-#   set(VERSION_PATCH "2")
-#
-
-set(TITLE_ID "XYZZ00002")
 set(TITLE "Moonlight")
-set(VERSION_MAJOR "0")
-set(VERSION_MINOR "12")
-set(VERSION_PATCH "1")
+set(VERSION_MAJOR "1")
+set(VERSION_MINOR "0")
+set(VERSION_ALTER "0")
+set(VERSION_BUILD "0")
+set(PSN_TITLE_ID  "MNLHTVITA")
+set(PSN_VERSION  "01.00")
+set(PROJECT_AUTHOR "AorsiniYT")
+set(PROJECT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/img/demo_icon.jpg)
+set(PROJECT_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 
-execute_process(COMMAND
-	python -c "print('%02d.%02d' % (${VERSION_MAJOR}, ${VERSION_MINOR}))"
-	OUTPUT_VARIABLE APP_VER
-)
-string(REPLACE "\n" "" APP_VER "${APP_VER}")
+if (USE_LIBROMFS)
+    add_libromfs(${PROJECT_NAME} ${PROJECT_RESOURCES})
+endif ()
 
-add_definitions(-DVERSION_MAJOR=${VERSION_MAJOR})
-add_definitions(-DVERSION_MINOR=${VERSION_MINOR})
-add_definitions(-DVERSION_PATCH=${VERSION_PATCH})
-
-set(CMAKE_C_FLAGS "-Wl,-q -g -std=c99 -D__vita__")
-
-
-
-include_directories(
-	include/
-	third_party/moonlight-common-c/src/
-	third_party/moonlight-common-c/reedsolomon/
-	libgamestream/
-	third_party/libuuid/src/
-	third_party/h264bitstream/
-	third_party/enet/include/
-	third_party/inih/
-	third_party/mdnsniff/
-)
-
-
-add_executable(${PROJECT_NAME}.elf
-	src/config.c
-	src/input/mapping.c
-	src/connection.c
-	src/debug.c
-	src/main.c
-	src/platform.c
-	src/util.c
-	src/device.c
-
-	src/audio/vita.c
-	src/video/vita.c
-	src/input/vita.c
-	src/power/vita.c
-	src/input/motion.c
-	src/graphics.c
-	src/font.c
-	src/gui/guilib.c
-	src/gui/ime.c
-	src/gui/ui.c
-	src/gui/ui_settings.c
-	src/gui/ui_connect.c
-	src/gui/ui_device.c
-	src/gui/ui_hotkey.c
-	src/gui/hotkey.c
-	src/gui/ui_check.c
-
-	libgamestream/client.c
-	libgamestream/http.c
-	libgamestream/mkcert.c
-	libgamestream/sps.c
-	libgamestream/xml.c
-
-	third_party/libuuid/src/clear.c
-	third_party/libuuid/src/compare.c
-	third_party/libuuid/src/copy.c
-	third_party/libuuid/src/gen_uuid.c
-	third_party/libuuid/src/isnull.c
-	third_party/libuuid/src/pack.c
-	third_party/libuuid/src/parse.c
-	third_party/libuuid/src/unpack.c
-	third_party/libuuid/src/unparse.c
-	third_party/libuuid/src/uuid_time.c
-
-	third_party/h264bitstream/h264_nal.c
-	third_party/h264bitstream/h264_sei.c
-	third_party/h264bitstream/h264_stream.c
-
-	third_party/moonlight-common-c/src/AudioStream.c
-	third_party/moonlight-common-c/src/ByteBuffer.c
-	third_party/moonlight-common-c/src/Connection.c
-	third_party/moonlight-common-c/src/ConnectionTester.c
-	third_party/moonlight-common-c/src/ControlStream.c
-	third_party/moonlight-common-c/src/FakeCallbacks.c
-	third_party/moonlight-common-c/src/InputStream.c
-	third_party/moonlight-common-c/src/LinkedBlockingQueue.c
-	third_party/moonlight-common-c/src/Misc.c
-	third_party/moonlight-common-c/src/Platform.c
-	third_party/moonlight-common-c/src/PlatformCrypto.c
-	third_party/moonlight-common-c/src/PlatformSockets.c
-	third_party/moonlight-common-c/src/RecorderCallbacks.c
-	third_party/moonlight-common-c/src/RtpAudioQueue.c
-	third_party/moonlight-common-c/src/RtpVideoQueue.c
-	third_party/moonlight-common-c/src/RtspConnection.c
-	third_party/moonlight-common-c/src/RtspParser.c
-	third_party/moonlight-common-c/src/SdpGenerator.c
-	third_party/moonlight-common-c/src/SimpleStun.c
-	third_party/moonlight-common-c/src/VideoDepacketizer.c
-	third_party/moonlight-common-c/src/VideoStream.c
-	third_party/moonlight-common-c/reedsolomon/rs.c
-
-	third_party/enet/callbacks.c
-	third_party/enet/compress.c
-	third_party/enet/host.c
-	third_party/enet/list.c
-	third_party/enet/packet.c
-	third_party/enet/peer.c
-	third_party/enet/protocol.c
-	third_party/enet/unix.c
-
-	third_party/inih/ini.c
-
-	src/keyboardsystem.c
-	src/input/keyboardkeys.c
-	src/gui/ui_keyboard.c
-	src/input/touchabsolute.c
-	src/check_host.c
-)
-
-# Forzar el enlace de mbedtls, mbedx509 y mbedcrypto para VitaSDK personalizado
-set(USE_MBEDTLS ON)
-
-# Por defecto, solo enlazamos curl y el resto de libs estándar:
-target_link_libraries(${PROJECT_NAME}.elf
-	-lexpat
-	-lcurl
-	-lmbedtls
-	-lmbedx509
-	-lmbedcrypto
-	moonlight-common-c
-	enet
-	h264bitstream
-	inih
-	libuuid
-	mdnsniff
-	-lz
-	-lssl
-	-lcrypto
-	-lopus
-	-lbz2
-	-lpthread
-	-lSceDisplay_stub
-	-lSceCtrl_stub
-	-lSceTouch_stub
-	-lSceNet_stub
-	-lSceNetCtl_stub
-	-lScePower_stub
-	-lSceVideodec_stub
-	-lSceCommonDialog_stub
-	-lSceAppMgr_stub
-	-lSceAudio_stub
-	-lSceIme_stub
-	-lSceMotion_stub
-	-lvita2d
-	-lSceGxm_stub
-	-lScePgf_stub
-	-lSceCommonDialog_stub
-	-lfreetype
-	-lpng
-	-ljpeg
-	-lz
-	-lm
-	-lc
-)
-
-add_custom_target(${PROJECT_NAME}.velf ALL
-	COMMAND vita-elf-create ${PROJECT_NAME}.elf ${PROJECT_NAME}.velf
-)
-
-add_custom_target(param.sfo ALL
-	COMMAND vita-mksfoex -s TITLE_ID=${TITLE_ID} -s APP_VER=${APP_VER} "${TITLE}" param.sfo
-)
-
-# Actualizar versión en template.xml automáticamente antes de empaquetar el VPK (solo la línea visual)
-add_custom_target(update_template_version ALL
-    COMMAND sed -i '/<str size=\"18.*>v[0-9]*\.[0-9]*\.[0-9]*<\\/str>/s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}/' sce_sys/livearea/contents/template.xml
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-add_custom_target(${PROJECT_NAME}.vpk ALL
-	COMMAND vita-make-fself -s -c ${PROJECT_NAME}.velf eboot.bin
-	COMMAND vita-pack-vpk -s param.sfo -b eboot.bin
-			--add ../sce_sys/icon0.png=sce_sys/icon0.png
-			--add ../sce_sys/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png
-			--add ../sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png
-			--add ../sce_sys/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml
-			--add ../assets/nerdfont.ttf=assets/nerdfont.ttf
-			${PROJECT_NAME}.vpk
-)
-
-add_dependencies(${PROJECT_NAME}.velf ${PROJECT_NAME}.elf)
-add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo update_template_version)
 
 add_subdirectory(third_party)
 
 
+
+
+find_package(Threads REQUIRED)
+list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
+
+# setting src and include
+
+list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/moonlight/include)
+file(GLOB_RECURSE MAIN_SRC moonlight/*.cpp)
+
+
+
+set(PLATFORM_OPTION)
+if (WIN32)
+    configure_file("${CMAKE_SOURCE_DIR}/moonlight/resource.rc.in" "${CMAKE_BINARY_DIR}/resource.rc")
+    list(APPEND MAIN_SRC ${CMAKE_BINARY_DIR}/resource.rc)
+    if (MINGW)
+        set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static" CACHE STRING "" FORCE)
+    endif ()
+elseif (PLATFORM_PSV)
+    add_definitions(-D__PSV__ -D__PSV__)
+endif ()
+
+
+
+# Configuración de curl y OpenSSL para MinGW/Windows
+if(WIN32)
+    include_directories(SYSTEM /usr/x86_64-w64-mingw32/include)
+    link_directories(/usr/x86_64-w64-mingw32/lib)
+    include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/openssl-mingw/include)
+    link_directories(${CMAKE_SOURCE_DIR}/openssl-mingw/lib)
+    add_definitions(-DOPENSSL_NO_SECURE_MEMORY)
+endif()
+
+# building target
+program_target(${PROJECT_NAME} "${MAIN_SRC}")
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
+
+# building release file
+if (WIN32)
+    add_custom_target(${PROJECT_NAME}.data
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory ${PROJECT_RESOURCES} ${CMAKE_CURRENT_BINARY_DIR}/resources
+    )
+    if (NOT USE_LIBROMFS)
+        add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}.data)
+    endif ()
+elseif (PLATFORM_PSV)
+    set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12") # max heap size mode
+    vita_create_self(${PROJECT_NAME}.self ${PROJECT_NAME} UNSAFE)
+    set(PSV_ASSETS_FILES ${CMAKE_SOURCE_DIR}/psv/sce_sys sce_sys)
+    if (NOT USE_LIBROMFS)
+        list(APPEND PSV_ASSETS_FILES ${CMAKE_SOURCE_DIR}/resources resources)
+    endif ()
+    if (NOT USE_GXM)
+        list(APPEND PSV_ASSETS_FILES ${CMAKE_SOURCE_DIR}/psv/module/ module)
+    endif ()
+    if (USE_VITA_SHARK)
+        list(APPEND PSV_ASSETS_FILES "${CMAKE_BINARY_DIR}/vendor/SceShaccCg" module)
+    endif ()
+    vita_create_vpk(${PROJECT_NAME}.vpk ${PSN_TITLE_ID} ${PROJECT_NAME}.self
+            VERSION ${PSN_VERSION}
+            NAME ${TITLE}
+            FILE ${PSV_ASSETS_FILES}
+
+    )
+endif ()
+
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/inih)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/moonlight-common-c/reedsolomon)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/moonlight-common-c/src)
+
+target_include_directories(${PROJECT_NAME} PRIVATE moonlight ${APP_PLATFORM_INCLUDE} ${CMAKE_SOURCE_DIR}/third_party ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/reedsolomon ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/src)
+target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
+target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff gamestream)
+
+
+
+
+if(PLATFORM_PSV)
+    # Enlaza todas las librerías de PSVita necesarias (igual que moonlight-legacy)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        -lSceVshBridge_stub
+        -lexpat
+        -lcurl
+        -lmbedtls
+        -lmbedx509
+        -lmbedcrypto
+        inih
+        mdnsniff
+        enet
+        h264bitstream
+        moonlight-common-c
+        gamestream
+        moonlight-common-c
+        gamestream
+        -lz
+        -lssl
+        -lcrypto
+        -lopus
+        -lbz2
+        -lpthread
+        -lSceDisplay_stub
+        -lSceCtrl_stub
+        -lSceTouch_stub
+        -lSceNet_stub
+        -lSceNetCtl_stub
+        -lScePower_stub
+        -lSceVideodec_stub
+        -lSceCommonDialog_stub
+        -lSceAppMgr_stub
+        -lSceAudio_stub
+        -lSceIme_stub
+        -lSceMotion_stub
+        -lvita2d
+        -lSceGxm_stub
+        -lScePgf_stub
+        -lSceCommonDialog_stub
+        -lfreetype
+        -lpng
+        -ljpeg
+        -lz
+        -lm
+        -lc
+    )
+    include_directories(
+    include/
+    third_party/moonlight-common-c/src/
+    third_party/moonlight-common-c/reedsolomon/
+    third_party/libgamestream/
+    third_party/h264bitstream/
+    third_party/enet/include/
+    third_party/inih/
+    third_party/mdnsniff/
+)
+endif()
+
+
+# Enlace de librerías para Windows (sin expat/XML, usando inih, emparejamiento requiere OpenSSL)
+if(WIN32)
+ # Asegura que el linker busque en la ruta de MinGW para expat y otras libs
+    target_link_directories(${PROJECT_NAME} PRIVATE /usr/x86_64-w64-mingw32/lib)
+    # 
+    # El orden de las librerías es crítico en MinGW/Windows
+    # Enlazamos contra los import libraries (.dll.a) de OpenSSL y curl
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        borealis
+        ${APP_PLATFORM_LIB}
+        inih
+        mdnsniff
+        enet
+        h264bitstream
+        moonlight-common-c
+        gamestream
+        moonlight-common-c
+        gamestream
+        z
+        ws2_32
+        crypt32
+        iphlpapi
+        winmm
+        bcrypt
+        rpcrt4
+        user32
+        gdi32
+        advapi32
+        shell32
+        /usr/x86_64-w64-mingw32/lib/libexpat.dll.a
+        ${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libssl.a
+        ${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libcrypto.a
+        ${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libcurl.dll.a
+    )
+    # Copia las DLLs de OpenSSL y libcurl al directorio de salida tras compilar
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/openssl-mingw/bin/libssl-1_1-x64.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/openssl-mingw/bin/libcrypto-1_1-x64.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/openssl-mingw/bin/libcurl-4.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "/usr/x86_64-w64-mingw32/bin/libexpat-1.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/third_party/moonlight-common-c/libmoonlight-common-c.dll"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif()

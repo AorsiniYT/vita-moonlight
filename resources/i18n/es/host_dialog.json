@@ -1,0 +1,28 @@
+{
+  "dialog": {
+    "title": "Acciones de host",
+    "connect": "Conectar",
+    "info": "Información",
+    "settings": "Ajustes"
+  },
+  "dropdown": {
+    "delete": "Eliminar host",
+    "pair_online": "Emparejar online fuera de casa",
+    "title": "Acciones para"
+  },
+  "connecting": "Conectando...",
+  "host_list_empty": "No hay hosts guardados",
+  "confirm_delete_msg": "¿Deseas eliminar el host?",
+  "yes": "Sí",
+  "no": "No",
+  "add_host_paired_success": "¡Host $(name) emparejado y guardado correctamente!",
+  "add_host_paired_error_deviceini": "Error: No se encontró device.ini tras el emparejamiento.",
+  "add_host_paired_error_failed": "Emparejamiento fallido. No se guardó el host.",
+  "pairing_title": "Emparejando...",
+  "pairing_connecting": "Conectando con el host y esperando PIN...",
+  "pairing_enter_pin": "Introduce este PIN en Sunshine: $(pin)",
+  "pairing_success": "Emparejamiento exitoso",
+  "pairing_error_init": "Error inicializando conexión con el host",
+  "pairing_error": "Error de emparejamiento: $(error)",
+  "notification_deleted": "Host eliminado con éxito"
+}

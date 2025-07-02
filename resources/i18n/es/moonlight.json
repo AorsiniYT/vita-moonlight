@@ -1,0 +1,69 @@
+{
+    "title": "Moonlight Vita",
+    "tabs": {
+        "settings": "Configuración",
+        "about": "Acerca de Moonlight Vita",
+        "add_host": "Añadir PC",
+        "hosts": "PCs guardados"
+    },
+    "welcome": "¡Bienvenido a la demo de borealis! Explora y descubre lo que la librería puede hacer.",
+    "components": {
+        "buttons_header": "Botones",
+        "button_primary": "Botón primario",
+        "button_highlight": "\uE13C  Botón destacado",
+        "button_wrapping": "Botón por defecto con texto largo",
+        "button_bordered": "Botón con borde",
+        "button_borderless": "Botón sin borde",
+        "slider_header": "Slider",
+        "labels_header": "Etiquetas",
+        "regular_label": "Esto es una etiqueta. Por defecto, se ajustan automáticamente y expanden su altura si hay espacio vertical. Si no, se truncarán, como algunas pestañas de la barra lateral.\nEsto es una etiqueta. Por defecto, se ajustan automáticamente y expanden su altura si hay espacio vertical. Si no, se truncarán, como algunas pestañas de la barra lateral.",
+        "label_left": "Esta etiqueta está alineada a la izquierda",
+        "label_center": "Esta etiqueta está centrada",
+        "label_right": "Esta etiqueta está alineada a la derecha",
+        "images_header_title": "Imágenes",
+        "images_header_subtitle": "Enfócalas para ver el método de escalado",
+        "images_downscaled": "Reducida",
+        "images_original": "Original",
+        "images_upscaled": "Aumentada",
+        "images_stretched": "Estirada",
+        "images_cropped": "Recortada"
+    },
+    "about": {
+        "title": "Moonlight Vita",
+        "description": "Cliente open source de NVIDIA GameStream para PlayStation Vita. Permite hacer streaming de juegos desde tu PC con Sunshine o GeForce Experience.",
+        "github": "Código fuente: github.com/AorsiniYT/Moonlight-Vita",
+        "licence": "Licencia: GPLv3",
+        "logo_credit": "Logo y UI adaptados para Vita. Basado en Borealis."
+    },
+    "settings": {
+        "add_host": "Añadir PC",
+        "add_host_desc": "Agrega un nuevo PC para hacer streaming",
+        "add_host_title": "Añadir PC",
+        "add_host_manual": "Nombre del PC",
+        "add_host_auto": "Buscar PC automáticamente",
+        "add_host_manual_msg": "Función para añadir PC manualmente (pendiente)",
+        "add_host_auto_msg": "Función para buscar PC automáticamente (pendiente)",
+        "add_host_ip_placeholder": "Ej: 192.168.1.100",
+        "add_host_name_placeholder": "Nombre del PC",
+        "add_host_missing_fields": "Debes ingresar IP y nombre",
+        "add_host_added": "Host añadido",
+        "add_host_not_implemented": "(Aún no implementado)",
+        "ip": "IP",
+        "dns": "DNS",
+        "notify": "Mostrar notificación",
+        "language": "Idioma",
+        "moonlight/settings/language": "Idioma",
+        "add_host_connection_type": "Tipo de conexión",
+        "add_host_lan": "LAN (local)",
+        "add_host_online": "Online (externo)",
+        "hosts_list_title": "PCs guardados",
+        "hosts_list_empty": "No hay PCs guardados"
+        ,
+        "add_host_connect_question_dialog": "¿Conectar con $(name) en $(ip)?",
+        "add_host_connect": "Conectar",
+        "add_host_cancel": "Cancelar"
+    },
+    "hints": {
+        "cancel": "Cancelar"
+    }
+}
