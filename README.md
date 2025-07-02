@@ -104,6 +104,10 @@ Stay tuned for more improvements!
 ## Quick Build
 
 1. Install dependencies with [vdpm](https://github.com/vitasdk/vdpm) if you haven't already.
+2. You must also install `mbedtls` manually:
+   ```sh
+   vdpm -f mbedtls
+   ```
 2. Make sure VitaSDK is installed and in your $PATH.
 3. Run:
    ```sh
