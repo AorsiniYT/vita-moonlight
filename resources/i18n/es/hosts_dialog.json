@@ -1,0 +1,9 @@
+{
+    "dialog": {
+        "connect": "Conectar",
+        "settings": "Ajustes",
+        "info": "Info",
+        "close": "Cerrar",
+        "title": "Opciones del host"
+    }
+}

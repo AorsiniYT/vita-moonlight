@@ -1,0 +1,28 @@
+{
+  "dialog": {
+    "title": "Host actions",
+    "connect": "Connect",
+    "info": "Info",
+    "settings": "Settings"
+  },
+  "dropdown": {
+    "delete": "Delete host",
+    "pair_online": "Pair online (outside home)",
+    "title": "Actions for"
+  },
+  "connecting": "Connecting...",
+  "host_list_empty": "No hosts saved",
+  "confirm_delete_msg": "Do you want to delete the host?",
+  "yes": "Yes",
+  "no": "No",
+  "add_host_paired_success": "Host $(name) paired and saved successfully!",
+  "add_host_paired_error_deviceini": "Error: device.ini not found after pairing.",
+  "add_host_paired_error_failed": "Pairing failed. Host was not saved.",
+  "pairing_title": "Pairing...",
+  "pairing_connecting": "Connecting to host and waiting for PIN...",
+  "pairing_enter_pin": "Enter this PIN in Sunshine: $(pin)",
+  "pairing_success": "Pairing successful",
+  "pairing_error_init": "Error initializing connection to host",
+  "pairing_error": "Pairing error: $(error)",
+  "notification_deleted": "Host deleted successfully"
+}

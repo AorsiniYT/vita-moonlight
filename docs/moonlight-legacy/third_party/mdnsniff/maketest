@@ -1,0 +1,97 @@
+#!/bin/bash
+set -e
+
+# Script para compilar y empaquetar el test de red/mdns para PSVita o Windows
+# Uso:
+#   ./maketest vita   # Compila para PSVita (por defecto)
+#   ./maketest win    # Compila para Windows (MinGW, usando toolchain-mingw.cmake)
+
+VITASDK=${VITASDK:-/usr/local/vitasdk}
+APP_NAME="test_vita_mdns"
+VPK_NAME="${APP_NAME}.vpk"
+VITA_IP="192.168.0.200"  # Cambia esto por la IP de tu PS Vita
+VITA_PORT=1337
+VITA_CONTROL_PORT=1338
+
+MODE="vita"
+if [ "$1" == "win" ]; then
+    MODE="win"
+fi
+
+if [ "$MODE" == "win" ]; then
+    BUILD_DIR="build_win"
+    TOOLCHAIN_FILE="toolchain-mingw.cmake"
+    rm -rf "$BUILD_DIR"
+    echo "[+] Compilando para Windows (MinGW) en $BUILD_DIR ..."
+    mkdir -p "$BUILD_DIR"
+    cd "$BUILD_DIR"
+    cmake -DCMAKE_TOOLCHAIN_FILE=../$TOOLCHAIN_FILE ..
+    make -j$(nproc)
+    echo -e "\n[+] Compilación Windows finalizada. Ejecutable generado en: $(pwd)"
+    exit 0
+fi
+
+# --- Modo PSVita (por defecto) ---
+BUILD_DIR="build_test"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+cmake -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake ..
+make -j$(nproc)
+
+# Buscar VPK generado
+if [ ! -f "$VPK_NAME" ]; then
+    VPK_NAME=$(find . -name '*.vpk' | head -n1)
+fi
+if [ ! -f "$VPK_NAME" ]; then
+    echo "[!] No se generó el VPK"
+    exit 1
+fi
+
+VPK_PATH="$(pwd)/$VPK_NAME"
+VPK_SIZE=$(du -h "$VPK_PATH" | cut -f1)
+echo -e "\n[+] Compilación exitosa! VPK: $VPK_PATH ($VPK_SIZE)"
+
+# Enviar a la PS Vita por FTP
+if command -v curl &>/dev/null; then
+    echo -e "\n[+] Enviando a la PS Vita por FTP..."
+    curl --ftp-method nocwd -T "$VPK_PATH" "ftp://${VITA_IP}:${VITA_PORT}/ux0:/ABM/"
+else
+    echo "[!] curl no encontrado. Copia manualmente $VPK_PATH a tu Vita."
+    exit 1
+fi
+
+# Lanzar VitaShell
+if command -v nc &>/dev/null; then
+    echo -e "\n[+] Abriendo VitaShell..."
+    echo "launch VITASHELL" | nc "$VITA_IP" "$VITA_CONTROL_PORT"
+else
+    echo "[!] nc (netcat) no encontrado. Lanza VitaShell manualmente."
+fi
+
+echo -e "\n==========================================="
+echo "Instrucciones:"
+echo "1. Ve a ux0:/ABM/ en VitaShell"
+echo "2. Instala $(basename "$VPK_PATH")"
+echo "3. Presiona O para volver al LiveArea"
+echo "4. Presiona ENTER aquí para iniciar la aplicación"
+echo "==========================================="
+
+# Esperar a que el usuario termine de instalar
+read -p "Presiona ENTER para iniciar la aplicación..."
+
+# 6. Obtener TITLE_ID desde CMakeLists.txt
+cd ..
+title_id=$(grep -Po 'set\(TITLE_ID\s+"\K[^"\)]+' CMakeLists.txt | head -n1)
+if [ -z "$title_id" ]; then
+    title_id="MDNS00001" # fallback
+fi
+cd "$BUILD_DIR"
+
+# 7. Iniciar la aplicación automáticamente
+if command -v nc &>/dev/null; then
+    echo -e "\n[+] Iniciando la aplicación ($title_id)..."
+    echo "launch $title_id" | nc "$VITA_IP" "$VITA_CONTROL_PORT"
+    echo "¡Aplicación iniciada! ($title_id)"
+else
+    echo "[!] nc (netcat) no encontrado. Inicia la app manualmente en la Vita."
+fi

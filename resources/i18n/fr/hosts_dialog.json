@@ -1,0 +1,9 @@
+{
+    "dialog": {
+        "connect": "Se connecter",
+        "settings": "Paramètres",
+        "info": "Infos",
+        "close": "Fermer",
+        "title": "Options de l'hôte"
+    }
+}

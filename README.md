@@ -1,146 +1,119 @@
-# Vita Moonlight
+![Moonlight Vita Logo](resources/img/demo_icon.jpg)
 
-Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
+# Moonlight Vita
 
-## Documentation
+Moonlight client for PlayStation Vita that allows you to stream games from your PC to your handheld console.
 
-More information can find [moonlight-docs][1], [moonlight-embedded][2], and our [wiki][3].
-If you need more help, join the #vita-help channel in [discord][4].
+## 🚀 Features
 
-[1]: https://github.com/moonlight-stream/moonlight-docs/wiki
-[2]: https://github.com/irtimmer/moonlight-embedded/wiki
-[3]: https://github.com/xyzz/vita-moonlight/wiki
-[4]: https://discord.gg/atkmxxT
+- User interface optimized for touchscreen and PS Vita controls
+- Low latency for a smooth gaming experience
+- Integration with Moonlight Game Streaming
+- UI based on Borealis, a modern user interface framework
 
-## Upcoming Features
+## 📦 Requirements
 
-- **Swap R1/L1 <-> R2/L2:** Option to swap the functions of R1/L1 and R2/L2 directly from the configuration menu, for greater flexibility and comfort.
-- **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
+- PlayStation Vita with firmware 3.60 or higher
+- Custom Firmware installed (H-encore, Henkaku, etc.)
+- PC with NVIDIA GameStream compatible GPU
+- Moonlight application installed on the host PC
 
-Stay tuned for more improvements!
+## 🛠️ Installation
 
-## How to open the Pause Menu
+1. Make sure you have Vitashell installed on your PS Vita
+2. Copy the `moonlight_vita.vpk` file to your PS Vita
+3. Install it using Vitashell
+4. Launch the application from LiveArea
 
-> **To open the pause menu at any time (even in any touch mode), press:**
-> 
-> **START + L + R**
->
-> This shortcut works regardless of the selected touch mode (Absolute Mouse or Touchscreen). Use it to access the in-game pause/options menu quickly.
+## 🔧 Building
 
----
+### Prerequisites
 
-## How to open the Floating Keyboard
+#### To build for PS Vita:
+- **Git**
+  - Latest stable version recommended
+  - [Download Git](https://git-scm.com/downloads)
 
-> **To open the elevated floating keyboard at any time, press:**
->
-> **START + LEFT**
->
-> This shortcut will always open the virtual keyboard in elevated mode, never covering the main screen. Works in all touch modes.
+#### To build for Windows (on Ubuntu):
+```bash
+# Install cross-compilation tools for Windows
+sudo apt update
+sudo apt install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 mingw-w64-tools
 
----
+# During installation, select "posix" when prompted
+# (Select option 1: x86_64-w64-mingw32)
 
-## What's New
-
-- **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
-- **Absolute Touch (beta):** Experimental support for absolute touch controls.
-- **Motion controls (gyroscope):** Play with motion aiming and gyro support for a more immersive experience.
-- **Elevated floating keyboard:** The virtual keyboard now appears above the app, never covering the main screen (see screenshot below).
-- **Updated libraries:** All dependencies and core libraries (moonlight-common-c, enet, inih) have been updated for better compatibility and stability.
-- **New modular mDNS sniffer:** Fast and reliable device discovery on your local network.
-- **Host status indicators:** Colored dots show if a host is online (green), offline (red), or needs IP update (yellow).
-- **IP change detection:** If a host changes its IP, you'll see a confirmation dialog with the old and new IP before updating.
-- **Manual refresh:** Press TRIANGLE (△) in the main menu or device search to refresh host/device status instantly.
-- **UI and logic robust to missing/empty host fields.**
-- **Improved debug logging and error handling.**
-- **Many bugfixes and code cleanups.**
-
----
-
-## Screenshots
-
-<p align="center">
-  <img src="docs/keyboard.jpg" alt="Floating keyboard in Steam app" width="400"/>
-  <br><b>Floating keyboard in a Steam app using Moonlight</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip1.png" alt="Host waiting for IP update (yellow)" width="400"/>
-  <br><b>Host waiting for IP update (yellow)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip2.png" alt="Host online (green)" width="400"/>
-  <br><b>Host online (green)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip3.png" alt="Host offline/disconnected (red)" width="400"/>
-  <br><b>Host offline/disconnected (red)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip4.png" alt="IP change confirmation dialog" width="400"/>
-  <br><b>IP change confirmation dialog (shows old/new IP)</b>
-</p>
-
-<p align="center">
-  <img src="docs/ip5.png" alt="Search device function" width="400"/>
-  <br><b>Search device function showing a found local device</b>
-</p>
-
----
-
-
-## Build Requirements
-
-- **VitaSDK** installed and configured on your system ([guide here](https://vitasdk.org/)).
-- **Submodules updated:**
-  ```sh
-  git submodule update --init
-  ```
-
----
-
-## Quick Build
-
-1. Install dependencies with [vdpm](https://github.com/vitasdk/vdpm) if you haven't already.
-2. You must also install `mbedtls` manually:
-   ```sh
-   vdpm -f mbedtls
-   ```
-2. Make sure VitaSDK is installed and in your $PATH.
-3. Run:
-   ```sh
-   ./makepsv
-   ```
-   This will generate a VPK file ready to install on your PS Vita.
-
----
-
-## Manual Build (optional)
-
-If you prefer to build manually:
-
-```sh
-# If you do git pull, make sure to update submodules first
- git submodule update --init
- mkdir build && cd build
- cmake ..
- make
+# Install additional required tools
+sudo apt install -y cmake make pkg-config
 ```
 
+### Building for PS Vita
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/AorsiniYT/Moonlight-Vita.git -b vita
+   cd Moonlight-Vita
+   ```
+
+2. Run the build script:
+   ```bash
+   chmod +x makepsv
+   ./makepsv
+   ```
+
+   The generated VPK file will be available in the `cmake-build-psv/` folder.
+
+### Building for Windows
+
+1. Make sure you have installed all the dependencies mentioned above.
+
+2. Run the build script:
+   ```bash
+   chmod +x makewin
+   ./makewin
+   ```
+
+   The generated executable will be available in the `build_mingw/` folder.
+
+3. Follow the on-screen instructions to install and run the application on your PS Vita.
+
+## 🎮 Usage
+
+1. Make sure your PC is on and Moonlight is configured
+2. Start the application on your PS Vita
+3. Select your PC from the list of available devices
+4. Enjoy game streaming!
+
+## 📚 Additional Documentation
+
+For more information about PS Vita development with Borealis, see:
+
+- [Borealis guide for PS Vita](https://github.com/xfangfang/borealis/wiki/PS-Vita) - Detailed setup and development instructions
+- [Advanced Borealis documentation](https://gist.github.com/xfangfang/305da139721ad4e96d7a9d9a1a550a9d) - Technical information about the framework
+
+## 📝 Notes
+
+- For best performance, a wired network connection on the PC is recommended
+- Adjust the quality settings in the app according to your connection
+- Some games may require additional configuration on the host PC
+
+## 🤝 Contributing
+
+Contributions are welcome. Please read the contribution guidelines before submitting changes.
+
+## 📄 License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+- Thanks to [Natinusala](https://github.com/natinusala), [xfangfang](https://github.com/xfangfang) and [XITRIX](https://github.com/XITRIX) for [borealis](https://github.com/xfangfang/borealis), the UI framework that makes this project possible.
+
+- Special thanks to:
+  - [MetalfaceScout](https://github.com/MetalfaceScout) for the tap implementation and important fixes for the Vita version.
+  - [xyzz](https://github.com/xyzz) for the original Moonlight port for PS Vita, which laid the foundation for this client.
+  - The [moonlight-stream](https://github.com/moonlight-stream/moonlight-common-c) team for their library, which enables connectivity with Sunshine and GeForce Experience.
+
 ---
 
-## Note about colors in vita2d
-
-> **Important:** The vita2d library interprets colors in BGRA format (not RGBA). For example:
-> - 0xFF00FFFF will appear **yellow** (not cyan)
-> - 0xFFFFFF00 will appear **blue** (not yellow)
-> - 0xFF00FF00 will appear **green** (correct)
-> - 0xFFFF0000 will appear **red** (correct)
->
-> If the color does not look as expected, swap the byte order (use BGR instead of RGB).
-
-
-Thanks to all contributors and the Moonlight community!
-
+Developed with ❤️ for the PS Vita community

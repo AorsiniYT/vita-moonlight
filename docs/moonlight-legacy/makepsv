@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Navegar al directorio del proyecto
+cd "$(dirname "$0")"
+
+# Obtener TITLE_ID desde CMakeLists.txt
+title_id=$(grep -Po 'set\(TITLE_ID\s+"\K[^"]+' CMakeLists.txt | head -n1)
+if [ -z "$title_id" ]; then
+    echo "[!] No se pudo encontrar TITLE_ID en CMakeLists.txt"
+    exit 1
+fi
+
+# Configuración
+VITA_IP="192.168.0.198"  # Cambia esto por la IP de tu PS Vita
+VITA_PORT=1337
+VITA_CONTROL_PORT=1338
+VPK_PATH="build/moonlight.vpk"
+
+# Compilar con cmake y make
+echo "[+] Iniciando compilación para PS Vita..."
+mkdir -p build
+cd build
+cmake ..
+if [ $? -ne 0 ]; then
+    echo "[!] Error en cmake. Abortando."
+    exit 1
+fi
+make -j$(nproc)
+if [ $? -ne 0 ]; then
+    echo "[!] Error en la compilación. Abortando."
+    exit 1
+fi
+cd ..
+
+# Verificar si se generó el VPK
+if [ ! -f "$VPK_PATH" ]; then
+    echo "[!] Error: No se generó el VPK"
+    ls -la build/
+    exit 1
+fi
+
+VPK_SIZE=$(du -h "$VPK_PATH" | cut -f1)
+echo -e "\n[+] Compilación exitosa! VPK: $VPK_PATH ($VPK_SIZE)"
+
+# Enviar a la PS Vita
+echo -e "\n[+] Enviando a la PS Vita..."
+curl --ftp-method nocwd -T "$VPK_PATH" "ftp://${VITA_IP}:${VITA_PORT}/ux0:/ABM/"
+
+# Lanzar VitaShell
+echo -e "\n[+] Abriendo VitaShell..."
+echo "launch VITASHELL" | nc "$VITA_IP" "$VITA_CONTROL_PORT"
+
+echo -e "\n==========================================="
+echo "Instrucciones:"
+echo "1. Ve a ux0:/ABM/ en VitaShell"
+echo "2. Instala $(basename "$VPK_PATH")"
+echo "3. Presiona O para volver al LiveArea"
+echo "4. Presiona ENTER aquí para iniciar la aplicación"
+echo "==========================================="
+
+# Esperar a que el usuario termine de instalar
+read -p "Presiona ENTER para iniciar la aplicación..."
+
+# Iniciar la aplicación automáticamente
+echo -e "\n[+] Iniciando la aplicación ($title_id)..."
+echo "launch $title_id" | nc "$VITA_IP" "$VITA_CONTROL_PORT"
+echo "¡Aplicación iniciada! ($title_id)"
+
+echo -e "\nCompilación completada. Archivos generados en el directorio build/"

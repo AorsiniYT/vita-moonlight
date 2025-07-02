@@ -1,0 +1,68 @@
+{
+    "title": "Moonlight Vita",
+    "tabs": {
+        "settings": "Settings",
+        "about": "About Moonlight Vita",
+        "add_host": "Add Host",
+        "hosts": "Hosts"
+    },
+    "welcome": "Welcome to the Moonlight Vita! Feel free to explore and discover what the library can do.",
+    "components": {
+        "buttons_header": "Buttons",
+        "button_primary": "Primary button",
+        "button_highlight": "\uE13C  Highlight button",
+        "button_wrapping": "Default button with wrapping text",
+        "button_bordered": "Bordered button",
+        "button_borderless": "Borderless button",
+        "slider_header": "Slider",
+        "labels_header": "Labels",
+        "regular_label": "This is a label. By default, they will automatically wrap and expand their height, should the remaining vertical space allow it. Otherwise, they will be truncated, like some of the tabs of the sidebar.\nThis is a label. By default, they will automatically wrap and expand their height, should the remaining vertical space allow it. Otherwise, they will be truncated, like some of the tabs of the sidebar.",
+        "label_left": "This label is left-aligned",
+        "label_center": "This label is center-aligned",
+        "label_right": "This label is right-aligned",
+        "images_header_title": "Images",
+        "images_header_subtitle": "Focus them to see the scaling method",
+        "images_downscaled": "Downscaled",
+        "images_original": "Original",
+        "images_upscaled": "Upscaled",
+        "images_stretched": "Stretched",
+        "images_cropped": "Cropped"
+    },
+    "about": {
+        "title": "Moonlight Vita",
+        "description": "Open source NVIDIA GameStream client for PlayStation Vita. Stream your PC games with Sunshine or GeForce Experience.",
+        "github": "Source code: github.com/AorsiniYT/Moonlight-Vita",
+        "licence": "License: GPLv3",
+        "logo_credit": "Logo and UI adapted for Vita. Based on Borealis."
+    },
+    "settings": {
+        "add_host": "Add Host",
+        "add_host_desc": "Add a new PC for streaming",
+        "add_host_title": "Add Host",
+        "add_host_manual": "Host name",
+        "add_host_auto": "Search PC automatically",
+        "add_host_manual_msg": "Function to add PC manually (pending)",
+        "add_host_auto_msg": "Function to search PC automatically (pending)",
+        "add_host_ip_placeholder": "e.g. 192.168.1.100",
+        "add_host_name_placeholder": "Host name",
+        "add_host_missing_fields": "You must enter IP and name",
+        "add_host_added": "Host added",
+        "add_host_not_implemented": "(Not implemented yet)",
+        "ip": "IP",
+        "dns": "DNS",
+        "notify": "Post a notification",
+        "language": "Language",
+        "add_host_connection_type": "Connection type",
+        "add_host_lan": "LAN (local)",
+        "add_host_online": "Online (external)",
+        "moonlight/settings/language": "Language",
+        "hosts_list_title": "Saved PCs",
+        "hosts_list_empty": "No saved PCs",
+        "add_host_connect_question_dialog": "Connect to $(name) at $(ip)?",
+        "add_host_connect": "Connect",
+        "add_host_cancel": "Cancel"
+    },
+    "hints": {
+        "cancel": "Cancel"
+    }
+}
