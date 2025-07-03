@@ -40,19 +40,50 @@
                     axis="row"
                     marginBottom="@style/about/description_margin">
 
-                    <brls:Label
+                    <brls:Box
                         width="40%"
                         height="auto"
-                        text="@i18n/moonlight/about/title"
-                        fontSize="36"
-                        horizontalAlign="right"
-                        verticalAlign="top" />
+                        axis="column"
+                        alignItems="flexStart"
+                        justifyContent="flexStart">
+
+                        <brls:Label
+                            width="auto"
+                            height="auto"
+                            text="@i18n/moonlight/about/title"
+                            fontSize="36"
+                            horizontalAlign="left"
+                            verticalAlign="top"
+                            marginBottom="20" />
+
+                        <brls:Label
+                            width="100%"
+                            height="auto"
+                            text="@i18n/moonlight/about/author"
+                            fontSize="22"
+                            textColor="#FFD700"
+                            horizontalAlign="left"
+                            marginBottom="8" />
+
+                        <brls:Label
+                            width="100%"
+                            height="auto"
+                            text="@i18n/moonlight/about/original_creators"
+                            fontSize="20"
+                            textColor="#00B0FF"
+                            horizontalAlign="left"
+                            marginBottom="8" />
+                    </brls:Box>
 
                     <brls:Label
                         width="auto"
                         height="auto"
                         text="@i18n/moonlight/about/description"
-                        marginLeft="@style/about/description_margin" />
+                        fontSize="18"
+                        marginLeft="@style/about/description_margin"
+                        marginRight="@style/about/description_margin"
+                        horizontalAlign="left"
+                        verticalAlign="top" />
 
                 </brls:Box>
 
@@ -61,23 +92,40 @@
                     height="auto"
                     axis="column"
                     alignItems="center"
-                    justifyContent="spaceEvenly"
+                    justifyContent="flexStart"
                     grow="1.0" >
 
+                    <!-- Resto de información -->
                     <brls:Label
                         width="auto"
                         height="auto"
-                        text="@i18n/moonlight/about/github" />
+                        text="@i18n/moonlight/about/moonlight_repo"
+                        fontSize="20"
+                        textColor="#00C853"
+                        marginBottom="8" />
 
                     <brls:Label
                         width="auto"
                         height="auto"
-                        text="@i18n/moonlight/about/licence" />
+                        text="@i18n/moonlight/about/github"
+                        fontSize="20"
+                        textColor="#FFA500"
+                        marginBottom="8" />
 
                     <brls:Label
                         width="auto"
                         height="auto"
-                        text="@i18n/moonlight/about/logo_credit" />
+                        text="@i18n/moonlight/about/licence"
+                        fontSize="18"
+                        textColor="#B0B0B0"
+                        marginBottom="8" />
+
+                    <brls:Label
+                        width="auto"
+                        height="auto"
+                        text="@i18n/moonlight/about/logo_credit"
+                        fontSize="16"
+                        textColor="#A0A0A0" />
 
                 </brls:Box>
 

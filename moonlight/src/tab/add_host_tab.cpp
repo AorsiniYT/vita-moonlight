@@ -130,7 +130,6 @@ AddHostTab::AddHostTab() {
         // Botón de emparejar manual (Add Host Manual)
         this->addButton->registerClickAction([this](brls::View*) {
             brls::Logger::info("[AddHostTab][MANUAL] Emparejamiento manual iniciado");
-            // Protección extra: Si el descubrimiento sigue activo, mostrar mensaje y no iniciar pairing
 #if defined(__PSV__)
             if (AddHostTab::vitaInstance != nullptr) {
                 check_host::stopVitaDiscovery();
@@ -154,63 +153,27 @@ AddHostTab::AddHostTab() {
                 return true;
             }
 #endif
-            std::string ip = ipInput;
-            int port = 47989;
-            size_t colon = ipInput.find(":");
-            if (colon != std::string::npos) {
-                ip = ipInput.substr(0, colon);
-                try {
-                    port = std::stoi(ipInput.substr(colon + 1));
-                } catch (...) {
-                    port = 47989;
-                }
-            }
-            // --- Instrumentación de tiempos para diagnóstico de lentitud ---
-            auto t_start = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t0 Antes de abrir diálogo 'Conectando': {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_start.time_since_epoch()).count());
-            brls::Logger::info("[AddHostTab] Click en Añadir Host: ipInput='{}', name='{}', ip='{}', port={}", ipInput, name, ip, port);
-            brls::Logger::info("[AddHostTab][LOG] add host: ipInput='{}', name='{}', ip='{}', port={}", ipInput, name, ip, port);
-
-            // --- Gestión robusta y asíncrona de pairing en hilo dedicado ---
             // Cancelar cualquier pairing anterior
             if (this->pairingContext) this->pairingContext->cancelled = true;
             if (this->pairingThread.joinable()) this->pairingThread.join();
-
-            // Crear nuevo contexto y diálogo
             this->pairingContext = std::make_shared<PairingContext>();
             auto context = this->pairingContext;
-            auto connectingDialog = new brls::Dialog(brls::getStr("host_dialog/connecting"));
-            connectingDialog->setCancelable(false);
-            connectingDialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [connectingDialog, context]() {
-                brls::Logger::info("[AddHostTab][LOG] Botón Cancelar pulsado. Deteniendo pairing global (el cierre de diálogos lo gestiona AddHostTab).");
-                context->cancelled = true;
-                stopPairing();
-                connectingDialog->dismiss();
-            });
-#if defined(__PSV__)
-            if (this->ipField)
-                this->ipField->setHideHighlight(true);
-#endif
-            brls::Logger::info("[AddHostTab] Abriendo diálogo 'Conectando'.");
-            connectingDialog->open();
-
-            // Manejar pairing con la API real (sin progreso granular)
+            // Lógica de pairing: delegar la UI del diálogo a pairing.cpp
+            brls::Application::blockInputs();
             auto weakSelf = this->weak_from_this();
-            startMoonlightPairingWithPopupCustomDialog(ipInput, name, connectingDialog, &(context->cancelled),
-                [weakSelf, connectingDialog](bool pairingSuccess) {
-                    auto self = weakSelf.lock();
-                    if (!self) return;
-                    brls::sync([self, connectingDialog, pairingSuccess]() {
-                        connectingDialog->dismiss();
-                        if (pairingSuccess) {
-                            if (self->ipField) self->ipField->setValue("");
-                            if (self->nameField) self->nameField->setValue("");
-                            if (self->preferExternalSelector) self->preferExternalSelector->setSelection(0);
-                            self->refreshHostsList();
-                        }
-                    });
-                }
-            );
+            startMoonlightPairingWithPopup(ipInput, name, [weakSelf](bool pairingSuccess) {
+                auto self = weakSelf.lock();
+                if (!self) return;
+                brls::sync([self, pairingSuccess]() {
+                    brls::Application::unblockInputs();
+                    if (pairingSuccess) {
+                        if (self->ipField) self->ipField->setValue("");
+                        if (self->nameField) self->nameField->setValue("");
+                        if (self->preferExternalSelector) self->preferExternalSelector->setSelection(0);
+                        self->refreshHostsList();
+                    }
+                });
+            });
             return true;
         });
     }

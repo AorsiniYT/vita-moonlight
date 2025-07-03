@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
     if(_vshKernelSearchModuleByName("CapUnlocker", search_unk) >= 0) {
         brls::Logger::info("[CapUnlocker] ¡CapUnlocker detectado por _vshKernelSearchModuleByName!");
         brls::sync([]() {
-            brls::Application::notify("¡CapUnlocker detectado! Se habilitarán los 4 núcleos y RAM extendida.");
+            brls::Application::notify("moonlight/capunlocker_notify"_i18n);
         });
         int res1 = sceKernelChangeThreadPriority(SCE_KERNEL_THREAD_ID_SELF, 64);
         int res2 = sceKernelChangeThreadCpuAffinityMask(SCE_KERNEL_THREAD_ID_SELF, 0xF);
@@ -106,7 +106,9 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    // Add custom values to the style
+    // El estilo visual de los labels de "about" (fuente y color) se aplica en el controlador de la vista correspondiente
+    // usando setFontSize y setTextColor tras obtener cada Label por su id.
+    // Aquí solo se mantienen las métricas de padding/margen si el layout XML las utiliza.
     brls::getStyle().addMetric("about/padding_top_bottom", 50);
     brls::getStyle().addMetric("about/padding_sides", 75);
     brls::getStyle().addMetric("about/description_margin", 50);

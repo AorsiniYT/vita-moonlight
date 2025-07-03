@@ -6,6 +6,7 @@
         "add_host": "Añadir PC",
         "hosts": "PCs guardados"
     },
+    "capunlocker_notify": "¡CapUnlocker detectado! Se habilitarán los 4 núcleos y RAM extendida.",
     "welcome": "¡Bienvenido a la demo de borealis! Explora y descubre lo que la librería puede hacer.",
     "components": {
         "buttons_header": "Botones",
@@ -31,6 +32,9 @@
     "about": {
         "title": "Moonlight Vita",
         "description": "Cliente open source de NVIDIA GameStream para PlayStation Vita. Permite hacer streaming de juegos desde tu PC con Sunshine o GeForce Experience.",
+        "author": "Autor: AorsiniYT",
+        "original_creators": "Port original de Vita: xyzz, d3m3vilurr, cgutman",
+        "moonlight_repo": "Moonlight original: github.com/moonlight-stream",
         "github": "Código fuente: github.com/AorsiniYT/Moonlight-Vita",
         "licence": "Licencia: GPLv3",
         "logo_credit": "Logo y UI adaptados para Vita. Basado en Borealis."
@@ -65,5 +69,6 @@
     },
     "hints": {
         "cancel": "Cancelar"
-    }
+    },
+    "host_dialog/connecting": "Generando certificados..."
 }
