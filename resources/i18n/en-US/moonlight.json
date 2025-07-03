@@ -1,3 +1,4 @@
+    
 {
     "title": "Moonlight Vita",
     "tabs": {
@@ -6,6 +7,7 @@
         "add_host": "Add Host",
         "hosts": "Hosts"
     },
+    "capunlocker_notify": "CapUnlocker detected! All 4 cores and extended RAM will be enabled.",
     "welcome": "Welcome to the Moonlight Vita! Feel free to explore and discover what the library can do.",
     "components": {
         "buttons_header": "Buttons",
@@ -31,7 +33,10 @@
     "about": {
         "title": "Moonlight Vita",
         "description": "Open source NVIDIA GameStream client for PlayStation Vita. Stream your PC games with Sunshine or GeForce Experience.",
-        "github": "Source code: github.com/AorsiniYT/Moonlight-Vita",
+        "author": "Author: AorsiniYT",
+        "original_creators": "Original Vita port: xyzz, d3m3vilurr, cgutman",
+        "moonlight_repo": "Original Moonlight: github.com/moonlight-stream",
+        "github": "Source code: github.com/xyzz/vita-moonlight",
         "licence": "License: GPLv3",
         "logo_credit": "Logo and UI adapted for Vita. Based on Borealis."
     },
@@ -64,5 +69,6 @@
     },
     "hints": {
         "cancel": "Cancel"
-    }
+    },
+    "host_dialog/connecting": "Generating certificates..."
 }

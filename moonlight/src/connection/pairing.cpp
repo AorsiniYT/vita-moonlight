@@ -41,6 +41,8 @@ extern "C" {
 // Estructura para manejar el popup y el estado
 struct PairingPopupContext {
     brls::Dialog* dialog;
+    brls::Label* label;
+    brls::ProgressSpinner* spinner; // NUEVO: puntero al spinner
     std::atomic<bool>* finished;
     std::atomic<bool>* success;
     std::string pin;
@@ -48,11 +50,19 @@ struct PairingPopupContext {
 
 
 // Función para mostrar mensajes en el popup
-static void showPopupMessage(PairingPopupContext* ctx, const std::string& msg) {
-    if (ctx && ctx->dialog) {
-        brls::sync([ctx, msg] {
-            ctx->dialog->setText(msg);
+static void showPopupMessage(PairingPopupContext* ctx, const std::string& msg, bool hideSpinner = false) {
+    if (ctx && ctx->dialog && ctx->label) {
+        brls::sync([ctx, msg, hideSpinner] {
+            ctx->label->setText(msg);
+            // Solo ocultar el spinner si hideSpinner es true, si no, mostrarlo
+            if (ctx->spinner) {
+                if (hideSpinner)
+                    ctx->spinner->setVisibility(brls::Visibility::GONE);
+                else
+                    ctx->spinner->setVisibility(brls::Visibility::VISIBLE);
+            }
         });
+        // Ya no se cierra el diálogo aquí, solo se muestra el mensaje de éxito.
     }
 }
 
@@ -83,10 +93,11 @@ void stopPairing() {
 
 
 // Nueva versión: usa un diálogo externo y permite cancelación
-void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const std::string& hostName, brls::Dialog* dialog, std::atomic<bool>* cancelled, std::function<void(bool)> onFinished) {
+void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const std::string& hostName, brls::Dialog* dialog, std::atomic<bool>* cancelled, std::function<void(bool)> onFinished, brls::Label* label, brls::ProgressSpinner* spinner) {
+    printf("[PAIRING][DEBUG] Flag cancelled (ptr=%p) valor inicial: %d\n", (void*)cancelled, (int)cancelled->load());
     auto finished = new std::atomic<bool>(false);
     auto success = new std::atomic<bool>(false);
-    auto* popupCtx = new PairingPopupContext{dialog, finished, success, ""};
+    auto* popupCtx = new PairingPopupContext{dialog, label, spinner, finished, success, ""};
 
     // Registrar los flags globales para poder cancelar desde fuera
     g_pairing_cancelled = cancelled;
@@ -160,12 +171,24 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
     };
 #endif
 
-    // ...código previo igual...
-    printf("[PAIRING] Iniciando emparejamiento con host: %s, nombre: %s\n", hostIp.c_str(), hostName.c_str());
+    // --- Parseo de IP y puerto ---
+    std::string ip = hostIp;
+    int port = 47989;
+    size_t colon = hostIp.find(":");
+    if (colon != std::string::npos) {
+        ip = hostIp.substr(0, colon);
+        try {
+            port = std::stoi(hostIp.substr(colon + 1));
+        } catch (...) {
+            port = 47989;
+        }
+    }
+
+    printf("[PAIRING] Iniciando emparejamiento con host: %s, nombre: %s, puerto: %d\n", ip.c_str(), hostName.c_str(), port);
     auto t_start = std::chrono::high_resolution_clock::now();
     SERVER_DATA server = {};
     char address[256];
-    strncpy(address, hostIp.c_str(), sizeof(address));
+    strncpy(address, ip.c_str(), sizeof(address));
     address[sizeof(address)-1] = '\0';
 
     // --- LOG DE PERF: Antes de cargar configuración ---
@@ -223,7 +246,7 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
         printf("[PAIRING][LOG] Directorio de llaves creado: %s\n", hostDir.c_str());
     }
 
-    int logLevel = 1;
+    int logLevel = 2;
     bool unsupported = false;
 
     // --- Popup de cancelación bloqueante ---
@@ -235,7 +258,7 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
         printf("[PAIRING][PERF] tG Antes de gs_init: %.3f ms\n", std::chrono::duration<double, std::milli>(t_before_gsinit.time_since_epoch()).count());
         printf("[PAIRING][PERF] Antes de gs_init\n");
         printf("[PAIRING] Llamando a gs_init con keyDir='%s'...\n", keyDir);
-        printf("[PAIRING][DEBUG][REQUEST] gs_init params: address='%s', port=%d, keyDir='%s', logLevel=%d, unsupported=%d\n", address, 47989, keyDir, logLevel, unsupported);
+        printf("[PAIRING][DEBUG][REQUEST] gs_init params: address='%s', port=%d, keyDir='%s', logLevel=%d, unsupported=%d\n", address, port, keyDir, logLevel, unsupported);
 
         #if defined(__PSV__)
         // --- Lanzar hilo nativo PSVita para gs_init ---
@@ -253,19 +276,19 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
             printf("[PAIRING][DEBUG] Resultado de sceKernelWaitThreadEnd: %d\n", waitRes); fflush(stdout);
         } else {
             printf("[PAIRING][ERROR] No se pudo crear hilo nativo para gs_init, usando fallback.\n"); fflush(stdout);
-            initRes = gs_init(&server, address, 47989, keyDir, logLevel, unsupported);
+            initRes = gs_init(&server, address, port, keyDir, logLevel, unsupported);
             t_gsinit_end = std::chrono::high_resolution_clock::now();
         }
         #else
         auto t_gsinit_start = std::chrono::high_resolution_clock::now();
-        int initRes = gs_init(&server, address, 47989, keyDir, logLevel, unsupported);
+        int initRes = gs_init(&server, address, port, keyDir, logLevel, unsupported);
         auto t_gsinit_end = std::chrono::high_resolution_clock::now();
         #endif
         double ms_gsinit = std::chrono::duration<double, std::milli>(t_gsinit_end-t_gsinit_start).count();
         printf("[PAIRING][PERF] Después de gs_init\n"); fflush(stdout);
         printf("[PAIRING][DEBUG][RESPONSE] gs_init result: %d (duración: %.2f ms)\n", initRes, ms_gsinit); fflush(stdout);
         printf("[PAIRING][PERF] Tiempo total desde t_start hasta fin de gs_init: %.2f ms\n", std::chrono::duration<double, std::milli>(t_gsinit_end-t_start).count()); fflush(stdout);
-
+        printf("[PAIRING][DEBUG] Valor de *cancelled tras gs_init: %d\n", (int)cancelled->load());
         // --- NUEVO: Si se canceló durante gs_init, salir seguro aquí ---
         if (*cancelled) {
             printf("[PAIRING][CANCEL] Cancelación detectada tras gs_init. Saliendo seguro antes de continuar.\n"); fflush(stdout);
@@ -303,13 +326,14 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
             size_t pos = msg.find("$(pin)");
             if (pos != std::string::npos)
                 msg.replace(pos, 6, pin);
-            if (!*cancelled) showPopupMessage(popupCtx, msg);
+            if (!*cancelled) showPopupMessage(popupCtx, msg, true); // true = ocultar spinner
         }
 
         // Llamar a gs_pair (esto realiza el pairing real)
+        printf("[PAIRING][DEBUG] Valor de *cancelled antes de gs_pair: %d\n", (int)cancelled->load());
         printf("[PAIRING][PERF] Antes de gs_pair\n");
         printf("[PAIRING] Llamando a gs_pair...\n");
-        printf("[PAIRING][DEBUG][REQUEST] gs_pair params: address='%s', pin='%s', port=%d\n", address, pin, 47989);
+        printf("[PAIRING][DEBUG][REQUEST] gs_pair params: address='%s', pin='%s', port=%d\n", address, pin, port);
         auto t_gspair_start = std::chrono::high_resolution_clock::now();
         int pairRes = -1;
         if (!*cancelled)
@@ -340,6 +364,8 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
                 printf("[PAIRING][ERROR] No se pudo crear device.ini en: %s\n", (hostDir + "/device.ini").c_str());
             }
             *success = true;
+            // Esperar 1 segundo para que el usuario vea el mensaje de éxito antes de cerrar el popup
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             if (onFinished) onFinished(true);
         } else {
             std::string err = brls::getStr("host_dialog/pairing_error");
@@ -369,9 +395,42 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
         while (!finished->load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
+        // Siempre desbloquear inputs y cerrar el diálogo si sigue visible
         brls::sync([dialog]() {
-            dialog->close();
+            dialog->dismiss();
+            brls::Application::unblockInputs();
         });
         delete finished;
     }).detach();
+}
+
+void startMoonlightPairingWithPopup(const std::string& hostIp, const std::string& hostName, std::function<void(bool)> onFinished) {
+    // Crear un diálogo sin botones, solo con texto y spinner
+    auto* holder = new brls::Box(brls::Axis::COLUMN);
+    auto* label = new brls::Label();
+    label->setText(brls::getStr("host_dialog/connecting"));
+    label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+    label->setMarginBottom(21);
+    auto* spinner = new brls::ProgressSpinner(brls::ProgressSpinnerSize::LARGE);
+    spinner->View::setSize(brls::Size(92, 92));
+    holder->addView(label);
+    holder->addView(spinner);
+    holder->setAlignItems(brls::AlignItems::CENTER);
+    holder->setJustifyContent(brls::JustifyContent::CENTER);
+    holder->setPadding(28, 28, 28, 28);
+    auto* connectingDialog = new brls::Dialog(holder);
+    connectingDialog->setCancelable(false);
+    connectingDialog->setFocusable(true);
+    connectingDialog->setHideHighlight(true);
+    connectingDialog->open();
+    // Bloquear inputs globales para evitar movimiento de fondo
+    brls::Application::blockInputs();
+    // Flag de cancelación local
+    static std::atomic<bool> global_cancelled(false);
+    global_cancelled = false; // Siempre reiniciar antes de cada pairing
+    printf("[PAIRING][DEBUG] Reiniciando flag global_cancelled a %d antes de pairing.\n", (int)global_cancelled.load());
+    startMoonlightPairingWithPopupCustomDialog(hostIp, hostName, connectingDialog, &global_cancelled, [onFinished](bool pairingSuccess) {
+        brls::Application::unblockInputs();
+        if (onFinished) onFinished(pairingSuccess);
+    }, label, spinner);
 }

@@ -4,6 +4,11 @@
 
 Moonlight client for PlayStation Vita that allows you to stream games from your PC to your handheld console.
 
+## 🔥 Upcoming Features
+
+- **Swap R1/L1 <-> R2/L2:** Option to swap the functions of R1/L1 and R2/L2 directly from the configuration menu, for greater flexibility and comfort.
+- **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
+
 ## 🚀 Features
 
 - User interface optimized for touchscreen and PS Vita controls
@@ -108,11 +113,7 @@ This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE
 ## Credits
 
 - Thanks to [Natinusala](https://github.com/natinusala), [xfangfang](https://github.com/xfangfang) and [XITRIX](https://github.com/XITRIX) for [borealis](https://github.com/xfangfang/borealis), the UI framework that makes this project possible.
-
-- Special thanks to:
-  - [MetalfaceScout](https://github.com/MetalfaceScout) for the tap implementation and important fixes for the Vita version.
-  - [xyzz](https://github.com/xyzz) for the original Moonlight port for PS Vita, which laid the foundation for this client.
-  - The [moonlight-stream](https://github.com/moonlight-stream/moonlight-common-c) team for their library, which enables connectivity with Sunshine and GeForce Experience.
+- The [moonlight-stream](https://github.com/moonlight-stream/moonlight-common-c) team for their library, which enables connectivity with Sunshine and GeForce Experience.
 
 ---
 

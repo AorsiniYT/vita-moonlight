@@ -15,3 +15,6 @@
 */
 
 #include "activity/main_activity.hpp"
+
+// Asegura que el destructor virtual esté definido para evitar el error de vtable
+MainActivity::~MainActivity() {}
