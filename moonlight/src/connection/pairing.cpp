@@ -1,4 +1,3 @@
-
 /*
     Copyright 2025 AorsiniYT
 
@@ -71,19 +70,9 @@ void stopPairing() {
     } else {
         printf("[PAIRING][STOP] No hay pairing_cancelled activo\n");
     }
-    // Esperar a que termine el hilo de pairing si es posible
+    // Ya no esperamos a que termine el hilo de pairing para no bloquear la UI
     if (g_pairing_finished) {
-        printf("[PAIRING][STOP] Esperando a que termine el hilo de pairing...\n");
-        int wait = 0;
-        while (!g_pairing_finished->load() && wait < 100) { // máx 20s
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            wait++;
-        }
-        if (g_pairing_finished->load()) {
-            printf("[PAIRING][STOP] Pairing finalizado correctamente tras cancelación.\n");
-        } else {
-            printf("[PAIRING][STOP][WARN] Timeout esperando a que termine el hilo de pairing.\n");
-        }
+        printf("[PAIRING][STOP] Señal de cancelación enviada, no se espera al hilo.\n");
     } else {
         printf("[PAIRING][STOP] No hay pairing_finished activo\n");
     }
@@ -376,22 +365,11 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
     }).detach();
 
     // Cerrar el popup cuando termine (dentro de la función, después del detach principal)
-    std::thread([dialog, finished, cancelled, cancelDialog]() {
-        bool cancelPopupShown = false;
+    std::thread([dialog, finished]() {
         while (!finished->load()) {
-            if (cancelled->load() && !cancelPopupShown) {
-                // Mostrar popup bloqueante de "Cancelando..."
-                brls::sync([cancelDialog]() {
-                    cancelDialog->setText("Por favor espera a que termine la generación de certificados.");
-                    cancelDialog->setCancelable(false);
-                    cancelDialog->open();
-                });
-                cancelPopupShown = true;
-            }
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
-        brls::sync([cancelDialog, dialog]() {
-            if (cancelDialog) cancelDialog->close();
+        brls::sync([dialog]() {
             dialog->close();
         });
         delete finished;
