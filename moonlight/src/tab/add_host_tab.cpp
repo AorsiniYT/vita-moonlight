@@ -180,45 +180,38 @@ AddHostTab::AddHostTab() {
             this->pairingContext = std::make_shared<PairingContext>();
             auto context = this->pairingContext;
             auto connectingDialog = new brls::Dialog(brls::getStr("host_dialog/connecting"));
-            auto t_dialog_before = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t1 Antes de crear diálogo: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_dialog_before.time_since_epoch()).count());
+            connectingDialog->setCancelable(false);
             connectingDialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [connectingDialog, context]() {
-                brls::Logger::info("[AddHostTab][LOG] Botón Cancelar pulsado. Deteniendo pairing global (el cierre de diálogos lo gestiona pairing.cpp).");
+                brls::Logger::info("[AddHostTab][LOG] Botón Cancelar pulsado. Deteniendo pairing global (el cierre de diálogos lo gestiona AddHostTab).");
                 context->cancelled = true;
                 stopPairing();
+                connectingDialog->dismiss();
             });
-            connectingDialog->setCancelable(false);
 #if defined(__PSV__)
             if (this->ipField)
                 this->ipField->setHideHighlight(true);
 #endif
             brls::Logger::info("[AddHostTab] Abriendo diálogo 'Conectando'.");
             connectingDialog->open();
-            auto t_dialog_open = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t2 Antes de open(): {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_dialog_open.time_since_epoch()).count());
-            // Forzar refresco de UI antes de bloquear
-            auto t_dialog_after_open = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t3 Después de open(), antes de sync: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_dialog_after_open.time_since_epoch()).count());
-            brls::sync([]{});
 
-            auto t_after_sync = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t4 Después de brls::sync: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_after_sync.time_since_epoch()).count());
-            // Pairing: solo crear el diálogo y dejar que pairing.cpp gestione los mensajes y cierre
-            startMoonlightPairingWithPopupCustomDialog(ipInput, name, connectingDialog, &(context->cancelled), [this](bool pairingSuccess) {
-                brls::Logger::info("[AddHostTab][MANUAL] Callback de pairing manual ejecutado. pairingSuccess={}", pairingSuccess);
-            auto t_before_pairing = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t5 Antes de startMoonlightPairingWithPopupCustomDialog: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_before_pairing.time_since_epoch()).count());
-                // Limpiar campos y refrescar lista solo si éxito
-                if (pairingSuccess) {
-                    this->ipField->setValue("");
-                    this->nameField->setValue("");
-                    this->preferExternalSelector->setSelection(0);
-                    this->refreshHostsList();
+            // Manejar pairing con la API real (sin progreso granular)
+            auto weakSelf = this->weak_from_this();
+            startMoonlightPairingWithPopupCustomDialog(ipInput, name, connectingDialog, &(context->cancelled),
+                [weakSelf, connectingDialog](bool pairingSuccess) {
+                    auto self = weakSelf.lock();
+                    if (!self) return;
+                    brls::sync([self, connectingDialog, pairingSuccess]() {
+                        connectingDialog->dismiss();
+                        if (pairingSuccess) {
+                            if (self->ipField) self->ipField->setValue("");
+                            if (self->nameField) self->nameField->setValue("");
+                            if (self->preferExternalSelector) self->preferExternalSelector->setSelection(0);
+                            self->refreshHostsList();
+                        }
+                    });
                 }
-            });
+            );
             return true;
-            auto t_after_pairing_call = std::chrono::steady_clock::now();
-            brls::Logger::info("[PERF][AddHostTab] t6 Después de llamada a startMoonlightPairingWithPopupCustomDialog: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_after_pairing_call.time_since_epoch()).count());
         });
     }
     // El label de dispositivos encontrados se traduce en XML, no es necesario aquí
@@ -407,42 +400,13 @@ void AddHostTab::startDeviceDiscovery() {
                         msg.replace(pos_name, 7, name);
                     auto* dialog = new brls::Dialog(msg);
                     dialog->addButton(brls::getStr("moonlight/settings/add_host_connect"), [self, ipStr, name, dialog]() {
-                        brls::Logger::info("[AddHostTab][SEARCH] Emparejamiento desde búsqueda iniciado");
-                        // Lógica de pairing por búsqueda (Add Host Search)
+                        // Solo rellenar los campos manuales y cerrar el diálogo, sin emparejar
                         if (self && self->ipField) self->ipField->setValue(ipStr);
                         if (self && self->nameField) self->nameField->setValue(name);
-                        if (self && self->addButton) self->addButton->setState(brls::ButtonState::DISABLED); // Evitar doble click
-                        auto t_start = std::chrono::steady_clock::now();
-                        brls::Logger::info("[PERF][AddHostTab][SEARCH] t0 Antes de abrir diálogo 'Conectando': {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(t_start.time_since_epoch()).count());
-                        brls::Logger::info("[AddHostTab][SEARCH] Click en Añadir Host (search): ip='{}', name='{}'", ipStr, name);
-                        if (self && self->pairingContext) self->pairingContext->cancelled = true;
-                        if (self && self->pairingThread.joinable()) self->pairingThread.join();
-                        if (self) self->pairingContext = std::make_shared<PairingContext>();
-                        auto context = self ? self->pairingContext : nullptr;
-                        auto connectingDialog = new brls::Dialog(brls::getStr("host_dialog/connecting"));
-                        connectingDialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [self, connectingDialog, context]() {
-                            brls::Logger::info("[AddHostTab][SEARCH] Botón Cancelar pulsado en pairing por búsqueda");
-                            if (context) context->cancelled = true;
-                            stopPairing();
-                        });
-                        connectingDialog->setCancelable(false);
-                        brls::Logger::info("[AddHostTab][SEARCH] Abriendo diálogo 'Conectando' (search)");
-                        connectingDialog->open();
-                        brls::sync([]{});
-                        startMoonlightPairingWithPopupCustomDialog(ipStr, name, connectingDialog, context ? &(context->cancelled) : nullptr, [self](bool pairingSuccess) {
-                            brls::Logger::info("[AddHostTab][SEARCH] Callback de pairing por búsqueda ejecutado. pairingSuccess={}", pairingSuccess);
-                            if (pairingSuccess && self) {
-                                self->ipField->setValue("");
-                                self->nameField->setValue("");
-                                self->preferExternalSelector->setSelection(0);
-                                self->refreshHostsList();
-                            }
-                        });
-                        if (self && self->addButton) self->addButton->setState(brls::ButtonState::ENABLED);
-                        dialog->close();
+
                     });
                     dialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [dialog]() {
-                        dialog->close();
+
                     });
                     dialog->open();
                 });

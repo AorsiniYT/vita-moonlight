@@ -68,7 +68,7 @@ if (WIN32)
         set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static" CACHE STRING "" FORCE)
     endif ()
 elseif (PLATFORM_PSV)
-    add_definitions(-D__PSV__ -D__PSV__)
+    add_definitions(-D__vita__ -D__PSV__)
 endif ()
 
 

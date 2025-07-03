@@ -13,6 +13,16 @@
         "limelight.h": "c",
         "expat.h": "c",
         "check_host.h": "c",
-        "touchabsolute.h": "c"
+        "touchabsolute.h": "c",
+        "bit": "c",
+        "bitset": "c",
+        "deque": "c",
+        "list": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "vector": "c",
+        "array": "c",
+        "map": "c",
+        "set": "c"
     }
 }
