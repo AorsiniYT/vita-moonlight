@@ -15,7 +15,7 @@
 */
 
 
-#include "model/pccard.hpp"
+#include "view/pccard.hpp"
 
 // Card visual como botón grande reutilizable
 PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Button() {

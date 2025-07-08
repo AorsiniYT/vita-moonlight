@@ -16,12 +16,15 @@
 #pragma once
 #include <borealis.hpp>
 #include "utils/host_search.hpp"
+#include "model/HostStorage.hpp" // Para HostInfo
 
 class HostsTab : public brls::Box {
 public:
     HostsTab();
     static brls::View* create();
     void refreshHostsList();
+    // Muestra la selección de apps en el propio tab, reemplazando la lista
+    void showAppSelectInTab(const HostInfo& host);
     BRLS_BIND(brls::Box, hostsList, "hosts_list");
 };
 // check_host.hpp

@@ -18,9 +18,10 @@
 
 #include "tab/hosts_tab.hpp"
 #include "utils/host_search.hpp"
-#include "model/pccard.hpp"
+#include "view/pccard.hpp"
 #include "model/HostStorage.hpp"
-
+#include "connection_manager.hpp"
+#include "session/session_app_select.hpp"
 
 #include <borealis/core/logger.hpp>
 #include <fstream>
@@ -109,22 +110,37 @@ void HostsTab::refreshHostsList() {
             brls::Logger::info("[PCCard] Click en card de host: %s (%s)", host.name.c_str(), host.ip.c_str());
 #endif
             auto* dialog = new brls::Dialog(brls::getStr("host_dialog/dialog/title"));
-            dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [host, dialog]() {
+            
+            // Evita que el diálogo se cierre automáticamente al pulsar un botón
+            dialog->setCancelable(false);
+
+            dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [this, host, dialog]() {
 #ifdef __PSV__
                 sceClibPrintf("[PCCard] Conectar a %s (%s)\n", host.name, host.ip);
+                // Convertir HostInfoVita a HostInfo
+                HostInfo hostInfo;
+                hostInfo.name = host.name;
+                hostInfo.ip = host.ip;
+                // hostInfo.port y hostInfo.paired pueden inicializarse por defecto o según sea necesario
+                dialog->close();
+                brls::sync([this, hostInfo] {
+                    this->present(new SessionAppSelect(hostInfo));
+                });
 #else
                 brls::Logger::info("[PCCard] Conectar a %s (%s)", host.name.c_str(), host.ip.c_str());
-#endif
                 dialog->close();
-                // Lógica real de conexión aquí
+                brls::sync([this, host] {
+                    this->present(new SessionAppSelect(host));
+                });
+#endif
             });
-            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [host, dialog]() {
+            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [host]() {
 #ifdef __PSV__
                 sceClibPrintf("[PCCard] Info para %s (%s)\n", host.name, host.ip);
 #else
                 brls::Logger::info("[PCCard] Info para %s (%s)", host.name.c_str(), host.ip.c_str());
 #endif
-                // No hacer nada más al pulsar info
+                // No hacer nada, el diálogo permanecerá abierto porque setCancelable es false
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host, dialog]() {
 #ifdef __PSV__
@@ -160,12 +176,18 @@ void HostsTab::refreshHostsList() {
                                     msg += host.name;
                                     brls::Application::notify(msg);
                                     confirm->close();
-                                    // Refrescar la lista tras cerrar el diálogo
+#ifdef __PSV__
+#endif
+                                    // Refrescar la lista tras cerrar el diálogo y asegurar el focus
                                     brls::sync([this]() {
 #ifdef __PSV__
                                         VITALOG("[PCCard] Llamando a refreshHostsList tras borrado\n");
 #endif
                                         this->refreshHostsList();
+                                        // Asegura el focus en el primer elemento de la lista si existe
+                                        if (this->hostsList && !this->hostsList->getChildren().empty()) {
+                                            brls::Application::giveFocus(this->hostsList->getChildren().front());
+                                        }
                                     });
                                 });
                                 confirm->addButton(brls::getStr("host_dialog/no"), [confirm]() {
@@ -188,7 +210,15 @@ void HostsTab::refreshHostsList() {
                     // Cuando se selecciona una opción, el Dropdown se cierra automáticamente antes de ejecutar el callback
                     brls::Application::pushActivity(new brls::Activity(dropdown));
                 });
+                // Cierra el diálogo de opciones para dar paso al dropdown
+                dialog->close();
             });
+
+            // Añadir un botón para cerrar el diálogo explícitamente
+            dialog->addButton(brls::getStr("main/cancel"), [dialog]() {
+                dialog->close();
+            });
+
             dialog->open();
         });
         if ((count + 1) % CARDS_PER_ROW != 0) {

@@ -19,7 +19,7 @@
 
 namespace moonlight {
 
-class SettingsPersistence {
+class settings {
 public:
     static void loadSettingsFromConfig();
     static void saveSettingsToConfig();
