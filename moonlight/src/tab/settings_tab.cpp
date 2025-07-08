@@ -21,7 +21,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#include "SettingsPersistence.hpp"
+#include "settings.hpp"
 
 using namespace brls::literals;  // for _i18n
 
@@ -138,7 +138,7 @@ SettingsTab::SettingsTab()
         setenv("LANG", locale.c_str(), 1);
 #endif
         brls::loadTranslations();
-        moonlight::SettingsPersistence::saveSettingsToConfig();
+        moonlight::settings::saveSettingsToConfig();
         brls::Application::notify(locale == "es" ? "Idioma cambiado. Reinicia la app para aplicar completamente." : "Language changed. Please restart the app.");
     });
     SettingsTab::languageSelectorPtr = languageSelector;

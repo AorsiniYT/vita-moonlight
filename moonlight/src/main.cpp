@@ -25,10 +25,12 @@
 #include <iostream>
 
 #include "activity/main_activity.hpp"
-#include "SettingsPersistence.hpp"
+#include "settings.hpp"
 #include "tab/add_host_tab.hpp"
 #include "tab/settings_tab.hpp"
 #include "tab/hosts_tab.hpp"
+
+#include "utils/host_search.hpp"
 
 
 
@@ -47,10 +49,10 @@ using namespace brls::literals; // for _i18n
 int main(int argc, char* argv[])
 {
     // Leer idioma desde config y forzar variable de entorno antes de inicializar la app
-    std::string lang = moonlight::SettingsPersistence::getLanguageFromConfig();
+    std::string lang = moonlight::settings::getLanguageFromConfig();
     std::cout << "[DEBUG] Idioma forzado desde config: " << lang << std::endl;
     if (!lang.empty()) {
-        moonlight::SettingsPersistence::applyLanguageEnv(lang);
+        moonlight::settings::applyLanguageEnv(lang);
         brls::Application::setLocale(lang); // <-- Forzar el locale solo si hay config
     }
 
@@ -66,7 +68,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Init the app and i18n
+
+    // Init the app and i18n. This also initializes the platform.
+    brls::Logger::info("main: init app");
     if (!brls::Application::init())
     {
         brls::Logger::error("Unable to init Borealis application");
@@ -77,7 +81,7 @@ int main(int argc, char* argv[])
     std::cout << "[DEBUG] Locale detectado por Borealis: " << brls::Application::getLocale() << std::endl;
 
     // Cargar settings visuales (selector) después de init
-    moonlight::SettingsPersistence::loadSettingsFromConfig();
+    moonlight::settings::loadSettingsFromConfig();
 
     brls::Application::createWindow("moonlight/title"_i18n);
 

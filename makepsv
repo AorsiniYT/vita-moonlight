@@ -3,8 +3,15 @@
 # Navegar al directorio del proyecto
 cd "$(dirname "$0")"
 
+
 # Configuración
-VITA_IP="192.168.0.192"  # Cambia esto por la IP de tu PS Vita
+# Leer IP desde ip_vita.txt si existe, si no usar valor por defecto
+IP_FILE="$(dirname "$0")/ip_vita.txt"
+if [ -f "$IP_FILE" ]; then
+    VITA_IP=$(head -n 1 "$IP_FILE" | tr -d '\r\n')
+else
+    VITA_IP="192.168.0.192"  # Cambia esto por la IP de tu PS Vita
+fi
 VITA_PORT=1337
 VITA_CONTROL_PORT=1338
 BUILD_DIR="cmake-build-psv"

@@ -18,7 +18,7 @@
 #include "tab/add_host_tab.hpp"
 #include <borealis/views/cells/cell_input.hpp>
 #include <borealis/views/cells/cell_selector.hpp>
-#include "model/pccard.hpp"
+#include "view/pccard.hpp"
 #include "model/HostStorage.hpp"
 #include <borealis/core/logger.hpp>
 #include <borealis/views/progress_spinner.hpp>

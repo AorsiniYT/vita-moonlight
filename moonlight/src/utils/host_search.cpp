@@ -66,14 +66,22 @@ std::vector<HostInfoVita> loadHostsVita() {
         std::string line;
         while (std::getline(ini, line)) {
             VITALOG("[loadHostsVita] Línea INI: '%s'\n", line.c_str());
-            if (line.find("internal = ") == 0) {
-                size_t prefixLen = strlen("internal = ");
-                std::string ip = line.substr(prefixLen);
-                strncpy(host.ip, ip.c_str(), sizeof(host.ip)-1);
-            } else if (line.find("prefer_external = ") == 0) {
-                size_t prefixLen = strlen("prefer_external = ");
-                std::string val = line.substr(prefixLen);
-                host.preferExternal = (val == "true");
+            // Permitir tanto 'internal = ...' como 'internal=...'
+            std::string key, value;
+            size_t eqPos = line.find('=');
+            if (eqPos != std::string::npos) {
+                key = line.substr(0, eqPos);
+                value = line.substr(eqPos + 1);
+                // Eliminar espacios alrededor
+                key.erase(0, key.find_first_not_of(" \t"));
+                key.erase(key.find_last_not_of(" \t") + 1);
+                value.erase(0, value.find_first_not_of(" \t"));
+                value.erase(value.find_last_not_of(" \t") + 1);
+                if (key == "internal") {
+                    strncpy(host.ip, value.c_str(), sizeof(host.ip)-1);
+                } else if (key == "prefer_external") {
+                    host.preferExternal = (value == "true");
+                }
             }
         }
         VITALOG("[loadHostsVita] Host cargado: name='%s', ip='%s', preferExternal=%d\n", host.name, host.ip, host.preferExternal);

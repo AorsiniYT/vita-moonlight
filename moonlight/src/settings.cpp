@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-#include "SettingsPersistence.hpp"
+#include "settings.hpp"
 #include "ConfigManager.hpp"
 #include "tab/settings_tab.hpp"
 #include <string>
@@ -22,7 +22,7 @@ using namespace brls;
 
 namespace moonlight {
 
-void SettingsPersistence::loadSettingsFromConfig() {
+void settings::loadSettingsFromConfig() {
     ConfigManager config;
     config.load();
     std::string lang = config.get("General", "language", "en-US");
@@ -37,7 +37,7 @@ void SettingsPersistence::loadSettingsFromConfig() {
     // Aquí puedes cargar más settings y aplicarlos
 }
 
-void SettingsPersistence::saveSettingsToConfig() {
+void settings::saveSettingsToConfig() {
     ConfigManager config;
     // Ejemplo: guardar el idioma
     int langIdx = 1;
@@ -49,14 +49,14 @@ void SettingsPersistence::saveSettingsToConfig() {
     config.save();
 }
 
-std::string SettingsPersistence::getLanguageFromConfig() {
+std::string settings::getLanguageFromConfig() {
     ConfigManager config;
     if (!config.load())
         return "";
     return config.get("General", "language", "");
 }
 
-void SettingsPersistence::applyLanguageEnv(const std::string& lang) {
+void settings::applyLanguageEnv(const std::string& lang) {
 #ifdef _WIN32
     _putenv_s("LANG", lang.c_str());
     _putenv_s("BOREALIS_LANG", lang.c_str());
