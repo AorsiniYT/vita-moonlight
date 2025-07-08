@@ -71,6 +71,9 @@ static int ini_handle(void *out, const char *section, const char *name,
     } else if (strcmp(name, "left") == 0) {
       config->back_deadzone.left = INT(value);
     }
+    else if (strcmp(name, "controller_type") == 0) {
+      config->controller_type = INT(value);
+    }
   } else if (strcmp(section, "special_keys") == 0) {
     if (strcmp(name, "nw") == 0) {
       config->special_keys.nw = HEX(value);
@@ -138,6 +141,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->absolute_mouse = BOOL(value);
     } else if (strcmp(name, "touchscreen_mode") == 0) {
       config->touchscreen_mode = BOOL(value);
+    } else if (strcmp(name, "controller_type") == 0) {
+      config->controller_type = INT(value);
     }
   }
   return 0;
@@ -197,8 +202,6 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "keyboard_layout", config->keyboard_layout);
   write_config_bool(fd, "absolute_mouse", config->absolute_mouse);
   write_config_bool(fd, "touchscreen_mode", config->touchscreen_mode);
-  //write_config_bool(fd, "enable_hdr", config->stream.enableHdr);
-
   write_config_section(fd, "backtouchscreen_deadzone");
   write_config_int(fd, "top",     config->back_deadzone.top);
   write_config_int(fd, "right",   config->back_deadzone.right);
@@ -277,6 +280,10 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->inputsCount = 0;
   config->mapping = NULL;
   config->key_dir[0] = 0;
+  // Valor por defecto: PS si no está asignado
+  if (config->controller_type < 1 || config->controller_type > 4) {
+    config->controller_type = 2;
+  }
 
   char* config_file = config_path;
   if (config_file) {

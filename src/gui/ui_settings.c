@@ -398,6 +398,20 @@ static int special_keys_menu() {
   return display_menu(menu, idx, NULL, &special_keys_loop, NULL, &special_keys_draw, &menu);
 }
 
+
+
+// --- Controller Type Selection ---
+static const char* controller_type_names[] = {"Xbox", "PlayStation", "Nintendo", "Generic"};
+static int controller_type_values[] = {1, 2, 3, 4}; // 1: Xbox, 2: PS, 3: Nintendo, 4: Generic
+#define CONTROLLER_TYPE_COUNT 4
+
+static int get_controller_type_index(int value) {
+  for (int i = 0; i < CONTROLLER_TYPE_COUNT; ++i) {
+    if (controller_type_values[i] == value) return i;
+  }
+  return 1; // Default to PlayStation if not found
+}
+
 /*
  * Main menu
  */
@@ -426,6 +440,7 @@ enum {
   SETTINGS_BACK_DEADZONE,
   SETTINGS_SPECIAL_KEYS,
   // SETTINGS_HOTKEYS, // Eliminado: hotkeys fijos
+  SETTINGS_CONTROLLER_TYPE,
   SETTINGS_MOUSE_ACCEL,
   SETTINGS_KEYBOARD_LAYOUT,
   SETTINGS_ABSOLUTE_MOUSE,
@@ -456,6 +471,7 @@ enum {
   SETTINGS_VIEW_BACK_DEADZONE,
   SETTINGS_VIEW_SPECIAL_KEYS,
   // SETTINGS_VIEW_HOTKEYS, // Eliminado: hotkeys fijos
+  SETTINGS_VIEW_CONTROLLER_TYPE,
   SETTINGS_VIEW_MOUSE_ACCEL,
   SETTINGS_VIEW_KEYBOARD_LAYOUT,
   SETTINGS_VIEW_ABSOLUTE_MOUSE,
@@ -486,6 +502,7 @@ static int move_idx_in_array(char *array[], int count, char *find, int index_dis
     return i;
   }
 }
+
 
 static int settings_loop(int id, void *context, const input_data *input) {
   menu_entry *menu = context;
@@ -519,6 +536,24 @@ static int settings_loop(int id, void *context, const input_data *input) {
   }
 
   switch (id) {
+    case SETTINGS_CONTROLLER_TYPE: {
+      int idx = get_controller_type_index(config.controller_type);
+      if (left) {
+        idx = (idx - 1 + CONTROLLER_TYPE_COUNT) % CONTROLLER_TYPE_COUNT;
+        config.controller_type = controller_type_values[idx];
+        did_change = 1;
+      } else if (right) {
+        idx = (idx + 1) % CONTROLLER_TYPE_COUNT;
+        config.controller_type = controller_type_values[idx];
+        did_change = 1;
+      }
+      // Mostrar SIEMPRE la opción actual
+      char options[64];
+      int current_idx = get_controller_type_index(config.controller_type);
+      snprintf(options, sizeof(options), "%s", controller_type_names[current_idx]);
+      strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_CONTROLLER_TYPE]].subname, options);
+      break;
+    }
     case SETTINGS_RESOLUTION:
       if (!left && !right) {
         break;
@@ -941,6 +976,7 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_ENABLE_MOTION_CONTROLS, SETTINGS_VIEW_ENABLE_MOTION_CONTROLS, "Enable Gyroscope reporting", "");
   MENU_ENTRY(SETTINGS_ENABLE_DOUBLE_TAP_SPRINT, SETTINGS_VIEW_ENABLE_DOUBLE_TAP_SPRINT, "Enable double tap to sprint", "");
   MENU_ENTRY(SETTINGS_DOUBLE_TAP_SPRINT_STEP_TIME, SETTINGS_VIEW_DOUBLE_TAP_SPRINT_STEP_TIME, "Sprint double tap time", "");
+  MENU_ENTRY(SETTINGS_CONTROLLER_TYPE, SETTINGS_VIEW_CONTROLLER_TYPE, "Controller type", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_MOUSE_ACCEL, SETTINGS_VIEW_MOUSE_ACCEL, "Mouse acceleration", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_ENABLE_MAPPING, SETTINGS_VIEW_ENABLE_MAPPING, "Enable mapping file", "");
   MENU_MESSAGE("Located at ux0:data/moonlight/mappings/vita.conf");
@@ -952,6 +988,23 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_TOUCHSCREEN_MODE, SETTINGS_VIEW_TOUCHSCREEN_MODE, "Touchscreen (Sunshine multitouch)", ICON_LEFT_RIGHT_ARROWS);
   MENU_CATEGORY("Keyboard");
   MENU_ENTRY(SETTINGS_KEYBOARD_LAYOUT, SETTINGS_VIEW_KEYBOARD_LAYOUT, "Keyboard layout", ICON_LEFT_RIGHT_ARROWS);
+
+  // Inicializar el subname de todas las opciones antes de mostrar el menú
+  char current[256];
+  // Resolution
+  sprintf(current, "%dx%d", config.stream.width, config.stream.height);
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_RESOLUTION]].subname, current);
+  // FPS
+  sprintf(current, "%d", config.stream.fps);
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_FPS]].subname, current);
+  // Bitrate
+  sprintf(current, "%d", config.stream.bitrate);
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_BITRATE]].subname, current);
+  // Controller type
+  int current_idx = get_controller_type_index(config.controller_type);
+  snprintf(current, sizeof(current), "%s", controller_type_names[current_idx]);
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_CONTROLLER_TYPE]].subname, current);
+  // Puedes agregar aquí más inicializaciones si quieres que otras opciones también muestren su valor actual al abrir el menú
 
   settings_loop_setup = 1;
   assert(idx < 48);

@@ -909,7 +909,16 @@ void vitainput_start(void) {
   gamepadSupportedButtonFlags |= TOUCHPAD_FLAG;
   gamepadSupportedButtonFlags |= MISC_FLAG;
 
-  LiSendControllerArrivalEvent(0, gamepadMask, LI_CTYPE_PS, gamepadSupportedButtonFlags, gamepadCapabilites);
+  // Determinar tipo de control a enviar según config.controller_type
+  uint8_t controller_type = LI_CTYPE_PS;
+  switch (config.controller_type) {
+    case 1: controller_type = LI_CTYPE_XBOX; break;
+    case 2: controller_type = LI_CTYPE_PS; break;
+    case 3: controller_type = LI_CTYPE_NINTENDO; break;
+    case 4: controller_type = LI_CTYPE_UNKNOWN; break;
+    default: controller_type = LI_CTYPE_PS; break;
+  }
+  LiSendControllerArrivalEvent(0, gamepadMask, controller_type, gamepadSupportedButtonFlags, gamepadCapabilites);
 
   LiSendControllerBatteryEvent(0, LI_BATTERY_STATE_FULL, 100);
 
