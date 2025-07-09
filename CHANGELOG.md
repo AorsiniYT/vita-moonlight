@@ -1,5 +1,15 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
+## 0.12.2
+
+* Added option to swap L1/R1 and L2/R2 button functions from the settings menu.
+* Added option to select gamepad type: Xbox or PlayStation layout, configurable from the settings menu.
+* Improved host scan logic: scan is always restarted cleanly when returning to the main menu or after leaving any submenu.
+* UI and config logic for swap and mapping exclusivity is now robust and bidirectional.
+* Controller type selection in UI now saves/loads correctly and updates immediately.
+* Touch Mouse and Touchscreen toggles now update their subname in the menu immediately after toggling.
+* Main menu always restarts host scan and waits for thread readiness before allowing host selection.
+* Cleaned up and stabilized code, especially around host scan thread handling and function declarations.
+* Many bugfixes and code cleanups.
+
 ## 0.12.0
 
 * Add support for multi-touch touchscreen mode (Sunshine compatible) and absolute mouse mode.
@@ -10,8 +20,6 @@
 * Improved logic for right click and scroll gestures.
 * Many bugfixes and refinements to touch and gesture experience.
 
-=======
->>>>>>> 2ecfab5 (feat: Update to version 0.11.4 with host status improvements and UI enhancements)
 ## 0.11.4
 
 * Host status indicator dots: green (online), yellow (IP change pending), red (offline/disconnected).
@@ -30,11 +38,6 @@
   * ip4.png: IP change confirmation dialog (shows old/new IP).
   * ip5.png: Search device function showing a found local device.
 
-<<<<<<< HEAD
-=======
->>>>>>> cf0943e (Update changelog and version to 0.11.2)
-=======
->>>>>>> 2ecfab5 (feat: Update to version 0.11.4 with host status improvements and UI enhancements)
 ## 0.11.2
 
 * More reliable and user-friendly automatic pairing.

@@ -46,19 +46,11 @@ char pending_ip_update[64] = "";
 int first_scan_pending = 0;
 
 // Prototipos para el control del escaneo de hosts
-#ifdef __vita__
-#include "../check_host.h"
-#define MAX_HOSTS 16
 #define start_host_scan() start_host_scan_thread()
 #define stop_host_scan() stop_host_scan_thread()
-#else
-void start_host_scan() {}
-void stop_host_scan() {}
-#endif
 
 int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   // menu_entry *menu = (menu_entry*)context; // Variable no usada
-#ifdef __vita__
   extern volatile int g_host_status_changed;
   extern volatile int g_host_scan_thread_status;
   // Refresco manual con Triángulo
@@ -83,12 +75,11 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     g_host_status_changed = 0;
     return 2; // Forzar refresco del menú
   }
-#endif
+
   if ((input->buttons & config.btn_confirm) == 0 || (input->buttons & SCE_CTRL_HOLD) != 0) {
     return 0;
   }
   // Esperar a que el hilo de escaneo esté activo antes de permitir selección de hosts
-#ifdef __vita__
   if (cursor >= MAIN_MENU_CONNECT_PAIRED && cursor < MAIN_MENU_QUIT) {
     int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
     // Mostrar diálogo de IP pendiente ANTES de chequear el estado del hilo
@@ -116,19 +107,16 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
       return 0;
     }
   }
-#endif
+
   // Al seleccionar cualquier opción que cambie de menú, detener el escaneo de hosts
   int exit_menu = 0;
   if (cursor >= MAIN_MENU_CONNECT_PAIRED && cursor < MAIN_MENU_QUIT) {
     device_info_t *info = &known_devices.devices[cursor - MAIN_MENU_CONNECT_PAIRED];
     int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
     struct host_status st;
-#ifdef __vita__
     st = g_host_status[host_idx];
     mdns_log("[UI] (LOOP) host_idx=%d, hilo_estado=%d, st.status=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.status, st.current_ip);
-#else
-    st = check_host_status(info);
-#endif
+
     if (st.status == HOST_IP_CHANGED && strcmp(info->internal, st.current_ip) != 0) {
       mdns_log("[UI] Host %s detected IP change: old=%s, new=%s. Deferring IP update dialog.", info->name, info->internal, st.current_ip);
       pending_ip_update_idx = host_idx;
@@ -171,6 +159,7 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
       stop_host_scan();
       ui_settings_menu();
       exit_menu = 0;
+      start_host_scan();
       break;
     case MAIN_MENU_QUIT:
       mdns_log("[UI] Seleccionado: Quit");
@@ -194,9 +183,12 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
 int ui_main_menu_back(void *context) {
   return 1;
 }
-
 int ui_main_menu() {
-  static int host_scan_done = 0;
+  // Siempre reiniciar escaneo de hosts al entrar al menú principal
+  mdns_log("[UI] Entrando al menú principal, iniciando escaneo de hosts");
+  start_host_scan();
+  first_scan_pending = 1;
+
   menu_entry menu[16];
   int idx = 0;
 
@@ -251,11 +243,8 @@ int ui_main_menu() {
           continue;
         }
         struct host_status st;
-#ifdef __vita__
         st = g_host_status[i];
-#else
-        st = check_host_status(cur);
-#endif
+
         // unsigned int color = 0; // No usado
         // const char* color_str = ""; // No usado
         // bool ip_changed = (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0); // No usado
@@ -299,13 +288,6 @@ int ui_main_menu() {
   MENU_ENTRY(MAIN_MENU_QUIT, "Quit", false);
 
   // Solo iniciar escaneo si NO hay cambio de IP pendiente y no se ha hecho ya
-  if (!host_scan_done) {
-    mdns_log("[UI] Entrando al menú principal, iniciando escaneo de hosts");
-    start_host_scan();
-    host_scan_done = 1;
-    first_scan_pending = 1;
-  }
-
   menu_geom geom = make_geom_centered(500, 200);
   return display_menu(menu, idx, &geom, &ui_main_menu_loop, &ui_main_menu_back, NULL, NULL);
 }

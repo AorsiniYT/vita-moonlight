@@ -2,6 +2,11 @@
 
 Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
 
+## Highlights
+
+- **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu for greater comfort and customization.
+- **Gamepad Type Selection:** Choose whether you want the buttons and interface to behave as an Xbox or PlayStation controller, directly from the settings menu.
+
 ## Documentation
 
 More information can find [moonlight-docs][1], [moonlight-embedded][2], and our [wiki][3].
@@ -14,7 +19,6 @@ If you need more help, join the #vita-help channel in [discord][4].
 
 ## Upcoming Features
 
-- **Swap R1/L1 <-> R2/L2:** Option to swap the functions of R1/L1 and R2/L2 directly from the configuration menu, for greater flexibility and comfort.
 - **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
 
 Stay tuned for more improvements!
@@ -41,6 +45,8 @@ Stay tuned for more improvements!
 
 ## What's New
 
+- **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu.
+- **Gamepad Type Selection:** Choose between Xbox and PlayStation controller layouts in the settings menu.
 - **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
 - **Absolute Touch (beta):** Experimental support for absolute touch controls.
 - **Motion controls (gyroscope):** Play with motion aiming and gyro support for a more immersive experience.
