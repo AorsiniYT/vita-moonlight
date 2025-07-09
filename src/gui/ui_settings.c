@@ -556,24 +556,27 @@ static int settings_loop(int id, void *context, const input_data *input) {
       }
       break;
     }
-    case SETTINGS_ABSOLUTE_MOUSE: {
-      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-        break;
-      }
-      did_change = 1;
-      config.absolute_mouse = !config.absolute_mouse;
-      if (config.absolute_mouse) config.touchscreen_mode = false; // Exclusividad entre touch modes
-      touchabsolute_enable(config.absolute_mouse);
-      break;
-    }
+    case SETTINGS_ABSOLUTE_MOUSE:
     case SETTINGS_TOUCHSCREEN_MODE: {
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
         break;
       }
       did_change = 1;
-      config.touchscreen_mode = !config.touchscreen_mode;
-      if (config.touchscreen_mode) config.absolute_mouse = false; // Exclusividad entre touch modes
-      touchabsolute_enable(false); // Desactiva mouse absoluto si se activa touchscreen
+      if (id == SETTINGS_ABSOLUTE_MOUSE) {
+        config.absolute_mouse = !config.absolute_mouse;
+        if (config.absolute_mouse) config.touchscreen_mode = false;
+        touchabsolute_enable(config.absolute_mouse);
+        // Actualiza subname en el menú
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ABSOLUTE_MOUSE]].subname, config.absolute_mouse ? "yes" : "no");
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCHSCREEN_MODE]].subname, config.touchscreen_mode ? "yes" : "no");
+      } else {
+        config.touchscreen_mode = !config.touchscreen_mode;
+        if (config.touchscreen_mode) config.absolute_mouse = false;
+        touchabsolute_enable(false);
+        // Actualiza subname en el menú
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCHSCREEN_MODE]].subname, config.touchscreen_mode ? "yes" : "no");
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ABSOLUTE_MOUSE]].subname, config.absolute_mouse ? "yes" : "no");
+      }
       break;
     }
   }
@@ -604,6 +607,14 @@ static int settings_loop(int id, void *context, const input_data *input) {
   switch (id) {
     case SETTINGS_CONTROLLER_TYPE: {
       int idx = get_controller_type_index(config.controller_type);
+      if (!left && !right) {
+        // Solo refresca el subname
+        char options[64];
+        int current_idx = get_controller_type_index(config.controller_type);
+        snprintf(options, sizeof(options), "%s", controller_type_names[current_idx]);
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_CONTROLLER_TYPE]].subname, options);
+        break;
+      }
       if (left) {
         idx = (idx - 1 + CONTROLLER_TYPE_COUNT) % CONTROLLER_TYPE_COUNT;
         config.controller_type = controller_type_values[idx];
@@ -613,11 +624,13 @@ static int settings_loop(int id, void *context, const input_data *input) {
         config.controller_type = controller_type_values[idx];
         did_change = 1;
       }
-      // Mostrar SIEMPRE la opción actual
+      // Actualiza el subname
       char options[64];
       int current_idx = get_controller_type_index(config.controller_type);
       snprintf(options, sizeof(options), "%s", controller_type_names[current_idx]);
       strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_CONTROLLER_TYPE]].subname, options);
+      // Guarda la configuración inmediatamente
+      ui_settings_save_config();
       break;
     }
     case SETTINGS_RESOLUTION:
@@ -819,18 +832,7 @@ static int settings_loop(int id, void *context, const input_data *input) {
       did_change = 1;
       config.center_region_only = !config.center_region_only;
       break;
-    case SETTINGS_ENABLE_MAPPING:
-      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-        break;
-      }
-      did_change = 1;
-      if (config.mapping) {
-        free(config.mapping);
-        config.mapping = NULL;
-      } else {
-        config.mapping = strdup("mappings/vita.conf");
-      }
-      break;
+    // ...eliminado duplicado, la lógica completa está arriba...
     case SETTINGS_BACK_DEADZONE:
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
         break;
@@ -844,12 +846,6 @@ static int settings_loop(int id, void *context, const input_data *input) {
       }
       special_keys_menu();
       break;
-    // case SETTINGS_HOTKEYS: // Eliminado: hotkeys fijos
-    //   if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-    //     break;
-    //   }
-    //   hotkeys_menu();
-    //   break;
     case SETTINGS_MOUSE_ACCEL:
       left = input->buttons & SCE_CTRL_LEFT;
       right = input->buttons & SCE_CTRL_RIGHT;
@@ -877,24 +873,7 @@ static int settings_loop(int id, void *context, const input_data *input) {
       keyboard_layout_menu();
       did_change = 1;
       break;
-    case SETTINGS_ABSOLUTE_MOUSE:
-      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-        break;
-      }
-      did_change = 1;
-      config.absolute_mouse = !config.absolute_mouse;
-      if (config.absolute_mouse) config.touchscreen_mode = false; // Exclusividad
-      touchabsolute_enable(config.absolute_mouse);
-      break;
-    case SETTINGS_TOUCHSCREEN_MODE:
-      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-        break;
-      }
-      did_change = 1;
-      config.touchscreen_mode = !config.touchscreen_mode;
-      if (config.touchscreen_mode) config.absolute_mouse = false; // Exclusividad
-      touchabsolute_enable(false); // Desactiva mouse absoluto si se activa touchscreen
-      break;
+    // Eliminados duplicados de SETTINGS_ABSOLUTE_MOUSE y SETTINGS_TOUCHSCREEN_MODE
 
   }
 
@@ -1043,7 +1022,7 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_ENABLE_DOUBLE_TAP_SPRINT, SETTINGS_VIEW_ENABLE_DOUBLE_TAP_SPRINT, "Enable double tap to sprint", "");
   MENU_ENTRY(SETTINGS_DOUBLE_TAP_SPRINT_STEP_TIME, SETTINGS_VIEW_DOUBLE_TAP_SPRINT_STEP_TIME, "Sprint double tap time", "");
   MENU_ENTRY(SETTINGS_CONTROLLER_TYPE, SETTINGS_VIEW_CONTROLLER_TYPE, "Controller type", ICON_LEFT_RIGHT_ARROWS);
-  MENU_ENTRY(SETTINGS_SWAP_SHOULDER_BUTTONS, SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, "Swap R1/L1 <-> R2/L2", ICON_LEFT_RIGHT_ARROWS);
+  MENU_ENTRY(SETTINGS_SWAP_SHOULDER_BUTTONS, SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, "Swap R1/L1 <-> R2/L2", "");
   MENU_ENTRY(SETTINGS_MOUSE_ACCEL, SETTINGS_VIEW_MOUSE_ACCEL, "Mouse acceleration", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_ENABLE_MAPPING, SETTINGS_VIEW_ENABLE_MAPPING, "Enable mapping file", "");
   MENU_MESSAGE("Located at ux0:data/moonlight/mappings/vita.conf");
@@ -1051,10 +1030,10 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_BACK_DEADZONE, SETTINGS_VIEW_BACK_DEADZONE, "Back touchscreen deadzone", "");
   MENU_ENTRY(SETTINGS_SPECIAL_KEYS, SETTINGS_VIEW_SPECIAL_KEYS, "Touchscreen special keys", "");
   // MENU_ENTRY(SETTINGS_HOTKEYS, SETTINGS_VIEW_HOTKEYS, "Configure hotkeys", ""); // Eliminado: hotkeys fijos
-  MENU_ENTRY(SETTINGS_ABSOLUTE_MOUSE, SETTINGS_VIEW_ABSOLUTE_MOUSE, "Touch Mouse Absolute (gestures)", ICON_LEFT_RIGHT_ARROWS);
-  MENU_ENTRY(SETTINGS_TOUCHSCREEN_MODE, SETTINGS_VIEW_TOUCHSCREEN_MODE, "Touchscreen (Sunshine multitouch)", ICON_LEFT_RIGHT_ARROWS);
+  MENU_ENTRY(SETTINGS_ABSOLUTE_MOUSE, SETTINGS_VIEW_ABSOLUTE_MOUSE, "Touch Mouse Absolute (gestures)", "");
+  MENU_ENTRY(SETTINGS_TOUCHSCREEN_MODE, SETTINGS_VIEW_TOUCHSCREEN_MODE, "Touchscreen (Sunshine multitouch)", "");
   MENU_CATEGORY("Keyboard");
-  MENU_ENTRY(SETTINGS_KEYBOARD_LAYOUT, SETTINGS_VIEW_KEYBOARD_LAYOUT, "Keyboard layout", ICON_LEFT_RIGHT_ARROWS);
+  MENU_ENTRY(SETTINGS_KEYBOARD_LAYOUT, SETTINGS_VIEW_KEYBOARD_LAYOUT, "Keyboard layout", "");
 
   // Inicializar el subname de todas las opciones antes de mostrar el menú
   char current[256];

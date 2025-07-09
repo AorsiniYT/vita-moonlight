@@ -165,8 +165,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
 
   if (config->address)
     write_config_string(fd, "address", config->address);
-  // Guardar swap_shoulder_buttons en la raíz
-  write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons);
+
 
   if (config->mapping)
     write_config_string(fd, "mapping", config->mapping);
@@ -208,6 +207,9 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "keyboard_layout", config->keyboard_layout);
   write_config_bool(fd, "absolute_mouse", config->absolute_mouse);
   write_config_bool(fd, "touchscreen_mode", config->touchscreen_mode);
+  write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons); // Guardar swap_shoulder_buttons en la raíz
+  write_config_int(fd, "controller_type", config->controller_type); // Guardar controller_type en la raíz
+
   write_config_section(fd, "backtouchscreen_deadzone");
   write_config_int(fd, "top",     config->back_deadzone.top);
   write_config_int(fd, "right",   config->back_deadzone.right);
@@ -221,9 +223,6 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_hex(fd, "se",      config->special_keys.se);
   write_config_int(fd, "offset",  config->special_keys.offset);
   write_config_int(fd, "size",    config->special_keys.size);
-
-  // Guardar en la raíz, no dentro de [special_keys]
-
 
   fclose(fd);
 }
