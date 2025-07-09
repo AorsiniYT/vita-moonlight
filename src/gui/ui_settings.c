@@ -5,6 +5,7 @@
 
 #include "../config.h"
 #include "../input/vita.h"
+#include "../input/swap_shoulder_buttons.h"
 #include "../video/vita.h"
 #include "../debug.h"
 #include "../input/touchabsolute.h"
@@ -401,9 +402,9 @@ static int special_keys_menu() {
 
 
 // --- Controller Type Selection ---
-static const char* controller_type_names[] = {"Xbox", "PlayStation", "Nintendo", "Generic"};
-static int controller_type_values[] = {1, 2, 3, 4}; // 1: Xbox, 2: PS, 3: Nintendo, 4: Generic
-#define CONTROLLER_TYPE_COUNT 4
+static const char* controller_type_names[] = {"Xbox", "PlayStation"};
+static int controller_type_values[] = {1, 2}; // 1: Xbox, 2: PS
+#define CONTROLLER_TYPE_COUNT 2
 
 static int get_controller_type_index(int value) {
   for (int i = 0; i < CONTROLLER_TYPE_COUNT; ++i) {
@@ -441,6 +442,7 @@ enum {
   SETTINGS_SPECIAL_KEYS,
   // SETTINGS_HOTKEYS, // Eliminado: hotkeys fijos
   SETTINGS_CONTROLLER_TYPE,
+  SETTINGS_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
   SETTINGS_MOUSE_ACCEL,
   SETTINGS_KEYBOARD_LAYOUT,
   SETTINGS_ABSOLUTE_MOUSE,
@@ -472,6 +474,7 @@ enum {
   SETTINGS_VIEW_SPECIAL_KEYS,
   // SETTINGS_VIEW_HOTKEYS, // Eliminado: hotkeys fijos
   SETTINGS_VIEW_CONTROLLER_TYPE,
+  SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
   SETTINGS_VIEW_MOUSE_ACCEL,
   SETTINGS_VIEW_KEYBOARD_LAYOUT,
   SETTINGS_VIEW_ABSOLUTE_MOUSE,
@@ -481,6 +484,8 @@ enum {
 };
 
 static int SETTINGS_VIEW_IDX[SETTINGS_VIEW_MAX_COUNT];
+// Variable global para swap de botones
+bool swap_shoulder_buttons = false;
 
 // _countof only works for variable allocated on the stack, not from malloc (sizeof(i) will be incorrect).
 #define _countof(i) (sizeof(i) / sizeof((i)[0]))
@@ -512,6 +517,67 @@ static int settings_loop(int id, void *context, const input_data *input) {
 
   char current[256];
   int new_idx;
+
+  switch (id) {
+    case SETTINGS_SWAP_SHOULDER_BUTTONS: {
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      swap_shoulder_buttons = !swap_shoulder_buttons;
+      config.swap_shoulder_buttons = swap_shoulder_buttons;
+      did_change = 1;
+      strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS]].subname, swap_shoulder_buttons ? "yes" : "no");
+      // Exclusividad: desactivar mapping si swap está activo
+      if (swap_shoulder_buttons) {
+        if (config.mapping) {
+          free(config.mapping);
+          config.mapping = NULL;
+          strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ENABLE_MAPPING]].subname, "no");
+        }
+      }
+      break;
+    }
+    case SETTINGS_ENABLE_MAPPING: {
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      if (config.mapping) {
+        free(config.mapping);
+        config.mapping = NULL;
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ENABLE_MAPPING]].subname, "no");
+      } else {
+        config.mapping = strdup("mappings/vita.conf");
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ENABLE_MAPPING]].subname, "yes");
+        // Si se activa mapping, desactivar swap
+        swap_shoulder_buttons = 0;
+        config.swap_shoulder_buttons = 0;
+        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS]].subname, "no");
+      }
+      break;
+    }
+    case SETTINGS_ABSOLUTE_MOUSE: {
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.absolute_mouse = !config.absolute_mouse;
+      if (config.absolute_mouse) config.touchscreen_mode = false; // Exclusividad entre touch modes
+      touchabsolute_enable(config.absolute_mouse);
+      break;
+    }
+    case SETTINGS_TOUCHSCREEN_MODE: {
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.touchscreen_mode = !config.touchscreen_mode;
+      if (config.touchscreen_mode) config.absolute_mouse = false; // Exclusividad entre touch modes
+      touchabsolute_enable(false); // Desactiva mouse absoluto si se activa touchscreen
+      break;
+    }
+  }
+
 
   if (!vitavideo_initialized() && !support_resolution_count) {
     for (int i = 0; i < MAX_RESOLUTION; i++) {
@@ -977,6 +1043,7 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_ENABLE_DOUBLE_TAP_SPRINT, SETTINGS_VIEW_ENABLE_DOUBLE_TAP_SPRINT, "Enable double tap to sprint", "");
   MENU_ENTRY(SETTINGS_DOUBLE_TAP_SPRINT_STEP_TIME, SETTINGS_VIEW_DOUBLE_TAP_SPRINT_STEP_TIME, "Sprint double tap time", "");
   MENU_ENTRY(SETTINGS_CONTROLLER_TYPE, SETTINGS_VIEW_CONTROLLER_TYPE, "Controller type", ICON_LEFT_RIGHT_ARROWS);
+  MENU_ENTRY(SETTINGS_SWAP_SHOULDER_BUTTONS, SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, "Swap R1/L1 <-> R2/L2", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_MOUSE_ACCEL, SETTINGS_VIEW_MOUSE_ACCEL, "Mouse acceleration", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_ENABLE_MAPPING, SETTINGS_VIEW_ENABLE_MAPPING, "Enable mapping file", "");
   MENU_MESSAGE("Located at ux0:data/moonlight/mappings/vita.conf");
@@ -1004,6 +1071,9 @@ int ui_settings_menu() {
   int current_idx = get_controller_type_index(config.controller_type);
   snprintf(current, sizeof(current), "%s", controller_type_names[current_idx]);
   strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_CONTROLLER_TYPE]].subname, current);
+  // Swap shoulder buttons
+  swap_shoulder_buttons = config.swap_shoulder_buttons;
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS]].subname, swap_shoulder_buttons ? "yes" : "no");
   // Puedes agregar aquí más inicializaciones si quieres que otras opciones también muestren su valor actual al abrir el menú
 
   settings_loop_setup = 1;

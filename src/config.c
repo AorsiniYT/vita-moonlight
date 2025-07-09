@@ -73,6 +73,8 @@ static int ini_handle(void *out, const char *section, const char *name,
     }
     else if (strcmp(name, "controller_type") == 0) {
       config->controller_type = INT(value);
+    } else if (strcmp(name, "swap_shoulder_buttons") == 0) {
+      config->swap_shoulder_buttons = BOOL(value);
     }
   } else if (strcmp(section, "special_keys") == 0) {
     if (strcmp(name, "nw") == 0) {
@@ -143,6 +145,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->touchscreen_mode = BOOL(value);
     } else if (strcmp(name, "controller_type") == 0) {
       config->controller_type = INT(value);
+    } else if (strcmp(name, "swap_shoulder_buttons") == 0) {
+      config->swap_shoulder_buttons = BOOL(value);
     }
   }
   return 0;
@@ -161,6 +165,8 @@ void config_save(const char* filename, PCONFIGURATION config) {
 
   if (config->address)
     write_config_string(fd, "address", config->address);
+  // Guardar swap_shoulder_buttons en la raíz
+  write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons);
 
   if (config->mapping)
     write_config_string(fd, "mapping", config->mapping);
@@ -284,6 +290,9 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   if (config->controller_type < 1 || config->controller_type > 4) {
     config->controller_type = 2;
   }
+  // Valor por defecto: swap desactivado
+  // (si no está presente en config, será false por defecto)
+  // No es necesario forzar nada aquí
 
   char* config_file = config_path;
   if (config_file) {

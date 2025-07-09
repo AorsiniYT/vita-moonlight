@@ -35,6 +35,7 @@
 #include "psp2common/types.h"
 #include "vita.h"
 #include "mapping.h"
+#include "swap_shoulder_buttons.h"
 #include "../keyboardsystem.h"
 #include "touchabsolute.h"
 
@@ -532,10 +533,50 @@ inline void vitainput_process(void) {
   curr.button |= is_pressed(map.btn_east)       ? B_FLAG      : 0;
   curr.button |= is_pressed(map.btn_south)      ? A_FLAG      : 0;
   curr.button |= is_pressed(map.btn_west)       ? X_FLAG      : 0;
-  curr.button |= is_pressed(map.btn_thumbl)     ? LB_FLAG     : 0; // l1
-  curr.button |= is_pressed(map.btn_thumbr)     ? RB_FLAG     : 0; // r1
-  curr.button |= is_pressed(map.btn_tl2)        ? LS_CLK_FLAG : 0; // l3
-  curr.button |= is_pressed(map.btn_tr2)        ? RS_CLK_FLAG : 0; // r3
+
+  // Asignar siempre los botones físicos L1/R1 (nunca afectados por swap)
+  if (swap_shoulder_buttons) {
+    // Físicos: L1 manda R2 (analógico), R1 manda L2 (analógico)
+    if (is_pressed(map.btn_thumbl)) {
+      curr.rt = 0xff;
+    }
+    if (is_pressed(map.btn_thumbr)) {
+      curr.lt = 0xff;
+    }
+    // Panel trasero superior: NW simula L1, NE simula R1 (digital)
+    if (is_pressed(map.btn_tl)) {
+      curr.button |= LB_FLAG;
+      curr.lt = 0; // Desactiva trigger L2
+    }
+    if (is_pressed(map.btn_tr)) {
+      curr.button |= RB_FLAG;
+      curr.rt = 0; // Desactiva trigger R2
+    }
+  } else {
+    // Físicos: L1 manda L1, R1 manda R1 (digital)
+    if (is_pressed(map.btn_thumbl)) {
+      curr.button |= LB_FLAG;
+    }
+    if (is_pressed(map.btn_thumbr)) {
+      curr.button |= RB_FLAG;
+    }
+    // Panel trasero superior: NW simula L2 (analógico), NE simula R2 (analógico)
+    if (is_pressed(map.btn_tl)) {
+      curr.lt = 0xff;
+      curr.button &= ~LB_FLAG; // Desactiva flag L1 solo si rear touch
+    }
+    if (is_pressed(map.btn_tr)) {
+      curr.rt = 0xff;
+      curr.button &= ~RB_FLAG; // Desactiva flag R1 solo si rear touch
+    }
+  }
+  // Zonas inferiores: L3/R3 (nunca swap)
+  if (is_pressed(map.btn_tl2)) {
+    curr.button |= LS_CLK_FLAG; // L3
+  }
+  if (is_pressed(map.btn_tr2)) {
+    curr.button |= RS_CLK_FLAG; // R3
+  }
 
   // Atajo: Start + L + R para pausar/desplegar menú de pausa
   if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_L1) && (pad.buttons & SCE_CTRL_R1)) {
@@ -548,9 +589,11 @@ inline void vitainput_process(void) {
     keyboardsystem_open_keyboard();
   }
 
-  // analogs
-  curr.lt = read_analog(map.btn_tl); // l2
-  curr.rt = read_analog(map.btn_tr); // r2
+  // analogs: solo asignar si no están activos por rear touch
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tl2))
+    curr.lt = read_analog(map.btn_tl); // l2
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tr2))
+    curr.rt = read_analog(map.btn_tr); // r2
   curr.lx = read_analog(map.abs_x);
   curr.ly = read_analog(map.abs_y);
   curr.rx = read_analog(map.abs_rx);

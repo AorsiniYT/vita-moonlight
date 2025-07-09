@@ -84,6 +84,7 @@ typedef struct _CONFIGURATION {
   bool absolute_mouse; // Nuevo: guardar estado de mouse absoluto
   bool touchscreen_mode; // Nuevo: modo touchscreen multitouch Sunshine
   int controller_type; // 1: Xbox, 2: PS (default), 3: Nintendo, 4: Generic
+  bool swap_shoulder_buttons; // Nuevo: swap R1/L1 <-> R2/L2
 } CONFIGURATION, *PCONFIGURATION;
 
 extern CONFIGURATION config;
