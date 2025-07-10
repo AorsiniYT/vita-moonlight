@@ -1,7 +1,7 @@
 /*
  * This file is part of Moonlight Embedded.
  *
- * Copyright (C) 2015, 2016 Iwan Timmer
+ * Copyright (C) 2015 Iwan Timmer
  *
  * Moonlight is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,16 +19,14 @@
 
 #pragma once
 
-#define GS_OK 0
-#define GS_FAILED -1
-#define GS_OUT_OF_MEMORY -2
-#define GS_INVALID -3
-#define GS_WRONG_STATE -4
-#define GS_IO_ERROR -5
-#define GS_NOT_SUPPORTED_4K -6
-#define GS_UNSUPPORTED_VERSION -7
-#define GS_NOT_SUPPORTED_MODE -8
-#define GS_ERROR -9
-#define GS_NOT_SUPPORTED_SOPS_RESOLUTION -10
+#include "Data.hpp"
 
-extern const char* gs_error;
+enum HTTPRequestTimeout : long {
+    HTTPRequestTimeoutLow = 1,
+    HTTPRequestTimeoutMedium = 5,
+    HTTPRequestTimeoutLong = 120
+};
+
+int http_init(const std::string& key_directory);
+int http_request(const std::string& url, Data* data, HTTPRequestTimeout timeout);
+

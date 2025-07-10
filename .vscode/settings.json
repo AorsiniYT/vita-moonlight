@@ -88,6 +88,7 @@
         "thread": "cpp",
         "cinttypes": "cpp",
         "valarray": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "cerrno": "cpp"
     }
 }

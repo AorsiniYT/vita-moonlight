@@ -28,14 +28,9 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/vshbridge.h>
 #endif
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "libgamestream/client.h"
-#ifdef __cplusplus
-}
-#endif
-#include "libgamestream/errors.h"
+
+#include "client.h"
+#include "errors.h"
 
 
 // Estructura para manejar el popup y el estado
@@ -162,7 +157,7 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
         }
         *(pargs->t_gsinit_start) = std::chrono::high_resolution_clock::now();
         printf("[PAIRING][THREAD][DEBUG] Antes de gs_init()\n"); fflush(stdout);
-        *(pargs->initRes) = gs_init(pargs->server, pargs->address, 47989, pargs->hostDir->c_str(), pargs->logLevel, pargs->unsupported);
+        *(pargs->initRes) = gs_init(pargs->server, std::string(pargs->address), *pargs->hostDir);
         *(pargs->t_gsinit_end) = std::chrono::high_resolution_clock::now();
         printf("[PAIRING][THREAD][DEBUG] Después de gs_init(), resultado: %d\n", *(pargs->initRes)); fflush(stdout);
         if (f) { f = fopen("ux0:data/moonlight/gsinit_thread.log", "a"); if (f) { fprintf(f, "FIN HILO NATIVO\n"); fclose(f); } }
@@ -276,12 +271,12 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
             printf("[PAIRING][DEBUG] Resultado de sceKernelWaitThreadEnd: %d\n", waitRes); fflush(stdout);
         } else {
             printf("[PAIRING][ERROR] No se pudo crear hilo nativo para gs_init, usando fallback.\n"); fflush(stdout);
-            initRes = gs_init(&server, address, port, keyDir, logLevel, unsupported);
+            initRes = gs_init(&server, std::string(address), hostDir);
             t_gsinit_end = std::chrono::high_resolution_clock::now();
         }
         #else
         auto t_gsinit_start = std::chrono::high_resolution_clock::now();
-        int initRes = gs_init(&server, address, port, keyDir, logLevel, unsupported);
+        int initRes = gs_init(&server, std::string(address), hostDir);
         auto t_gsinit_end = std::chrono::high_resolution_clock::now();
         #endif
         double ms_gsinit = std::chrono::duration<double, std::milli>(t_gsinit_end-t_gsinit_start).count();
@@ -300,8 +295,8 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
 
         if (initRes != GS_OK) {
             printf("[PAIRING][ERROR] Error en gs_init. No se pudo inicializar la conexión.\n");
-            extern const char* gs_error;
-            if (gs_error) printf("[PAIRING][DEBUG][RESPONSE] gs_init error: %s\n", gs_error);
+            std::string gs_err = gs_error();
+            if (!gs_err.empty()) printf("[PAIRING][DEBUG][RESPONSE] gs_init error: %s\n", gs_err.c_str());
             if (!*cancelled) showPopupMessage(popupCtx, brls::getStr("host_dialog/pairing_error_init"));
             *success = false;
             *finished = true;
@@ -341,8 +336,8 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
         auto t_gspair_end = std::chrono::high_resolution_clock::now();
         printf("[PAIRING][PERF] Después de gs_pair\n");
         printf("[PAIRING][DEBUG][RESPONSE] gs_pair result: %d (duración: %.2f ms)\n", pairRes, std::chrono::duration<double, std::milli>(t_gspair_end-t_gspair_start).count());
-        extern const char* gs_error;
-        if (gs_error) printf("[PAIRING][DEBUG][RESPONSE] gs_pair error: %s\n", gs_error);
+        std::string gs_err = gs_error();
+        if (!gs_err.empty()) printf("[PAIRING][DEBUG][RESPONSE] gs_pair error: %s\n", gs_err.c_str());
         printf("[PAIRING][DEBUG] Archivos en '%s' tras gs_pair:\n", hostDir.c_str());
         for (const auto& entry : std::filesystem::directory_iterator(hostDir)) {
             printf("[PAIRING][DEBUG]   %s\n", entry.path().string().c_str());
@@ -369,12 +364,12 @@ void startMoonlightPairingWithPopupCustomDialog(const std::string& hostIp, const
             if (onFinished) onFinished(true);
         } else {
             std::string err = brls::getStr("host_dialog/pairing_error");
-            extern const char* gs_error;
-            if (gs_error) {
+            std::string gs_err = gs_error();
+            if (!gs_err.empty()) {
                 std::string errDetail = err;
                 size_t pos = errDetail.find("$(error)");
                 if (pos != std::string::npos)
-                    errDetail.replace(pos, 8, gs_error);
+                    errDetail.replace(pos, 8, gs_err);
                 err = errDetail;
             }
             printf("[PAIRING][ERROR] %s\n", err.c_str());

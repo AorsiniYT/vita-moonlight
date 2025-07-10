@@ -68,6 +68,7 @@ if (WIN32)
         set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static" CACHE STRING "" FORCE)
     endif ()
 elseif (PLATFORM_PSV)
+    add_definitions(-DUSE_MBEDTLS_CRYPTO)
     add_definitions(-D__vita__ -D__PSV__)
 endif ()
 
@@ -122,8 +123,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/moonlight-common-c/r
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/moonlight-common-c/src)
 
 target_include_directories(${PROJECT_NAME} PRIVATE moonlight ${APP_PLATFORM_INCLUDE} ${CMAKE_SOURCE_DIR}/third_party ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/reedsolomon ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/src)
+
+# Incluye los headers principales, crypto y libgamestream para todo el proyecto
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    moonlight/include
+    moonlight/src/crypto
+    moonlight/src/libgamestream
+)
 target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
-target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff gamestream)
+target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff)
 
 
 
@@ -142,9 +150,6 @@ if(PLATFORM_PSV)
         enet
         h264bitstream
         moonlight-common-c
-        gamestream
-        moonlight-common-c
-        gamestream
         -lz
         -lssl
         -lcrypto
@@ -202,9 +207,6 @@ if(WIN32)
         enet
         h264bitstream
         moonlight-common-c
-        gamestream
-        moonlight-common-c
-        gamestream
         z
         ws2_32
         crypt32
