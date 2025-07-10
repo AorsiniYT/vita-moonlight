@@ -534,36 +534,36 @@ inline void vitainput_process(void) {
   curr.button |= is_pressed(map.btn_south)      ? A_FLAG      : 0;
   curr.button |= is_pressed(map.btn_west)       ? X_FLAG      : 0;
 
-  // Asignar siempre los botones físicos L1/R1 (nunca afectados por swap)
+  // Swap L1<=>L2 y R1<=>R2 correctamente
   if (swap_shoulder_buttons) {
-    // Físicos: L1 manda R2 (analógico), R1 manda L2 (analógico)
+    // Físicos: L1 manda L2 (analógico), L2 manda L1 (digital)
     if (is_pressed(map.btn_thumbl)) {
-      curr.rt = 0xff;
-    }
-    if (is_pressed(map.btn_thumbr)) {
       curr.lt = 0xff;
     }
-    // Panel trasero superior: NW simula L1, NE simula R1 (digital)
     if (is_pressed(map.btn_tl)) {
       curr.button |= LB_FLAG;
-      curr.lt = 0; // Desactiva trigger L2
+      curr.lt = 0; // Desactiva trigger L2 si rear touch
+    }
+    // Físicos: R1 manda R2 (analógico), R2 manda R1 (digital)
+    if (is_pressed(map.btn_thumbr)) {
+      curr.rt = 0xff;
     }
     if (is_pressed(map.btn_tr)) {
       curr.button |= RB_FLAG;
-      curr.rt = 0; // Desactiva trigger R2
+      curr.rt = 0; // Desactiva trigger R2 si rear touch
     }
   } else {
-    // Físicos: L1 manda L1, R1 manda R1 (digital)
+    // Físicos: L1 manda L1 (digital), L2 manda L2 (analógico)
     if (is_pressed(map.btn_thumbl)) {
       curr.button |= LB_FLAG;
     }
-    if (is_pressed(map.btn_thumbr)) {
-      curr.button |= RB_FLAG;
-    }
-    // Panel trasero superior: NW simula L2 (analógico), NE simula R2 (analógico)
     if (is_pressed(map.btn_tl)) {
       curr.lt = 0xff;
       curr.button &= ~LB_FLAG; // Desactiva flag L1 solo si rear touch
+    }
+    // Físicos: R1 manda R1 (digital), R2 manda R2 (analógico)
+    if (is_pressed(map.btn_thumbr)) {
+      curr.button |= RB_FLAG;
     }
     if (is_pressed(map.btn_tr)) {
       curr.rt = 0xff;

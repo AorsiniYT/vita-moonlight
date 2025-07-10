@@ -13,6 +13,7 @@
         "limelight.h": "c",
         "expat.h": "c",
         "check_host.h": "c",
-        "touchabsolute.h": "c"
+        "touchabsolute.h": "c",
+        "evp.h": "c"
     }
 }
