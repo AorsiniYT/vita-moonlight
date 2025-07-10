@@ -19,32 +19,39 @@
 
 #pragma once
 
+#include "Data.hpp"
 #include "xml.h"
-
 #include <Limelight.h>
-
 #include <stdbool.h>
 
 #define MIN_SUPPORTED_GFE_VERSION 3
 #define MAX_SUPPORTED_GFE_VERSION 7
 
 typedef struct _SERVER_DATA {
-  char* gpuType;
-  bool paired;
-  bool unsupported;
-  bool isNvidiaSoftware;
-  int currentGame;
-  int serverMajorVersion;
-  char* gsVersion;
-  PDISPLAY_MODE modes;
-  SERVER_INFORMATION serverInfo;
-  unsigned short httpPort;
-  unsigned short httpsPort;
+    std::string address;
+    std::string serverInfoAppVersion;
+    std::string serverInfoGfeVersion;
+    std::string mac;
+    std::string gpuType;
+    bool paired;
+    bool supports4K;
+    int currentGame;
+    int serverMajorVersion;
+    std::string gsVersion;
+    std::string hostname;
+    SERVER_INFORMATION serverInfo;
+    unsigned short httpPort;
+    unsigned short httpsPort;
+    bool isSunshine();
 } SERVER_DATA, *PSERVER_DATA;
 
-int gs_init(PSERVER_DATA server, char* address, unsigned short httpPort, const char *keyDirectory, int logLevel, bool unsupported);
+void gs_set_error(std::string error);
+std::string gs_error();
+
+int gs_init(PSERVER_DATA server, const std::string address, const std::string& keyDir);
+int gs_app_boxart(PSERVER_DATA server, int app_id, Data* out);
 int gs_start_app(PSERVER_DATA server, PSTREAM_CONFIGURATION config, int appId, bool sops, bool localaudio, int gamepad_mask);
-int gs_applist(PSERVER_DATA server, PAPP_LIST *app_list);
+int gs_applist(PSERVER_DATA server, PAPP_LIST* app_list);
 int gs_unpair(PSERVER_DATA server);
 int gs_pair(PSERVER_DATA server, char* pin);
 int gs_quit_app(PSERVER_DATA server);

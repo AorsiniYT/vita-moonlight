@@ -1,6 +1,7 @@
 /*
- * Created by Diego Waxemberg on 10/16/14.
- * Copyright (c) 2014 Limelight Stream. All rights reserved.
+ * This file is part of Moonlight Embedded.
+ *
+ * Copyright (C) 2015, 2016 Iwan Timmer
  *
  * Moonlight is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +19,14 @@
 
 #pragma once
 
-#include <openssl/x509v3.h>
-#include <openssl/pkcs12.h>
-
-typedef struct _CERT_KEY_PAIR {
-    X509 *x509;
-    EVP_PKEY *pkey;
-    PKCS12 *p12;
-} CERT_KEY_PAIR, *PCERT_KEY_PAIR;
-
-CERT_KEY_PAIR mkcert_generate();
-void mkcert_free(CERT_KEY_PAIR);
-void mkcert_save(const char* certFile, const char* p12File, const char* keyPairFile, CERT_KEY_PAIR certKeyPair);
+#define GS_OK 0
+#define GS_FAILED -1
+#define GS_OUT_OF_MEMORY -2
+#define GS_INVALID -3
+#define GS_WRONG_STATE -4
+#define GS_IO_ERROR -5
+#define GS_NOT_SUPPORTED_4K -6
+#define GS_UNSUPPORTED_VERSION -7
+#define GS_NOT_SUPPORTED_MODE -8
+#define GS_ERROR -9
+#define GS_NOT_SUPPORTED_SOPS_RESOLUTION -10
