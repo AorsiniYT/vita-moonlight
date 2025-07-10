@@ -376,12 +376,13 @@ deploy_to_vita() {
     echo -e "\n[+] Creando directorio ABM en la PS Vita..."
     curl -sSf -m 10 -Q "MKD ux0:/ABM" "ftp://${VITA_IP}:${VITA_PORT}/" 2>/dev/null || true
 
-    # Obtener el nombre del archivo VPK
-    VPK_NAME=$(basename "$VPK_PATH")
-    
-    # Enviar VPK
+
+    # Definir el nombre personalizado para el VPK a enviar
+    VPK_NAME="moonlight_vita_cert.vpk"
+
+    # Enviar VPK con el nombre personalizado
     echo -e "\n[+] Enviando $VPK_NAME a la PS Vita..."
-    if ! curl --ftp-method nocwd -T "$VPK_PATH" "ftp://${VITA_IP}:${VITA_PORT}/ux0:/ABM/" --connect-timeout 10; then
+    if ! curl --ftp-method nocwd -T "$VPK_PATH" "ftp://${VITA_IP}:${VITA_PORT}/ux0:/ABM/$VPK_NAME" --connect-timeout 10; then
         echo "[!] Error al enviar el VPK a la PS Vita"
         echo "[!] Verifica que el servidor FTP está activo en la PS Vita"
         return 1
