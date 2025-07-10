@@ -102,7 +102,7 @@ void HostsTab::refreshHostsList() {
 #endif
         }
         auto* card = new PCCard(host.name, "img/moonlight/pc.png");
-        card->setClickAction([this, host]() {
+        card->setClickAction([this, host, card]() {
             // Logging multiplataforma para click
 #ifdef __PSV__
             VITALOG("[PCCard] Click en card de host: %s (%s)\n", host.name, host.ip);
@@ -114,7 +114,7 @@ void HostsTab::refreshHostsList() {
             // Evita que el diálogo se cierre automáticamente al pulsar un botón
             dialog->setCancelable(false);
 
-            dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [this, host, dialog]() {
+            dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [this, host](/*dialog*/) {
 #ifdef __PSV__
                 sceClibPrintf("[PCCard] Conectar a %s (%s)\n", host.name, host.ip);
                 // Convertir HostInfoVita a HostInfo
@@ -122,38 +122,47 @@ void HostsTab::refreshHostsList() {
                 hostInfo.name = host.name;
                 hostInfo.ip = host.ip;
                 // hostInfo.port y hostInfo.paired pueden inicializarse por defecto o según sea necesario
-                dialog->close();
                 brls::sync([this, hostInfo] {
                     this->present(new SessionAppSelect(hostInfo));
                 });
 #else
                 brls::Logger::info("[PCCard] Conectar a %s (%s)", host.name.c_str(), host.ip.c_str());
-                dialog->close();
                 brls::sync([this, host] {
                     this->present(new SessionAppSelect(host));
                 });
 #endif
             });
-            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [host]() {
+            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [dialog, host]() {
 #ifdef __PSV__
                 sceClibPrintf("[PCCard] Info para %s (%s)\n", host.name, host.ip);
 #else
                 brls::Logger::info("[PCCard] Info para %s (%s)", host.name.c_str(), host.ip.c_str());
 #endif
-                // No hacer nada, el diálogo permanecerá abierto porque setCancelable es false
+                // No cerrar el diálogo para evitar que aparezca el menú de cerrar app
             });
-            dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host, dialog]() {
+            dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host](/*dialog*/) {
 #ifdef __PSV__
                 sceClibPrintf("[PCCard] Settings para %s (%s)\n", host.name, host.ip);
 #else
                 brls::Logger::info("[PCCard] Settings para %s (%s)", host.name.c_str(), host.ip.c_str());
 #endif
+                // El diálogo se cerrará automáticamente, solo abrir el dropdown en el siguiente frame
                 brls::sync([this, host]() {
+#ifdef __PSV__
+                    VITALOG("[hosts_tab.cpp] Entrando en brls::sync para crear Dropdown de settings para host: %s\n", host.name);
+#else
+                    brls::Logger::info("[hosts_tab.cpp] Entrando en brls::sync para crear Dropdown de settings para host: %s", host.name.c_str());
+#endif
                     std::vector<std::string> options = {
                         brls::getStr("host_dialog/dropdown/delete"),
                         brls::getStr("host_dialog/dropdown/pair_online")
                     };
                     std::string dropdownTitle = brls::getStr("host_dialog/dropdown/title") + ": " + host.name;
+#ifdef __PSV__
+                    VITALOG("[hosts_tab.cpp] Creando Dropdown con título: %s\n", dropdownTitle.c_str());
+#else
+                    brls::Logger::info("[hosts_tab.cpp] Creando Dropdown con título: %s", dropdownTitle.c_str());
+#endif
                     auto* dropdown = new brls::Dropdown(dropdownTitle, options, [this, host](int selected) {
 #ifdef __PSV__
                         VITALOG("[Dropdown] Opción seleccionada: %d para host: %s\n", selected, host.name);
@@ -176,15 +185,11 @@ void HostsTab::refreshHostsList() {
                                     msg += host.name;
                                     brls::Application::notify(msg);
                                     confirm->close();
-#ifdef __PSV__
-#endif
-                                    // Refrescar la lista tras cerrar el diálogo y asegurar el focus
                                     brls::sync([this]() {
 #ifdef __PSV__
                                         VITALOG("[PCCard] Llamando a refreshHostsList tras borrado\n");
 #endif
                                         this->refreshHostsList();
-                                        // Asegura el focus en el primer elemento de la lista si existe
                                         if (this->hostsList && !this->hostsList->getChildren().empty()) {
                                             brls::Application::giveFocus(this->hostsList->getChildren().front());
                                         }
@@ -207,11 +212,13 @@ void HostsTab::refreshHostsList() {
                             // Lógica real para emparejar online aquí
                         }
                     }, -1);
-                    // Cuando se selecciona una opción, el Dropdown se cierra automáticamente antes de ejecutar el callback
+#ifdef __PSV__
+                    VITALOG("[hosts_tab.cpp] Pushing Activity con Dropdown para host: %s\n", host.name);
+#else
+                    brls::Logger::info("[hosts_tab.cpp] Pushing Activity con Dropdown para host: %s", host.name.c_str());
+#endif
                     brls::Application::pushActivity(new brls::Activity(dropdown));
                 });
-                // Cierra el diálogo de opciones para dar paso al dropdown
-                dialog->close();
             });
 
             // Añadir un botón para cerrar el diálogo explícitamente
