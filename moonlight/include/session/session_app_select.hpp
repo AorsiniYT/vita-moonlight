@@ -24,7 +24,7 @@
 
 class SessionAppSelect : public brls::Box {
   public:
-    SessionAppSelect(const HostInfo& host);
+    SessionAppSelect(const std::string& hostName);
     ~SessionAppSelect();
 
     void onLayout() override;

@@ -14,6 +14,7 @@
     limitations under the License.
 */
 #include "model/HostStorage.hpp"
+#include "ConfigManager.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -21,6 +22,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <filesystem>
+#include <iostream>
 
 
 
@@ -79,26 +81,36 @@ bool HostStorage::savePairedHost(const std::string& name, const std::string& ip,
 // Carga todos los hosts escaneando las carpetas y leyendo device.ini
 std::vector<HostInfo> HostStorage::loadHosts() {
     std::vector<HostInfo> hosts;
-    std::string baseDir = "devices/";
+    ConfigManager config;
+    std::string baseDir = config.getKeysDir();
+    std::cout << "[DEBUG][HostStorage] baseDir usado para hosts: '" << baseDir << "'\n";
     DIR* dir = opendir(baseDir.c_str());
-    if (!dir) return hosts;
+    if (!dir) {
+        std::cout << "[DEBUG][HostStorage] No se pudo abrir el directorio: '" << baseDir << "'\n";
+        return hosts;
+    }
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
         std::string folder = entry->d_name;
+        std::cout << "[DEBUG][HostStorage] Carpeta encontrada: '" << folder << "'\n";
         if (folder.empty() || folder == "." || folder == ".." || folder.length() > 60)
             continue;
-        std::string path = baseDir + folder;
+        std::string path = baseDir + "/" + folder;
         struct stat st;
         if (::stat(path.c_str(), &st) != 0 || !(st.st_mode & S_IFDIR))
             continue;
         std::string iniPath = path + "/device.ini";
         std::ifstream ini(iniPath);
-        if (!ini.is_open())
+        if (!ini.is_open()) {
+            std::cout << "[DEBUG][HostStorage] No se pudo abrir: '" << iniPath << "'\n";
             continue;
+        }
         HostInfo host;
         host.name = folder;
+        std::cout << "[DEBUG][HostStorage] Leyendo device.ini para host: '" << folder << "'\n";
         std::string line;
         while (std::getline(ini, line)) {
+            std::cout << "[DEBUG][HostStorage] device.ini: " << line << "\n";
             if (line.find("internal=") == 0) {
                 host.ip = line.substr(strlen("internal="));
             } else if (line.find("port=") == 0) {
@@ -111,14 +123,13 @@ std::vector<HostInfo> HostStorage::loadHosts() {
         hosts.push_back(host);
     }
     closedir(dir);
+    std::cout << "[DEBUG][HostStorage] Total hosts encontrados: " << hosts.size() << "\n";
     return hosts;
 }
 
 // saveHosts: no implementado, no se usa con device.ini
 bool HostStorage::saveHosts(const std::vector<HostInfo>&) { return false; }
 
-
-#include "ConfigManager.hpp"
 
 // addHost: usa la ruta configurable de dispositivos
 bool HostStorage::addHost(const HostInfo& host) {

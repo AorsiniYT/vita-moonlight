@@ -62,20 +62,7 @@ void HostsTab::refreshHostsList() {
     constexpr int CARDS_PER_ROW = 3;
 
     // --- Comprobación de hosts guardados ---
-#ifdef __PSV__
-    auto hosts = loadHostsVita();
-    VITALOG("[HostsTab::refreshHostsList] loadHostsVita() llamado, hosts.size=%d\n", (int)hosts.size());
-    if (hosts.empty()) {
-        VITALOG("[HostsTab::refreshHostsList] No hay hosts guardados\n");
-        auto* emptyItem = new brls::Label();
-        emptyItem->setText(brls::getStr("host_dialog/host_list_empty"));
-        emptyItem->setFontSize(16);
-        emptyItem->setHorizontalAlign(brls::HorizontalAlign::CENTER);
-        this->hostsList->addView(emptyItem);
-        return;
-    }
-#else
-    auto hosts = loadHosts();
+    auto hosts = HostStorage::loadHosts();
     if (hosts.empty()) {
         auto* emptyItem = new brls::Label();
         emptyItem->setText(brls::getStr("host_dialog/host_list_empty"));
@@ -84,7 +71,6 @@ void HostsTab::refreshHostsList() {
         this->hostsList->addView(emptyItem);
         return;
     }
-#endif
     int count = 0;
     brls::Box* row = nullptr;
     for (const auto& host : hosts) {
@@ -97,88 +83,46 @@ void HostsTab::refreshHostsList() {
         if (count % CARDS_PER_ROW == 0) {
             row = new brls::Box(brls::Axis::ROW);
             this->hostsList->addView(row);
-#ifdef __PSV__
             VITALOG("[HostsTab::refreshHostsList] Nueva fila creada\n");
-#endif
         }
         auto* card = new PCCard(host.name, "img/moonlight/pc.png");
         card->setClickAction([this, host, card]() {
             // Logging multiplataforma para click
-#ifdef __PSV__
             VITALOG("[PCCard] Click en card de host: %s (%s)\n", host.name, host.ip);
-#else
-            brls::Logger::info("[PCCard] Click en card de host: %s (%s)", host.name.c_str(), host.ip.c_str());
-#endif
             auto* dialog = new brls::Dialog(brls::getStr("host_dialog/dialog/title"));
             
             // Evita que el diálogo se cierre automáticamente al pulsar un botón
             dialog->setCancelable(false);
 
             dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [this, host](/*dialog*/) {
-#ifdef __PSV__
                 sceClibPrintf("[PCCard] Conectar a %s (%s)\n", host.name, host.ip);
-                // Convertir HostInfoVita a HostInfo
-                HostInfo hostInfo;
-                hostInfo.name = host.name;
-                hostInfo.ip = host.ip;
-                // hostInfo.port y hostInfo.paired pueden inicializarse por defecto o según sea necesario
-                brls::sync([this, hostInfo] {
-                    this->present(new SessionAppSelect(hostInfo));
-                });
-#else
-                brls::Logger::info("[PCCard] Conectar a %s (%s)", host.name.c_str(), host.ip.c_str());
                 brls::sync([this, host] {
-                    this->present(new SessionAppSelect(host));
+                    this->present(new SessionAppSelect(host.name));
                 });
-#endif
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/info"), [dialog, host]() {
-#ifdef __PSV__
                 sceClibPrintf("[PCCard] Info para %s (%s)\n", host.name, host.ip);
-#else
-                brls::Logger::info("[PCCard] Info para %s (%s)", host.name.c_str(), host.ip.c_str());
-#endif
                 // No cerrar el diálogo para evitar que aparezca el menú de cerrar app
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host](/*dialog*/) {
-#ifdef __PSV__
                 sceClibPrintf("[PCCard] Settings para %s (%s)\n", host.name, host.ip);
-#else
-                brls::Logger::info("[PCCard] Settings para %s (%s)", host.name.c_str(), host.ip.c_str());
-#endif
                 // El diálogo se cerrará automáticamente, solo abrir el dropdown en el siguiente frame
                 brls::sync([this, host]() {
-#ifdef __PSV__
                     VITALOG("[hosts_tab.cpp] Entrando en brls::sync para crear Dropdown de settings para host: %s\n", host.name);
-#else
-                    brls::Logger::info("[hosts_tab.cpp] Entrando en brls::sync para crear Dropdown de settings para host: %s", host.name.c_str());
-#endif
                     std::vector<std::string> options = {
                         brls::getStr("host_dialog/dropdown/delete"),
                         brls::getStr("host_dialog/dropdown/pair_online")
                     };
                     std::string dropdownTitle = brls::getStr("host_dialog/dropdown/title") + ": " + host.name;
-#ifdef __PSV__
                     VITALOG("[hosts_tab.cpp] Creando Dropdown con título: %s\n", dropdownTitle.c_str());
-#else
-                    brls::Logger::info("[hosts_tab.cpp] Creando Dropdown con título: %s", dropdownTitle.c_str());
-#endif
                     auto* dropdown = new brls::Dropdown(dropdownTitle, options, [this, host](int selected) {
-#ifdef __PSV__
                         VITALOG("[Dropdown] Opción seleccionada: %d para host: %s\n", selected, host.name);
-#else
-                        brls::Logger::info("[Dropdown] Opción seleccionada: %d para host: %s", selected, host.name.c_str());
-#endif
                         if (selected == 0) {
                             brls::sync([this, host]() {
                                 std::string confirmMsg = brls::getStr("host_dialog/confirm_delete_msg") + "\n" + host.name;
                                 auto* confirm = new brls::Dialog(confirmMsg);
                                 confirm->addButton(brls::getStr("host_dialog/yes"), [this, host, confirm]() {
-#ifdef __PSV__
                                     sceClibPrintf("[PCCard] Eliminando host: %s\n", host.name);
-#else
-                                    brls::Logger::info("[PCCard] Eliminando host: %s", host.name.c_str());
-#endif
                                     HostStorage::removeHost(host.name);
                                     std::string msg = brls::getStr("host_dialog/notification_deleted");
                                     msg += ": ";
@@ -186,9 +130,7 @@ void HostsTab::refreshHostsList() {
                                     brls::Application::notify(msg);
                                     confirm->close();
                                     brls::sync([this]() {
-#ifdef __PSV__
                                         VITALOG("[PCCard] Llamando a refreshHostsList tras borrado\n");
-#endif
                                         this->refreshHostsList();
                                         if (this->hostsList && !this->hostsList->getChildren().empty()) {
                                             brls::Application::giveFocus(this->hostsList->getChildren().front());
@@ -196,36 +138,24 @@ void HostsTab::refreshHostsList() {
                                     });
                                 });
                                 confirm->addButton(brls::getStr("host_dialog/no"), [confirm]() {
-#ifdef __PSV__
                                     VITALOG("[PCCard] Cancelado borrado de host\n");
-#endif
                                     confirm->close();
                                 });
                                 confirm->open();
                             });
                         } else if (selected == 1) {
-#ifdef __PSV__
                             sceClibPrintf("[PCCard] Emparejar online fuera de casa: %s\n", host.name);
-#else
-                            brls::Logger::info("[PCCard] Emparejar online fuera de casa: %s", host.name.c_str());
-#endif
                             // Lógica real para emparejar online aquí
                         }
                     }, -1);
-#ifdef __PSV__
                     VITALOG("[hosts_tab.cpp] Pushing Activity con Dropdown para host: %s\n", host.name);
-#else
-                    brls::Logger::info("[hosts_tab.cpp] Pushing Activity con Dropdown para host: %s", host.name.c_str());
-#endif
                     brls::Application::pushActivity(new brls::Activity(dropdown));
                 });
             });
-
             // Añadir un botón para cerrar el diálogo explícitamente
             dialog->addButton(brls::getStr("main/cancel"), [dialog]() {
                 dialog->close();
             });
-
             dialog->open();
         });
         if ((count + 1) % CARDS_PER_ROW != 0) {
