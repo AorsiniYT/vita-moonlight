@@ -57,80 +57,6 @@ target_include_directories(moonlight-common-c PUBLIC moonlight-common-c/src moon
 target_link_libraries(moonlight-common-c PUBLIC enet)
 
 
-# OpenSSL solo en builds de escritorio (no Vita)
-
-if(WIN32)
-    if(MINGW)
-        # Checks de OPENSSL_CRYPTO_LIBRARY y OPENSSL_SSL_LIBRARY eliminados para builds con DLLs
-        message(STATUS "Usando OpenSSL include dir: ${OPENSSL_INCLUDE_DIR}")
-        set(GAMESTREAM_SRC
-            libgamestream/client.c
-            libgamestream/http.c
-            libgamestream/mkcert.c
-            libgamestream/sps.c
-            libgamestream/xml.c
-        )
-        if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV))
-            list(APPEND GAMESTREAM_SRC libgamestream/discover.c)
-        endif()
-        add_library(gamestream STATIC ${GAMESTREAM_SRC})
-    target_include_directories(gamestream PUBLIC libgamestream "${OPENSSL_INCLUDE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/h264bitstream")
-
-        # Las librerías se enlazan en el CMake principal y/o por FindOpenSSL
-        # target_link_libraries(gamestream PUBLIC "${OPENSSL_CRYPTO_LIBRARY}" "${OPENSSL_SSL_LIBRARY}")
-        # Forzar también los nombres .a para OpenSSL en MinGW
-        if(MINGW)
-            set(OPENSSL_ROOT_DIR "${CMAKE_SOURCE_DIR}/../openssl-mingw" CACHE PATH "" FORCE)
-            set(OPENSSL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../openssl-mingw/include" CACHE PATH "" FORCE)
-            set(OPENSSL_CRYPTO_LIBRARY "${CMAKE_SOURCE_DIR}/../openssl-mingw/lib/libcrypto.a" CACHE FILEPATH "" FORCE)
-            set(OPENSSL_SSL_LIBRARY "${CMAKE_SOURCE_DIR}/../openssl-mingw/lib/libssl.a" CACHE FILEPATH "" FORCE)
-            set(OPENSSL_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY};${OPENSSL_SSL_LIBRARY}" CACHE STRING "" FORCE)
-        endif()
-    else()
-        find_package(OpenSSL REQUIRED)
-        set(GAMESTREAM_SRC
-            libgamestream/client.c
-            libgamestream/http.c
-            libgamestream/mkcert.c
-            libgamestream/sps.c
-            libgamestream/xml.c
-        )
-        if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV))
-            list(APPEND GAMESTREAM_SRC libgamestream/discover.c)
-        endif()
-        add_library(gamestream STATIC ${GAMESTREAM_SRC})
-        target_include_directories(gamestream PUBLIC libgamestream ${OPENSSL_INCLUDE_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/h264bitstream")
-        target_link_libraries(gamestream PUBLIC OpenSSL::SSL OpenSSL::Crypto)
-    endif()
-elseif(NOT (CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV))
-    # Otros escritorios (Linux, Mac)
-    find_package(OpenSSL REQUIRED)
-    set(GAMESTREAM_SRC
-        libgamestream/client.c
-        libgamestream/http.c
-        libgamestream/mkcert.c
-        libgamestream/sps.c
-        libgamestream/xml.c
-    )
-    if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV))
-        list(APPEND GAMESTREAM_SRC libgamestream/discover.c)
-    endif()
-    add_library(gamestream STATIC ${GAMESTREAM_SRC})
-    target_include_directories(gamestream PUBLIC libgamestream ${OPENSSL_INCLUDE_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/h264bitstream")
-    target_link_libraries(gamestream PUBLIC OpenSSL::SSL OpenSSL::Crypto)
-else()
-    # Para PSVita, NO incluir discover.c (depende de Avahi, no disponible)
-    add_library(gamestream STATIC
-        libgamestream/client.c
-        libgamestream/http.c
-        libgamestream/mkcert.c
-        libgamestream/sps.c
-        libgamestream/xml.c
-    )
-    target_include_directories(gamestream PUBLIC libgamestream "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/moonlight-common-c/src" "${CMAKE_CURRENT_SOURCE_DIR}/h264bitstream")
-endif()
-
-
 # h264bitstream static library
 add_library(h264bitstream STATIC
     h264bitstream/h264_nal.c
@@ -144,21 +70,6 @@ add_library(inih STATIC
     inih/ini.c
 )
 target_include_directories(inih PUBLIC inih)
-
-
-
-
-
-## moonlight-common-c static library: ahora se construye solo desde su propio CMakeLists.txt interno
-## Elimina la manipulación de includes y enlaces de moonlight-common-c aquí
-# Si necesitas includes globales, agrégalos en el propio CMakeLists.txt de moonlight-common-c
-if(UUID_WIN_STUB_LIB)
-    target_link_libraries(gamestream PUBLIC ${UUID_WIN_STUB_LIB})
-endif()
-
-
-# Exporta los includes de libgamestream para targets superiores
-target_include_directories(gamestream INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/libgamestream)
 
 add_subdirectory(borealis/library)
 
@@ -174,5 +85,3 @@ target_include_directories(mdnsniff PUBLIC mdnsniff mdnsniff/common)
 if(CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV)
     target_link_libraries(mdnsniff PUBLIC SceSysmodule_stub SceNet_stub SceNetCtl_stub SceCtrl_stub SceDisplay_stub)
 endif()
-
-target_include_directories(gamestream PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inih)

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <borealis/core/logger.hpp>
-#include "libgamestream/client.h"
-#include "libgamestream/errors.h"
+#include "client.h"
+#include "errors.h"
 #include "Limelight.h"
 
 class StreamingManager {
