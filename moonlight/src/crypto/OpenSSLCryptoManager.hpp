@@ -8,9 +8,9 @@
 
 class OpenSSLCryptoManager {
 public:
-    static bool load_cert_key_pair();
-    static bool generate_new_cert_key_pair();
-    static void remove_cert_key_pair();
+    static bool load_cert_key_pair(const std::string& keyDir);
+    static bool generate_new_cert_key_pair(const std::string& keyDir);
+    static void remove_cert_key_pair(const std::string& keyDir);
     
     static Data cert_data();
     static Data key_data();

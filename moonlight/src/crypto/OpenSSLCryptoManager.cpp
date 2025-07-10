@@ -1,7 +1,6 @@
 #ifdef USE_OPENSSL_CRYPTO
 
 #include "OpenSSLCryptoManager.hpp"
-#include "Settings.hpp"
 //#include "Logger.hpp"
 #include <string.h>
 #include <cstdlib>
@@ -19,12 +18,12 @@ static const int NUM_BITS = 2048;
 static const int SERIAL = 0;
 static const int NUM_YEARS = 10;
 
-static bool _generate_new_cert_key_pair();
+static bool _generate_new_cert_key_pair(const std::string& keyDir);
 
-bool OpenSSLCryptoManager::load_cert_key_pair() {
+bool OpenSSLCryptoManager::load_cert_key_pair(const std::string& keyDir) {
     if (m_key.is_empty() || m_cert.is_empty()) {
-        Data cert = Data::read_from_file(Settings::instance().key_dir() + "/" + CERTIFICATE_FILE_NAME);
-        Data key = Data::read_from_file(Settings::instance().key_dir() + "/" + KEY_FILE_NAME);
+        Data cert = Data::read_from_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
+        Data key = Data::read_from_file(keyDir + "/" + KEY_FILE_NAME);
         
         if (!cert.is_empty() && !key.is_empty()) {
             m_cert = cert;
@@ -36,20 +35,20 @@ bool OpenSSLCryptoManager::load_cert_key_pair() {
     return true;
 }
 
-bool OpenSSLCryptoManager::generate_new_cert_key_pair() {
-    if (_generate_new_cert_key_pair()) {
+bool OpenSSLCryptoManager::generate_new_cert_key_pair(const std::string& keyDir) {
+    if (_generate_new_cert_key_pair(keyDir)) {
         if (!m_cert.is_empty() && !m_key.is_empty()) {
-            m_cert.write_to_file(Settings::instance().key_dir() + "/" + CERTIFICATE_FILE_NAME);
-            m_key.write_to_file(Settings::instance().key_dir() + "/" + KEY_FILE_NAME);
+            m_cert.write_to_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
+            m_key.write_to_file(keyDir + "/" + KEY_FILE_NAME);
             return true;
         }
     }
     return false;
 }
 
-void OpenSSLCryptoManager::remove_cert_key_pair() {
-    remove((Settings::instance().key_dir() + "/" + CERTIFICATE_FILE_NAME).c_str());
-    remove((Settings::instance().key_dir() + "/" + KEY_FILE_NAME).c_str());
+void OpenSSLCryptoManager::remove_cert_key_pair(const std::string& keyDir) {
+    remove((keyDir + "/" + CERTIFICATE_FILE_NAME).c_str());
+    remove((keyDir + "/" + KEY_FILE_NAME).c_str());
     m_cert = Data();
     m_key = Data();
 }
@@ -236,7 +235,7 @@ static Data _key_data(EVP_PKEY* pk) {
     return data;
 }
 
-static bool _generate_new_cert_key_pair() {
+static bool _generate_new_cert_key_pair(const std::string& keyDir) {
 //    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     BIO *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
     
@@ -283,7 +282,24 @@ static bool _generate_new_cert_key_pair() {
     
     m_cert = _cert_data(cert);
     m_key = _key_data(pk);
-    
+
+    // --- Generar y guardar PKCS#12 (client.p12) con password "limelight" y alias "GameStream" ---
+    std::string p12Path = keyDir + "/client.p12";
+    PKCS12* p12 = PKCS12_create(
+        (char*)"limelight", // password
+        (char*)"GameStream", // alias
+        pk, // clave privada
+        cert, // certificado
+        NULL, 0, 0, 0, 0, 0);
+    if (p12) {
+        FILE* p12file = fopen(p12Path.c_str(), "wb");
+        if (p12file) {
+            i2d_PKCS12_fp(p12file, p12);
+            fclose(p12file);
+        }
+        PKCS12_free(p12);
+    }
+
     X509_free(cert);
     EVP_PKEY_free(pk);
     return true;
