@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-#include "Settings.hpp"
+#include "settings.hpp"
 #include "ConfigManager.hpp"
 #include "tab/settings_tab.hpp"
 #include <string>
