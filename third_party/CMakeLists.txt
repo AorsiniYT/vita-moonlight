@@ -1,60 +1,13 @@
 
-# ENET static library
-if(CMAKE_SYSTEM_NAME STREQUAL "Vita" OR PLATFORM_PSV)
-    add_library(enet STATIC
-        enet/callbacks.c
-        enet/compress.c
-        enet/host.c
-        enet/list.c
-        enet/packet.c
-        enet/peer.c
-        enet/protocol.c
-        enet/unix.c
-    )
-else()
-    add_library(enet STATIC
-        enet/callbacks.c
-        enet/compress.c
-        enet/host.c
-        enet/list.c
-        enet/packet.c
-        enet/peer.c
-        enet/protocol.c
-        enet/unix.c
-    )
-endif()
-target_include_directories(enet PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} enet/include)
+
+# ENET ahora es gestionado por moonlight-common-c como submódulo y no debe ser compilado aquí
 
 
-# moonlight-common-c static library
-add_library(moonlight-common-c STATIC
-    moonlight-common-c/src/AudioStream.c
-    moonlight-common-c/src/ByteBuffer.c
-    moonlight-common-c/src/Connection.c
-    moonlight-common-c/src/ConnectionTester.c
-    moonlight-common-c/src/ControlStream.c
-    moonlight-common-c/src/FakeCallbacks.c
-    moonlight-common-c/src/InputStream.c
-    moonlight-common-c/src/LinkedBlockingQueue.c
-    moonlight-common-c/src/Misc.c
-    moonlight-common-c/src/Platform.c
-    moonlight-common-c/src/PlatformCrypto.c
-    moonlight-common-c/src/PlatformSockets.c
-    moonlight-common-c/src/RecorderCallbacks.c
-    moonlight-common-c/src/RtpAudioQueue.c
-    moonlight-common-c/src/RtpVideoQueue.c
-    moonlight-common-c/src/RtspConnection.c
-    moonlight-common-c/src/RtspParser.c
-    moonlight-common-c/src/SdpGenerator.c
-    moonlight-common-c/src/SimpleStun.c
-    moonlight-common-c/src/VideoDepacketizer.c
-    moonlight-common-c/src/VideoStream.c
-    moonlight-common-c/reedsolomon/rs.c
-)
 
-# Hereda los includes de enet para que <enet/enet.h> funcione en moonlight-common-c
-target_include_directories(moonlight-common-c PUBLIC moonlight-common-c/src moonlight-common-c/reedsolomon)
-target_link_libraries(moonlight-common-c PUBLIC enet)
+
+# moonlight-common-c static library (con opción de OpenSSL/MbedTLS)
+# La opción USE_MBEDTLS debe ser definida en el CMakeLists.txt principal si se desea usar MbedTLS
+add_subdirectory(moonlight-common-c)
 
 
 # h264bitstream static library
