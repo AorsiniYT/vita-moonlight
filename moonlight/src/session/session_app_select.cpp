@@ -8,32 +8,33 @@
 
 using namespace brls::literals;
 
-SessionAppSelect::SessionAppSelect(const HostInfo& host)
-    : brls::Box(brls::Axis::COLUMN), host(host) {
-    brls::Logger::info("View: SessionAppSelect");
+
+SessionAppSelect::SessionAppSelect(const std::string& hostName)
+    : brls::Box(brls::Axis::COLUMN), host() {
+    brls::Logger::info("View: SessionAppSelect para host: %s", hostName.c_str());
+
+    // Buscar el host real por nombre
+    auto found = HostStorage::findHost(hostName);
+    if (found) {
+        this->host = *found;
+    } else {
+        brls::Logger::error("[SessionAppSelect] No se encontró el host '%s' en HostStorage", hostName.c_str());
+        // Dejar host vacío, mostrará error en populateAppList
+    }
 
     this->inflateFromXMLRes("xml/views/session_app_select.xml");
 
     // Configurar títulos
-    app_select_title->setText(host.name);
+    app_select_title->setText(hostName);
     app_select_subtitle->setText("Selecciona una aplicación para iniciar");
 
     // Crear y configurar el GridView dinámicamente
     gridView = new GridView();
     app_grid_container->addView(gridView);
 
-    // Crear y configurar el Spinner
+    // Crear y configurar el Spinner y añadirlo al mismo contenedor que el grid
     spinner = new brls::ProgressSpinner(brls::ProgressSpinnerSize::LARGE);
-    
-    // Centrar el spinner usando un contenedor con layout
-    auto* spinnerContainer = new brls::Box(brls::Axis::COLUMN);
-    spinnerContainer->setAlignItems(brls::AlignItems::CENTER);
-    spinnerContainer->setJustifyContent(brls::JustifyContent::CENTER);
-    spinnerContainer->setGrow(1.0f); // Ocupar todo el espacio
-    spinnerContainer->addView(spinner);
-    
-    // Añadir el contenedor del spinner a la vista principal
-    this->addView(spinnerContainer);
+    app_grid_container->addView(spinner);
 
     // Iniciar la carga de la lista de apps
     this->populateAppList();
@@ -55,6 +56,13 @@ void SessionAppSelect::populateAppList() {
     gridView->setVisibility(brls::Visibility::INVISIBLE);
     app_select_empty->setVisibility(brls::Visibility::GONE);
     gridView->clearViews();
+
+    if (host.name.empty() || host.ip.empty()) {
+        spinner->setVisibility(brls::Visibility::GONE);
+        app_select_empty->setText("Error: No se encontró la información del host.");
+        app_select_empty->setVisibility(brls::Visibility::VISIBLE);
+        return;
+    }
 
     brls::async([this]() {
         brls::Logger::info("[SessionAppSelect] Llamando a ConnectionManager::fetchRemoteApps para host: {} (ip: {})", host.name, host.ip);
