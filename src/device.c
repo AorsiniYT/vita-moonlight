@@ -12,12 +12,57 @@
 
 #define DATA_DIR "ux0:data/moonlight"
 #define DEVICE_FILE "device.ini"
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
 
 #define INT(v) atoi((v))
 #define BOOL(v) strcmp((v), "true") == 0
 #define write_int(fd, key, value) fprintf(fd, "%s = %d\n", key, value)
 #define write_bool(fd, key, value) fprintf(fd, "%s = %s\n", key, value ? "true" : "false");
 #define write_string(fd, key, value) fprintf(fd, "%s = %s\n", key, value)
+
+// Elimina la carpeta y el archivo del dispositivo
+bool remove_device(const char *name) {
+  int idx = -1;
+  for (int i = 0; i < known_devices.count; i++) {
+    if (!strcmp(known_devices.devices[i].name, name)) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx == -1) {
+    vita_debug_log("remove_device: device %s not found\n", name);
+    return false;
+  }
+  // Eliminar del arreglo
+  for (int i = idx; i < known_devices.count - 1; i++) {
+    known_devices.devices[i] = known_devices.devices[i + 1];
+  }
+  known_devices.count--;
+
+  // Eliminar del disco
+  char dir_path[512];
+  snprintf(dir_path, sizeof(dir_path), DATA_DIR "/%s", name);
+  char file_path[512];
+  device_file_path(file_path, name);
+  sceIoRemove(file_path); // Elimina device.ini
+  // Elimina todos los archivos dentro de la carpeta antes de borrar la carpeta
+  SceIoDirent dirent;
+  SceUID dfd = sceIoDopen(dir_path);
+  if (dfd >= 0) {
+    while (sceIoDread(dfd, &dirent) > 0) {
+      if (strcmp(dirent.d_name, ".") == 0 || strcmp(dirent.d_name, "..") == 0) continue;
+      char full_path[512];
+      snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, dirent.d_name);
+      sceIoRemove(full_path);
+    }
+    sceIoDclose(dfd);
+  }
+  sceIoRmdir(dir_path);
+  vita_debug_log("remove_device: device %s removed from memory and disk\n", name);
+  return true;
+}
+
 
 device_infos_t known_devices = {0};
 
@@ -31,7 +76,7 @@ device_info_t* find_device(const char *name) {
   return NULL;
 }
 
-static void device_file_path(char *out, const char *dir) {
+void device_file_path(char *out, const char *dir) {
   snprintf(out, 512, DATA_DIR "/%s/" DEVICE_FILE, dir);
 }
 

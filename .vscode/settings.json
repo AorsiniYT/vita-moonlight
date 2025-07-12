@@ -15,6 +15,7 @@
         "check_host.h": "c",
         "touchabsolute.h": "c",
         "evp.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "stat.h": "c"
     }
 }
