@@ -16,7 +16,7 @@
 #include "../power/vita.h"
 #include "../util.h"
 #include "../check_host.h"
-#include "../gui/mdns_log.h"
+#include "../debug.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -55,7 +55,7 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   extern volatile int g_host_scan_thread_status;
   // Refresco manual con Triángulo
   if ((input->buttons & SCE_CTRL_TRIANGLE) != 0) {
-    mdns_log("[UI] Refresco manual solicitado (Triángulo): reiniciando escaneo de hosts");
+    vita_debug_log("[UI] Refresco manual solicitado (Triángulo): reiniciando escaneo de hosts");
     stop_host_scan();
     start_host_scan();
     g_host_status_changed = 0; // Limpiar flag para evitar refresco doble
@@ -64,14 +64,14 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   }
   // Refresco automático solo una vez tras el primer escaneo
   if (first_scan_pending && g_host_status_changed && g_host_scan_thread_status != 1) {
-    mdns_log("[UI] Refresco automático tras primer escaneo\n");
+    vita_debug_log("[UI] Refresco automático tras primer escaneo\n");
     g_host_status_changed = 0;
     first_scan_pending = 0;
     return 2;
   }
   // Solo refrescar por cambio de estado si el hilo está activo
   if (g_host_status_changed && g_host_scan_thread_status == 1) {
-    mdns_log("[UI] Refrescando menú por cambio de estado de host\n");
+    vita_debug_log("[UI] Refrescando menú por cambio de estado de host\n");
     g_host_status_changed = 0;
     return 2; // Forzar refresco del menú
   }
@@ -87,22 +87,22 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     extern char pending_ip_update[64];
     if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
       device_info_t *info = &known_devices.devices[host_idx];
-      mdns_log("[UI] Mostrando diálogo de actualización de IP pendiente para %s: %s", info->name, pending_ip_update);
+      vita_debug_log("[UI] Mostrando diálogo de actualización de IP pendiente para %s: %s", info->name, pending_ip_update);
       ui_check_ip_update(info, pending_ip_update); // Variable 'res' no usada
       // Tras recargar, buscar el puntero actualizado y loguear si no se encuentra
       device_info_t *updated = find_device(info->name);
       if (updated) {
         info = updated;
       } else {
-        mdns_log("[UI] ERROR: Host %s no encontrado tras recargar dispositivos", info->name);
+        vita_debug_log("[UI] ERROR: Host %s no encontrado tras recargar dispositivos", info->name);
       }
       return 2; // Forzar refresco del menú tras el diálogo
     }
     struct host_status st = g_host_status[host_idx];
-    mdns_log("[UI] Intentando seleccionar host_idx=%d, hilo_estado=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.current_ip);
+    vita_debug_log("[UI] Intentando seleccionar host_idx=%d, hilo_estado=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.current_ip);
     // Si el hilo no está activo o el estado aún no fue actualizado, ignorar input
     if (g_host_scan_thread_status != 1 || st.current_ip[0] == '\0') {
-      mdns_log("[UI] Esperando escaneo: hilo_estado=%d, st.current_ip='%s'", g_host_scan_thread_status, st.current_ip);
+      vita_debug_log("[UI] Esperando escaneo: hilo_estado=%d, st.current_ip='%s'", g_host_scan_thread_status, st.current_ip);
       flash_message("Buscando estado del host...");
       return 0;
     }
@@ -115,55 +115,55 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
     struct host_status st;
     st = g_host_status[host_idx];
-    mdns_log("[UI] (LOOP) host_idx=%d, hilo_estado=%d, st.status=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.status, st.current_ip);
+    vita_debug_log("[UI] (LOOP) host_idx=%d, hilo_estado=%d, st.status=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.status, st.current_ip);
 
     if (st.status == HOST_IP_CHANGED && strcmp(info->internal, st.current_ip) != 0) {
-      mdns_log("[UI] Host %s detected IP change: old=%s, new=%s. Deferring IP update dialog.", info->name, info->internal, st.current_ip);
+      vita_debug_log("[UI] Host %s detected IP change: old=%s, new=%s. Deferring IP update dialog.", info->name, info->internal, st.current_ip);
       pending_ip_update_idx = host_idx;
       strncpy(pending_ip_update, st.current_ip, sizeof(pending_ip_update)-1);
       pending_ip_update[sizeof(pending_ip_update)-1] = '\0';
       exit_menu = 1;
     } else if (st.status == HOST_ONLINE) {
-      mdns_log("[UI] Host %s is ONLINE. Connecting normally.", info->name);
-      mdns_log("[UI] Deteniendo escaneo de hosts antes de conectar");
+      vita_debug_log("[UI] Host %s is ONLINE. Connecting normally.", info->name);
+      vita_debug_log("[UI] Deteniendo escaneo de hosts antes de conectar");
       stop_host_scan();
       ui_connect_paired_device(info);
       exit_menu = 2;
     } else {
-      mdns_log("[UI] Host %s is OFFLINE or unreachable.", info->name);
+      vita_debug_log("[UI] Host %s is OFFLINE or unreachable.", info->name);
       flash_message("Host is offline or unreachable.");
       return 0;
     }
   }
   switch (cursor) {
     case MAIN_MENU_CONNECT:
-      mdns_log("[UI] Seleccionado: Add manually");
+      vita_debug_log("[UI] Seleccionado: Add manually");
       ui_connect_manual();
       exit_menu = 2;
       break;
     case MAIN_MENU_SEARCH:
-      mdns_log("[UI] Seleccionado: Search devices");
+      vita_debug_log("[UI] Seleccionado: Search devices");
       ui_search_device();
       exit_menu = 2;
       break;
     case MAIN_MENU_CONNECT_RESUME:
-      mdns_log("[UI] Seleccionado: Resume connection");
-      mdns_log("[UI] Deteniendo escaneo de hosts antes de reanudar conexión");
+      vita_debug_log("[UI] Seleccionado: Resume connection");
+      vita_debug_log("[UI] Deteniendo escaneo de hosts antes de reanudar conexión");
       stop_host_scan();
       ui_connect_resume();
       exit_menu = 2;
       break;
     case MAIN_MENU_SETTINGS:
-      mdns_log("[UI] Seleccionado: Settings");
-      mdns_log("[UI] Deteniendo escaneo de hosts antes de entrar a Settings");
+      vita_debug_log("[UI] Seleccionado: Settings");
+      vita_debug_log("[UI] Deteniendo escaneo de hosts antes de entrar a Settings");
       stop_host_scan();
       ui_settings_menu();
       exit_menu = 0;
       start_host_scan();
       break;
     case MAIN_MENU_QUIT:
-      mdns_log("[UI] Seleccionado: Quit");
-      mdns_log("[UI] Deteniendo escaneo de hosts antes de salir");
+      vita_debug_log("[UI] Seleccionado: Quit");
+      vita_debug_log("[UI] Deteniendo escaneo de hosts antes de salir");
       stop_host_scan();
       if (connection_get_status() != LI_DISCONNECTED) {
         connection_terminate();
@@ -173,7 +173,7 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   }
   // Si se va a salir del menú, detener el escaneo
   if (exit_menu) {
-    mdns_log("[UI] Saliendo del menú principal, deteniendo escaneo de hosts");
+    vita_debug_log("[UI] Saliendo del menú principal, deteniendo escaneo de hosts");
     stop_host_scan();
     return exit_menu;
   }
@@ -185,7 +185,7 @@ int ui_main_menu_back(void *context) {
 }
 int ui_main_menu() {
   // Siempre reiniciar escaneo de hosts al entrar al menú principal
-  mdns_log("[UI] Entrando al menú principal, iniciando escaneo de hosts");
+  vita_debug_log("[UI] Entrando al menú principal, iniciando escaneo de hosts");
   start_host_scan();
   first_scan_pending = 1;
 
@@ -256,28 +256,28 @@ int ui_main_menu() {
         if (pending_ip_update_idx == i && pending_ip_update[0] != '\0') {
           strcpy(menu[real_idx].subname, "[IP changed]");
           menu[real_idx].color = 0xFF00FFFF;
-          mdns_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW, IP pendiente), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
+          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW, IP pendiente), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
           continue;
         }
         // ...lógica normal de color...
         if (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0) {
           if (strcmp(last_ip_logged, st.current_ip) != 0) {
-            mdns_log("[UI] Host %s IP changed: old=%s, new=%s", cur->name, cur->internal, st.current_ip);
+            vita_debug_log("[UI] Host %s IP changed: old=%s, new=%s", cur->name, cur->internal, st.current_ip);
             strncpy(last_ip_logged, st.current_ip, sizeof(last_ip_logged)-1);
             last_ip_logged[sizeof(last_ip_logged)-1] = '\0';
           }
           strcpy(menu[real_idx].subname, "[IP changed]");
           menu[real_idx].color = 0xFF00FFFF;
-          mdns_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
+          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
         } else if (strcmp(menu[real_idx].subname, "[IP changed]") == 0) {
           menu[real_idx].color = 0xFF00FFFF;
-          mdns_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
+          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW), archivo=ui.c", cur->name, real_idx, 0xFF00FFFF);
         } else if (st.status == HOST_ONLINE) {
           menu[real_idx].color = 0xFF00FF00;
-          mdns_log("[UI] Host %s menu idx=%d, color=0x%08X (GREEN), archivo=ui.c", cur->name, real_idx, 0xFF00FF00);
+          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (GREEN), archivo=ui.c", cur->name, real_idx, 0xFF00FF00);
         } else {
           menu[real_idx].color = 0xFF0000FF;
-          mdns_log("[UI] Host %s menu idx=%d, color=0x%08X (RED), archivo=ui.c", cur->name, real_idx, 0xFF0000FF);
+          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (RED), archivo=ui.c", cur->name, real_idx, 0xFF0000FF);
         }
       }
     }

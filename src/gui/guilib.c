@@ -1,5 +1,4 @@
 #include "guilib.h"
-#include "../gui/mdns_log.h"
 
 #include "../config.h"
 #include "../platform.h"

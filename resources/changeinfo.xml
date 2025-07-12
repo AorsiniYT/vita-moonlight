@@ -11,7 +11,6 @@
 * Many bugfixes and refinements to touch and gesture experience.<br>
 ]]></changes>
 <changes app_ver="00.11"><![CDATA[
-<<<<<<< HEAD
 ## 0.11.4<br>
 * Host status indicator dots: green (online), yellow (IP change pending), red (offline/disconnected).<br>
 * Robust host status checking with background scan thread and mDNS sniffer.<br>
@@ -28,7 +27,6 @@
   * ip3.png: Host offline/disconnected (red).<br>
   * ip4.png: IP change confirmation dialog (shows old/new IP).<br>
   * ip5.png: Search device function showing a found local device.<br>
-=======
 ## 0.11.2<br>
 * More reliable and user-friendly automatic pairing.<br>
 * Experimental absolute touch controls (beta).<br>
@@ -37,7 +35,6 @@
 * New modular UDP mDNS sniffer for device discovery (replaces legacy mdns code).<br>
 * Improved debug logging, especially for device search and reconnect flows.<br>
 * Cleanup of legacy code and dependencies.<br>
->>>>>>> cf0943e (Update changelog and version to 0.11.2)
 ]]></changes>
 <changes app_ver="00.10"><![CDATA[
 ## 0.10.1<br>

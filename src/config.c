@@ -27,7 +27,7 @@
 #include <getopt.h>
 #include <ini.h>
 #include "input/vita.h"
-#include "../src/gui/mdns_log.h"
+#include "debug.h"
 
 extern char* strdup(const char*);
 
@@ -296,7 +296,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   char* config_file = config_path;
   if (config_file) {
     config_file_parse(config_file, config);
-    mdns_log("[DEBUG] Configuración cargada: absolute_mouse = %d, touchscreen_mode = %d, show_fps = %d\n", config->absolute_mouse, config->touchscreen_mode, config->show_fps);
+    vita_debug_log("[DEBUG] Configuración cargada: absolute_mouse = %d, touchscreen_mode = %d, show_fps = %d", config->absolute_mouse, config->touchscreen_mode, config->show_fps);
   }
 
   update_layout();

@@ -44,6 +44,7 @@ void vita_debug_log(const char *s, ...) {
 
   char* buffer = malloc(8192);
   if (!buffer) {
+    pthread_mutex_unlock(&print_mutex);
     return;
   }
 
@@ -60,11 +61,16 @@ void vita_debug_log(const char *s, ...) {
   int len = vsnprintf(&buffer[25], 8000, s, va);
   va_end(va);
 
-  fprintf(config.log_file, "%s", buffer);
-  if (buffer[len + 24] != '\n') {
-      fprintf(config.log_file, "\n");
+  if (config.log_file) {
+    fprintf(config.log_file, "%s", buffer);
+    if (buffer[len + 24] != '\n') {
+        fprintf(config.log_file, "\n");
+    }
+    fflush(config.log_file);
+  } else {
+    // Si no se pudo abrir el log, mostrar por pantalla
+    printf("[Moonlight] No se pudo abrir el archivo de log. Mensaje: %s\n", &buffer[25]);
   }
-  fflush(config.log_file);
 
 #ifdef __vita__
   // También imprimir por mdns_log (sceClibPrintf)

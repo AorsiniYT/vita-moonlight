@@ -41,6 +41,7 @@ set(CMAKE_C_FLAGS "-Wl,-q -g -std=c99 -D__vita__")
 
 include_directories(
 	include/
+	src/
 	third_party/moonlight-common-c/src/
 	third_party/moonlight-common-c/reedsolomon/
 	libgamestream/

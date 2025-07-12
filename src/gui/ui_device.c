@@ -9,7 +9,7 @@
 //#include "../debug.h"
 #include "../input/vita.h"
 #include "ui_connect.h"
-#include "mdns_log.h"
+#include "debug.h"
 #include "udp_sniffer_vita.h"
 
 #include <assert.h>
@@ -83,7 +83,7 @@ char* strrstr(const char *str, const char *pat) {
 }
 
 static void moonlight_found_callback(int idx, const char* host, const char* pcname, const char* ip, int port) {
-    MDNS_LOG("[mDNS] Dispositivo encontrado: %s (%s:%d)\n", pcname, ip, port);
+    vita_debug_log("[mDNS] Dispositivo encontrado: %s (%s:%d)\n", pcname, ip, port);
     memset(&devices[found_device], 0, sizeof(device_info_t));
     strncpy(devices[found_device].name, pcname, sizeof(devices[found_device].name)-1);
     strncpy(devices[found_device].internal, ip, sizeof(devices[found_device].internal)-1);
@@ -92,9 +92,9 @@ static void moonlight_found_callback(int idx, const char* host, const char* pcna
 }
 
 int mdns_discovery_main(SceSize args, void *argp) {
-  MDNS_LOG("[mDNS] Iniciando búsqueda de dispositivos...\n");
+  vita_debug_log("[mDNS] Iniciando búsqueda de dispositivos...\n");
   if (search_thread_status != SEARCH_THREAD_IDLE) {
-    MDNS_LOG("[mDNS] search_thread_status != IDLE, saliendo.\n");
+    vita_debug_log("[mDNS] search_thread_status != IDLE, saliendo.\n");
     return 0;
   }
 
@@ -115,39 +115,39 @@ int mdns_discovery_main(SceSize args, void *argp) {
   }
 
   search_thread_status = SEARCH_THREAD_IDLE;
-  MDNS_LOG("[mDNS] Búsqueda finalizada. found_device=%d\n", found_device);
+  vita_debug_log("[mDNS] Búsqueda finalizada. found_device=%d\n", found_device);
   return 0;
 }
 
 static SceUID search_thread_id = -1;
 
 void stop_search_thread_if_running() {
-  MDNS_LOG("[mDNS] stop_search_thread_if_running: status=%d, thid=%d\n", search_thread_status, search_thread_id);
+  vita_debug_log("[mDNS] stop_search_thread_if_running: status=%d, thid=%d\n", search_thread_status, search_thread_id);
   if (search_thread_status == SEARCH_THREAD_RUNNING && search_thread_id > 0) {
-    MDNS_LOG("[mDNS] Llamando a end_search_thread(%d)\n", search_thread_id);
+    vita_debug_log("[mDNS] Llamando a end_search_thread(%d)\n", search_thread_id);
     end_search_thread(search_thread_id);
-    MDNS_LOG("[mDNS] end_search_thread terminado\n");
+    vita_debug_log("[mDNS] end_search_thread terminado\n");
     search_thread_id = -1;
   }
 }
 
 static void clear_devices() {
-  MDNS_LOG("[mDNS] Limpiando lista de dispositivos\n");
+  vita_debug_log("[mDNS] Limpiando lista de dispositivos\n");
   memset(devices, 0, sizeof(devices));
   found_device = 0;
 }
 
 SceUID start_search_thread() {
-  MDNS_LOG("[mDNS] start_search_thread: limpiando y creando hilo\n");
+  vita_debug_log("[mDNS] start_search_thread: limpiando y creando hilo\n");
   clear_devices();
   SceUID thid = sceKernelCreateThread("mdns", mdns_discovery_main, 0x10000100, 0x10000, 0, 0, NULL);
   if (thid < 0) {
-    MDNS_LOG("[mDNS] Error creando hilo de búsqueda\n");
+    vita_debug_log("[mDNS] Error creando hilo de búsqueda\n");
     return -1;
   }
   sceKernelStartThread(thid, 0, 0);
   search_thread_id = thid;
-  MDNS_LOG("[mDNS] Hilo de búsqueda iniciado: thid=%d\n", thid);
+  vita_debug_log("[mDNS] Hilo de búsqueda iniciado: thid=%d\n", thid);
   return thid;
 }
 
@@ -155,7 +155,7 @@ SceUID start_search_thread() {
 int end_search_thread(SceUID thid);
 
 int end_search_thread(SceUID thid) {
-  MDNS_LOG("[mDNS] end_search_thread: solicitando parada de hilo %d\n", thid);
+  vita_debug_log("[mDNS] end_search_thread: solicitando parada de hilo %d\n", thid);
   search_thread_status = SEARCH_THREAD_REQ_STOP;
 
   SceUInt timeout;
@@ -164,13 +164,13 @@ int end_search_thread(SceUID thid) {
   } while (sceKernelWaitThreadEnd(thid, NULL, &timeout) < 0);
 
   sceKernelDeleteThread(thid);
-  MDNS_LOG("[mDNS] Hilo %d eliminado\n", thid);
+  vita_debug_log("[mDNS] Hilo %d eliminado\n", thid);
   return 0;
 }
 
 static int ui_search_device_callback(int id, void *context, const input_data *input) {
   if ((input->buttons & SCE_CTRL_TRIANGLE) != 0) {
-    MDNS_LOG("[mDNS] TRIÁNGULO presionado: refrescando búsqueda\n");
+    vita_debug_log("[mDNS] TRIÁNGULO presionado: refrescando búsqueda\n");
     stop_search_thread_if_running();
     start_search_thread();
     return 2; // Fuerza refresco del menú

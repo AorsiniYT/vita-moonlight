@@ -23,7 +23,7 @@
 #include <psp2/videodec.h>
 #include <vita2d.h>
 #include <Limelight.h>
-#include "mdns_log.h"
+#include "debug.h"
 extern char* strdup(const char*);
 
 static unsigned int settings_special_codes[] = {0,
@@ -1062,8 +1062,31 @@ int ui_settings_menu() {
 }
 
 void ui_settings_save_config() {
-  mdns_log("[DEBUG] Guardando configuración: absolute_mouse = %d, touchscreen_mode = %d\n", config.absolute_mouse, config.touchscreen_mode);
+  vita_debug_log("[DEBUG] Guardando configuración:");
+  vita_debug_log("  absolute_mouse = %d", config.absolute_mouse);
+  vita_debug_log("  touchscreen_mode = %d", config.touchscreen_mode);
+  vita_debug_log("  swap_shoulder_buttons = %d", config.swap_shoulder_buttons);
+  vita_debug_log("  controller_type = %d", config.controller_type);
+  vita_debug_log("  enable_mapping = %s", config.mapping ? "yes" : "no");
+  vita_debug_log("  show_fps = %d", config.show_fps);
+  vita_debug_log("  enable_motion_controls = %d", config.enable_motion_controls);
+  vita_debug_log("  double_tap_sprint = %d", config.enable_double_tap_sprint);
+  vita_debug_log("  double_tap_sprint_step_time = %u", config.double_tap_sprint_step_time);
+  vita_debug_log("  mouse_acceleration = %d", config.mouse_acceleration);
+  vita_debug_log("  stream.width = %d", config.stream.width);
+  vita_debug_log("  stream.height = %d", config.stream.height);
+  vita_debug_log("  stream.fps = %d", config.stream.fps);
+  vita_debug_log("  stream.bitrate = %d", config.stream.bitrate);
+  vita_debug_log("  save_debug_log = %d", config.save_debug_log);
+  vita_debug_log("  disable_powersave = %d", config.disable_powersave);
+  vita_debug_log("  jp_layout = %d", config.jp_layout);
+  vita_debug_log("  localaudio = %d", config.localaudio);
+  vita_debug_log("  enable_frame_pacer = %d", config.enable_frame_pacer);
+  vita_debug_log("  center_region_only = %d", config.center_region_only);
+  vita_debug_log("  enable_ref_frame_invalidation = %d", config.enable_ref_frame_invalidation);
+  vita_debug_log("  stream.streamingRemotely = %d", config.stream.streamingRemotely);
+  vita_debug_log("  enable_vita_vblank_wait = %d", config.enable_vita_vblank_wait);
   config_save(config_path, &config);
-  mdns_log("[DEBUG] Configuración guardada en %s\n", config_path);
+  vita_debug_log("[DEBUG] Configuración guardada en %s", config_path);
 }
 

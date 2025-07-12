@@ -13,7 +13,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
-#include "./gui/mdns_log.h"
+#include "debug.h"
 
 #ifdef __vita__
 #include "udp_sniffer_vita.h"
@@ -58,7 +58,9 @@ bool find_host_ip_mdns(const char *hostname, char *out_ip, size_t out_len) {
 
 volatile int g_host_scan_thread_status = 0;
 struct host_status g_host_status[MAX_HOSTS];
-static SceUID host_scan_thread_id = -1;
+#define MAX_SCAN_THREADS 8
+static SceUID host_scan_thread_ids[MAX_SCAN_THREADS] = {-1};
+static int host_scan_thread_count = 0;
 
 // Declaración anticipada para evitar warning/errores
 static bool ping_host(const char *ip, uint16_t port);
@@ -89,7 +91,7 @@ volatile int g_host_status_changed = 0;
 static int host_scan_thread(SceSize args, void *argp) {
     g_host_scan_thread_status = 1;
     int ticks = 0;
-    mdns_log("[SCAN] Hilo de escaneo iniciado\n");
+    vita_debug_log("[SCAN] Hilo de escaneo iniciado\n");
     udp_sniffer_vita_deinit();
     udp_sniffer_vita_init();
     while (g_host_scan_thread_status == 1 && ticks < 1000) { // 100s máx
@@ -97,7 +99,7 @@ static int host_scan_thread(SceSize args, void *argp) {
             device_info_t *info = &known_devices.devices[i];
             if (!info->paired) {
                 if (g_host_status[i].status != HOST_OFFLINE) {
-                    mdns_log("[SCAN] Host %s marcado como OFFLINE (no paired)\n", info->name);
+                    vita_debug_log("[SCAN] Host %s marcado como OFFLINE (no paired)\n", info->name);
                     g_host_status_changed = 1;
                 }
                 g_host_status[i].status = HOST_OFFLINE;
@@ -118,11 +120,11 @@ static int host_scan_thread(SceSize args, void *argp) {
             }
             udp_sniffer_vita_set_callback(NULL);
             if (scan_mdns_found) {
-                mdns_log("[SCAN] Host %s encontrado por mDNS: IP=%s\n", info->name, scan_mdns_found_ip);
+                vita_debug_log("[SCAN] Host %s encontrado por mDNS: IP=%s\n", info->name, scan_mdns_found_ip);
                 if (strcmp(scan_mdns_found_ip, info->internal) == 0) {
                     if (ping_host(scan_mdns_found_ip, info->port)) {
                         if (g_host_status[i].status != HOST_ONLINE) {
-                            mdns_log("[SCAN] Host %s ONLINE (mDNS IP igual a internal)\n", info->name);
+                            vita_debug_log("[SCAN] Host %s ONLINE (mDNS IP igual a internal)\n", info->name);
                             g_host_status_changed = 1;
                         }
                         g_host_status[i].status = HOST_ONLINE;
@@ -133,7 +135,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                 } else {
                     if (ping_host(scan_mdns_found_ip, info->port)) {
                         if (g_host_status[i].status != HOST_IP_CHANGED) {
-                            mdns_log("[SCAN] Host %s IP CAMBIADA: old=%s, new=%s\n", info->name, info->internal, scan_mdns_found_ip);
+                            vita_debug_log("[SCAN] Host %s IP CAMBIADA: old=%s, new=%s\n", info->name, info->internal, scan_mdns_found_ip);
                             g_host_status_changed = 1;
                         }
                         g_host_status[i].status = HOST_IP_CHANGED;
@@ -146,7 +148,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                         strncpy(pending_ip_update, scan_mdns_found_ip, sizeof(pending_ip_update)-1);
                         pending_ip_update[sizeof(pending_ip_update)-1] = '\0';
                         // Detener el hilo de escaneo y sniffer al detectar cambio de IP
-                        mdns_log("[SCAN] Cambio de IP detectado, deteniendo hilo de escaneo y sniffer\n");
+                        vita_debug_log("[SCAN] Cambio de IP detectado, deteniendo hilo de escaneo y sniffer\n");
                         g_host_scan_thread_status = 0;
                         udp_sniffer_vita_deinit();
                         return 0; // Salir del hilo inmediatamente
@@ -155,7 +157,7 @@ static int host_scan_thread(SceSize args, void *argp) {
             }
             if (ping_host(info->internal, info->port)) {
                 if (g_host_status[i].status != HOST_ONLINE) {
-                    mdns_log("[SCAN] Host %s ONLINE (por IP interna)\n", info->name);
+                    vita_debug_log("[SCAN] Host %s ONLINE (por IP interna)\n", info->name);
                     g_host_status_changed = 1;
                 }
                 g_host_status[i].status = HOST_ONLINE;
@@ -164,7 +166,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                 continue;
             }
             if (g_host_status[i].status != HOST_OFFLINE) {
-                mdns_log("[SCAN] Host %s OFFLINE (no responde)\n", info->name);
+                vita_debug_log("[SCAN] Host %s OFFLINE (no responde)\n", info->name);
                 g_host_status_changed = 1;
             }
             g_host_status[i].status = HOST_OFFLINE;
@@ -175,7 +177,7 @@ static int host_scan_thread(SceSize args, void *argp) {
         ticks++;
     }
     udp_sniffer_vita_deinit();
-    mdns_log("[SCAN] Hilo de escaneo detenido\n");
+    vita_debug_log("[SCAN] Hilo de escaneo detenido\n");
     g_host_scan_thread_status = 0;
     return 0;
 }
@@ -186,21 +188,29 @@ void start_host_scan_thread() {
         g_host_status[i].status = HOST_OFFLINE;
         g_host_status[i].current_ip[0] = '\0';
     }
-    host_scan_thread_id = sceKernelCreateThread("hostscan", host_scan_thread, 0x10000100, 0x10000, 0, 0, NULL);
-    if (host_scan_thread_id >= 0) {
-        sceKernelStartThread(host_scan_thread_id, 0, 0);
+    if (host_scan_thread_count >= MAX_SCAN_THREADS) {
+        vita_debug_log("[SCAN] Demasiados hilos de escaneo activos, no se creará otro\n");
+        return;
+    }
+    SceUID tid = sceKernelCreateThread("hostscan", host_scan_thread, 0x10000100, 0x10000, 0, 0, NULL);
+    if (tid >= 0) {
+        sceKernelStartThread(tid, 0, 0);
+        host_scan_thread_ids[host_scan_thread_count++] = tid;
     }
 }
 
 void stop_host_scan_thread() {
-    if (g_host_scan_thread_status == 1 && host_scan_thread_id > 0) {
-        g_host_scan_thread_status = 2;
-        SceUInt timeout = 100 * 1000; // 100ms
-        sceKernelWaitThreadEnd(host_scan_thread_id, NULL, &timeout);
-        sceKernelDeleteThread(host_scan_thread_id);
-        host_scan_thread_id = -1;
+    for (int i = 0; i < host_scan_thread_count; i++) {
+        SceUID tid = host_scan_thread_ids[i];
+        if (tid > 0) {
+            g_host_scan_thread_status = 2;
+            SceUInt timeout = 100 * 1000; // 100ms
+            sceKernelWaitThreadEnd(tid, NULL, &timeout);
+            sceKernelDeleteThread(tid);
+            host_scan_thread_ids[i] = -1;
+        }
     }
-}
+    host_scan_thread_count = 0;}
 #endif
 
 // El struct host_status y los defines ya están en check_host.h, no se redeclaran aquí

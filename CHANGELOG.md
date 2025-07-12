@@ -10,7 +10,7 @@
 * Cleaned up and stabilized code, especially around host scan thread handling and function declarations.
 * Many bugfixes and code cleanups.
 
-## 0.12.0
+## 0.12.1
 
 * Add support for multi-touch touchscreen mode (Sunshine compatible) and absolute mouse mode.
 * New settings: choose between "Touch Mouse Absolute" (gestures, mouse) and "Touchscreen (Sunshine multitouch)" (tablet mode).
