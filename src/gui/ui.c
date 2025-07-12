@@ -66,31 +66,6 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     return 0;
   }
   switch (cursor) {
-    case HOST_MANAGE_INFO: {
-      // Determinar el estado del host
-      int host_idx = -1;
-      for (int i = 0; i < known_devices.count; i++) {
-        if (&known_devices.devices[i] == info) {
-          host_idx = i;
-          break;
-        }
-      }
-      const char *status_str = "Unknown";
-      if (host_idx >= 0) {
-        struct host_status st = g_host_status[host_idx];
-        if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
-          status_str = "IP changed";
-        } else if (st.status == HOST_ONLINE) {
-          status_str = "Online";
-        } else {
-          status_str = "Offline";
-        }
-      }
-      char msg[320];
-      snprintf(msg, sizeof(msg), "Host info:\nName: %s\nIP: %s\nStatus: %s", info->name, info->internal, status_str);
-      flash_message("%s", msg);
-      return 0;
-    }
     case HOST_MANAGE_CONNECT: {
       vita_debug_log("[UI] Menú gestión: conectar a %s", info->name);
       stop_host_scan();
@@ -198,17 +173,43 @@ void ui_host_manage_menu(device_info_t *info) {
   // Mensaje principal
   menu[idx++] = (menu_entry){ .name = "Host management", .disabled = true, .color = 0xFFFFFFFF };
   menu[idx++] = (menu_entry){ .name = title, .disabled = true, .color = 0xFF00AAFF };
-  // Info IP y estado
+  // Info IP y estado con punto de color
   char ipinfo[320];
-  snprintf(ipinfo, sizeof(ipinfo), "IP: %s | Status: %s", info->internal, info->paired ? "Paired" : "Unpaired");
-  menu[idx++] = (menu_entry){ .name = ipinfo, .disabled = true, .color = 0xFFFFFFFF };
+  // unsigned color eliminado, ya no se usa color en host management
+  char status_text[64] = "Unpaired";
+  int host_idx = -1;
+  for (int i = 0; i < known_devices.count; i++) {
+    if (&known_devices.devices[i] == info) {
+      host_idx = i;
+      break;
+    }
+  }
+  if (host_idx >= 0) {
+    struct host_status st = g_host_status[host_idx];
+    if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
+      snprintf(status_text, sizeof(status_text), "[IP changed]");
+    } else if (st.current_ip[0] && strcmp(info->internal, st.current_ip) != 0) {
+      snprintf(status_text, sizeof(status_text), "[IP changed]");
+    } else {
+      if (st.status == HOST_ONLINE) {
+        snprintf(status_text, sizeof(status_text), "%s (Online)", info->paired ? "Paired" : "Unpaired");
+      } else {
+        snprintf(status_text, sizeof(status_text), "%s (Offline)", info->paired ? "Paired" : "Unpaired");
+      }
+    }
+  }
+  snprintf(ipinfo, sizeof(ipinfo), "IP: %s", info->internal);
+  menu[idx] = (menu_entry){ .name = ipinfo, .disabled = true };
+  strncpy(menu[idx].subname, status_text, sizeof(menu[idx].subname)-1);
+  menu[idx].subname[sizeof(menu[idx].subname)-1] = '\0';
+  idx++;
   menu[idx++] = (menu_entry){ .name = "", .disabled = true, .separator = true };
   // Opciones (sin Info)
   menu[idx++] = (menu_entry){ .name = "Connect", .id = HOST_MANAGE_CONNECT };
+  menu[idx++] = (menu_entry){ .name = "Force connect", .id = HOST_MANAGE_FORCE_CONNECT };
   menu[idx++] = (menu_entry){ .name = "Delete", .id = HOST_MANAGE_DELETE };
   menu[idx++] = (menu_entry){ .name = "Change IP", .id = HOST_MANAGE_CHANGE_IP };
   menu[idx++] = (menu_entry){ .name = "Change Name", .id = HOST_MANAGE_CHANGE_NAME };
-  menu[idx++] = (menu_entry){ .name = "Force connect", .id = HOST_MANAGE_FORCE_CONNECT };
   menu[idx++] = (menu_entry){ .name = "Back", .id = HOST_MANAGE_BACK };
   menu_geom geom = make_geom_centered(600, 320);
   display_menu(menu, idx, &geom, &ui_host_manage_menu_loop, &ui_host_manage_menu_back, NULL, info);

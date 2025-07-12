@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <ini.h>
-
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
 #include <psp2/io/dirent.h>
 
 #include "device.h"
@@ -12,8 +13,7 @@
 
 #define DATA_DIR "ux0:data/moonlight"
 #define DEVICE_FILE "device.ini"
-#include <psp2/io/fcntl.h>
-#include <psp2/io/stat.h>
+
 
 #define INT(v) atoi((v))
 #define BOOL(v) strcmp((v), "true") == 0
