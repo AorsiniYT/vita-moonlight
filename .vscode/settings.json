@@ -16,6 +16,8 @@
         "touchabsolute.h": "c",
         "evp.h": "c",
         "debug.h": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "fcntl.h": "c",
+        "check_dir.h": "c"
     }
 }

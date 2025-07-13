@@ -63,6 +63,7 @@
 #include "input/motion.h"
 
 #include "debug.h"
+#include "check_dir.h"
 
 #define VITA_NET_MEM_SIZE 1 * 1024 * 1024
 
@@ -88,7 +89,9 @@ static void vita_init() {
   // This is only used for PIN codes, doesn't really matter
   srand(time(NULL));
 
+  #ifdef __vita__
   printf("Vita Moonlight %d.%d.%d (%s)\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, COMPILE_OPTIONS);
+  #endif
 
   int ret;
 
@@ -150,10 +153,13 @@ int main(int argc, char* argv[]) {
     loop_forever();
   }
 
-  sceIoMkdir("ux0:/data/moonlight", 0777);
-  config_path = "ux0:data/moonlight/moonlight.conf";
+  char out_path[MOONLIGHT_PATH_MAX] = {0};
+  char out_key_dir[MOONLIGHT_PATH_MAX] = {0};
+  check_and_create_moonlight_dir(out_path, out_key_dir);
+  config_path = out_path;
+  strcpy(config.key_dir, out_key_dir);
+  vita_debug_log("[Moonlight] Carpeta seleccionada: %s", config.key_dir);
   config_parse(argc, argv, &config);
-  strcpy(config.key_dir, "ux0:data/moonlight/");
 
   // Restaurar estado de Absolute Touch al iniciar
   touchabsolute_enable(config.absolute_mouse);
