@@ -143,8 +143,6 @@ add_executable(${PROJECT_NAME}.elf
 	src/check_host.c
 )
 
-# Forzar el enlace de mbedtls, mbedx509 y mbedcrypto para VitaSDK personalizado
-set(USE_MBEDTLS ON)
 
 # Por defecto, solo enlazamos curl y el resto de libs estándar:
 target_link_libraries(${PROJECT_NAME}.elf
