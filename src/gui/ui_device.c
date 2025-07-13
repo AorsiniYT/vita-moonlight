@@ -84,6 +84,15 @@ char* strrstr(const char *str, const char *pat) {
 
 static void moonlight_found_callback(int idx, const char* host, const char* pcname, const char* ip, int port) {
     vita_debug_log("[mDNS] Dispositivo encontrado: %s (%s:%d)\n", pcname, ip, port);
+    // Verificar si ya existe un dispositivo con el mismo nombre y misma IP
+    for (int i = 0; i < found_device; i++) {
+        if (strncmp(devices[i].name, pcname, sizeof(devices[i].name)) == 0 &&
+            strncmp(devices[i].internal, ip, sizeof(devices[i].internal)) == 0) {
+            vita_debug_log("[mDNS] Dispositivo duplicado ignorado: %s (%s)\n", pcname, ip);
+            return;
+        }
+    }
+    // Si el nombre es igual pero la IP es diferente, sí se agrega
     memset(&devices[found_device], 0, sizeof(device_info_t));
     strncpy(devices[found_device].name, pcname, sizeof(devices[found_device].name)-1);
     strncpy(devices[found_device].internal, ip, sizeof(devices[found_device].internal)-1);
@@ -187,7 +196,12 @@ static int ui_search_device_callback(int id, void *context, const input_data *in
   }
   if (id >= DEVICE_ITEM) {
 
-    device_info_t *info = ui_connect_and_pairing(&devices[id - DEVICE_ITEM]);
+    // Usar IP y puerto detectados por mDNS
+    device_info_t *dev = &devices[id - DEVICE_ITEM];
+    strncpy(dev->internal, dev->internal, sizeof(dev->internal)-1); // IP ya está
+    dev->internal[sizeof(dev->internal)-1] = '\0';
+    dev->port = dev->port; // Puerto ya está
+    device_info_t *info = ui_connect_and_pairing(dev);
     if (info == NULL) {
       return 0;
     }

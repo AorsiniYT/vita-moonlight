@@ -48,4 +48,23 @@ void check_and_create_moonlight_dir(char* out_path, char* out_key_dir) {
     FILE* conf_file = fopen(out_path, "a");
     if (conf_file) fclose(conf_file);
     if (test_log) fclose(test_log);
+
+    // Guardar solo key_dir en moonlight.conf
+    FILE* conf_save = fopen(out_path, "r+");
+    if (conf_save) {
+        // Buscar si ya existe la línea key_dir
+        char line[512];
+        int found = 0;
+        while (fgets(line, sizeof(line), conf_save)) {
+            if (strncmp(line, "key_dir = ", 10) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            fseek(conf_save, 0, SEEK_END);
+            fprintf(conf_save, "key_dir = %s\n", out_key_dir);
+        }
+        fclose(conf_save);
+    }
 }

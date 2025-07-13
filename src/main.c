@@ -159,6 +159,7 @@ int main(int argc, char* argv[]) {
   config_path = out_path;
   strcpy(config.key_dir, out_key_dir);
   vita_debug_log("[Moonlight] Carpeta seleccionada: %s", config.key_dir);
+  // Ya no se guarda config antes de inicializar todos los valores
   config_parse(argc, argv, &config);
 
   // Restaurar estado de Absolute Touch al iniciar
