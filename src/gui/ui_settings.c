@@ -1025,7 +1025,12 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_SWAP_SHOULDER_BUTTONS, SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, "Swap R1/L1 <-> R2/L2", "");
   MENU_ENTRY(SETTINGS_MOUSE_ACCEL, SETTINGS_VIEW_MOUSE_ACCEL, "Mouse acceleration", ICON_LEFT_RIGHT_ARROWS);
   MENU_ENTRY(SETTINGS_ENABLE_MAPPING, SETTINGS_VIEW_ENABLE_MAPPING, "Enable mapping file", "");
-  MENU_MESSAGE("Located at ux0:data/moonlight/mappings/vita.conf");
+  char mapping_location_msg[256];
+  snprintf(mapping_location_msg, sizeof(mapping_location_msg), "Located at %svita.conf", config.key_dir);
+  menu[idx] = (menu_entry) { .name = "", .disabled = true };
+  strncpy(menu[idx].subname, mapping_location_msg, sizeof(menu[idx].subname) - 1);
+  menu[idx].subname[sizeof(menu[idx].subname) - 1] = '\0';
+  idx++;
   MENU_MESSAGE("Example in github repo.");
   MENU_ENTRY(SETTINGS_BACK_DEADZONE, SETTINGS_VIEW_BACK_DEADZONE, "Back touchscreen deadzone", "");
   MENU_ENTRY(SETTINGS_SPECIAL_KEYS, SETTINGS_VIEW_SPECIAL_KEYS, "Touchscreen special keys", "");

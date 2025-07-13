@@ -150,9 +150,6 @@ set(USE_MBEDTLS ON)
 target_link_libraries(${PROJECT_NAME}.elf
 	-lexpat
 	-lcurl
-	-lmbedtls
-	-lmbedx509
-	-lmbedcrypto
 	moonlight-common-c
 	enet
 	h264bitstream
@@ -218,5 +215,10 @@ add_dependencies(${PROJECT_NAME}.velf ${PROJECT_NAME}.elf)
 add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo update_template_version)
 
 add_subdirectory(third_party)
+
+option(USE_DIR_UMA0 "Forzar uso de uma0:data/moonlight como directorio de claves/config" OFF)
+if(USE_DIR_UMA0)
+  add_definitions(-DUSE_DIR_UMA0)
+endif()
 
 

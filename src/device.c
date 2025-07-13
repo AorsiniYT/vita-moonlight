@@ -10,8 +10,8 @@
 
 #include "device.h"
 #include "debug.h"
+#include "config.h"
 
-#define DATA_DIR "ux0:data/moonlight"
 #define DEVICE_FILE "device.ini"
 
 
@@ -42,7 +42,7 @@ bool remove_device(const char *name) {
 
   // Eliminar del disco
   char dir_path[512];
-  snprintf(dir_path, sizeof(dir_path), DATA_DIR "/%s", name);
+  snprintf(dir_path, sizeof(dir_path), "%s/%s", config.key_dir, name);
   char file_path[512];
   device_file_path(file_path, name);
   sceIoRemove(file_path); // Elimina device.ini
@@ -77,7 +77,7 @@ device_info_t* find_device(const char *name) {
 }
 
 void device_file_path(char *out, const char *dir) {
-  snprintf(out, 512, DATA_DIR "/%s/" DEVICE_FILE, dir);
+  snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
 }
 
 static int device_ini_handle(void *out, const char *section, const char *name,
@@ -159,7 +159,7 @@ void load_all_known_devices() {
   //struct stat st;
   device_info_t info;
 
-  SceUID dfd = sceIoDopen(DATA_DIR);
+  SceUID dfd = sceIoDopen(config.key_dir);
   if (dfd < 0) {
     return;
   }

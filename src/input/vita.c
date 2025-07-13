@@ -885,12 +885,12 @@ void vitainput_config(CONFIGURATION config) {
     map.btn_tr2       = TOUCHSEC_SOUTHEAST  | INPUT_TYPE_TOUCHSCREEN;
   }
 
-  if (config.mapping) {
-    char mapping_file_path[256];
-    sprintf(mapping_file_path, "ux0:data/moonlight/%s", config.mapping);
-    printf("Loading mapping at %s\n", mapping_file_path);
-    mapping_load(mapping_file_path, &map);
-  }
+    if (config.mapping) {
+        char mapping_file_path[256];
+        snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
+        printf("Loading mapping at %s\n", mapping_file_path);
+        mapping_load(mapping_file_path, &map);
+    }
 
   controller_port = config.model == SCE_KERNEL_MODEL_VITATV ? 1 : 0;
 

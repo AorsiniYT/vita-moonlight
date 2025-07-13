@@ -171,7 +171,9 @@ int main(int argc, char* argv[]) {
   vitapower_config(config);
   vitainput_config(config);
 
-  config.log_file = fopen("ux0:data/moonlight/moonlight.log", "w");
+  char log_path[MOONLIGHT_PATH_MAX] = {0};
+  snprintf(log_path, sizeof(log_path), "%s/moonlight.log", config.key_dir);
+  config.log_file = fopen(log_path, "w");
 
   load_all_known_devices();
 
