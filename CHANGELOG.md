@@ -1,3 +1,21 @@
+## 0.12.3
+
+* Moonlight now automatically selects and creates the best available folder for config and cache (supports ux0:/data/moonlight, ux0:/moonlight, uma0:/data/moonlight, and fallback to ux0:data).
+* The chosen folder location is logged at startup for easier debugging.
+* The config file (moonlight.conf) is always created in the selected folder, improving compatibility for users with missing folders.
+* Improved error handling and debug logging for folder creation and config file setup.
+* All folder and config path logic is now centralized and robust, reducing crashes and edge cases.
+* Bugfix: Prevented crashes on startup due to buffer or path issues in folder selection logic.
+* New Host Management menu: manage paired hosts with improved status display, unified status text, and direct actions (connect, force connect, change IP/name, delete).
+  - Now allows:
+    - Changing the host name
+    - Changing the host IP
+    - Forcing connection even if the host is not shown as online
+    - Deleting hosts
+* Host Management menu now shows host status (paired/unpaired, online/offline, IP changed) in a unified way, matching the main menu logic.
+* Visual feedback and menu options for host management are now clearer and more robust.
+* Internal refactor: main.c and check_dir.c now use a shared macro for path buffer size and a helper for folder selection.
+
 ## 0.12.2
 
 * Added option to swap L1/R1 and L2/R2 button functions from the settings menu.

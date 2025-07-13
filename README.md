@@ -3,7 +3,12 @@
 Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
 
 ## Highlights
-
+  
+**Advanced Host Management:** Manage paired hosts with:
+  - Change host name
+  - Change host IP
+  - Delete hosts
+  - Force connection even if host is not shown as online
 - **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu for greater comfort and customization.
 - **Gamepad Type Selection:** Choose whether you want the buttons and interface to behave as an Xbox or PlayStation controller, directly from the settings menu.
 
@@ -44,7 +49,11 @@ Stay tuned for more improvements!
 ---
 
 ## What's New
-
+**Advanced Host Management:**
+  - Change host name
+  - Change host IP
+  - Delete hosts
+  - Force connection even if host is not shown as online
 - **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu.
 - **Gamepad Type Selection:** Choose between Xbox and PlayStation controller layouts in the settings menu.
 - **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
