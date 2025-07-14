@@ -12,6 +12,7 @@
     - Changing the host IP
     - Forcing connection even if the host is not shown as online
     - Deleting hosts
+* The connection and host management menus now show the port next to the IP (uses httpPort if available, otherwise httpsPort).
 * Host Management menu now shows host status (paired/unpaired, online/offline, IP changed) in a unified way, matching the main menu logic.
 * Visual feedback and menu options for host management are now clearer and more robust.
 * Internal refactor: main.c and check_dir.c now use a shared macro for path buffer size and a helper for folder selection.
