@@ -4,7 +4,7 @@ Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements 
 
 ## Highlights
   
-**Advanced Host Management:** Manage paired hosts with:
+- **Advanced Host Management:** Manage paired hosts with:
   - Change host name
   - Change host IP
   - Delete hosts
@@ -49,7 +49,7 @@ Stay tuned for more improvements!
 ---
 
 ## What's New
-**Advanced Host Management:**
+- **Advanced Host Management:**
   - Change host name
   - Change host IP
   - Delete hosts
