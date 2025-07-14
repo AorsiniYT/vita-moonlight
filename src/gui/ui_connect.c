@@ -308,9 +308,11 @@ int ui_connected_menu() {
   //MENU
   MENU_MESSAGE("Connected to the server:", 0xffffffff);
   char server_info[256];
-  snprintf(server_info, 256,
-           "IP: %s, GPU %s, GFE %s",
+  unsigned short port = server.httpPort ? server.httpPort : server.httpsPort;
+  snprintf(server_info, sizeof(server_info),
+           "IP: %s  PORT: %d, GPU %s, GFE %s",
            server.serverInfo.address,
+           port,
            server.gpuType,
            server.serverInfo.serverInfoGfeVersion);
 

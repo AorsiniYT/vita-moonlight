@@ -175,7 +175,6 @@ void ui_host_manage_menu(device_info_t *info) {
   menu[idx++] = (menu_entry){ .name = title, .disabled = true, .color = 0xFF00AAFF };
   // Info IP y estado con punto de color
   char ipinfo[320];
-  // unsigned color eliminado, ya no se usa color en host management
   char status_text[64] = "Unpaired";
   int host_idx = -1;
   for (int i = 0; i < known_devices.count; i++) {
@@ -198,7 +197,8 @@ void ui_host_manage_menu(device_info_t *info) {
       }
     }
   }
-  snprintf(ipinfo, sizeof(ipinfo), "IP: %s", info->internal);
+  // Mostrar IP y puerto juntos
+  snprintf(ipinfo, sizeof(ipinfo), "IP: %s  PORT: %d", info->internal, info->port);
   menu[idx] = (menu_entry){ .name = ipinfo, .disabled = true };
   strncpy(menu[idx].subname, status_text, sizeof(menu[idx].subname)-1);
   menu[idx].subname[sizeof(menu[idx].subname)-1] = '\0';
