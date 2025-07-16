@@ -18,6 +18,8 @@
         "debug.h": "c",
         "stat.h": "c",
         "fcntl.h": "c",
-        "check_dir.h": "c"
+        "check_dir.h": "c",
+        "wake_on_lan.h": "c",
+        "inet.h": "c"
     }
 }

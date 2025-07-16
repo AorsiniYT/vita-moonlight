@@ -435,6 +435,19 @@ paired:
   connection_paired();
 
   info->paired = true;
+
+  // Obtener y guardar la MAC real tras el pairing (requiere certificados y uniqueid)
+  char mac[18] = {0};
+  char errbuf[128] = {0};
+  long curl_code = 0;
+  int mac_ok = get_mac_from_device_vita_verbose(info, mac, errbuf, sizeof(errbuf), &curl_code);
+  if (mac_ok && mac[0]) {
+    strncpy(info->mac, mac, 17);
+    info->mac[17] = '\0';
+    vita_debug_log("[PAIR] MAC obtenida tras pairing: %s", mac);
+  } else {
+    vita_debug_log("[PAIR] No se pudo obtener la MAC tras pairing: %s", errbuf);
+  }
   save_device_info(info);
 
   if (connection_terminate()) {
@@ -457,7 +470,6 @@ void ui_connect_manual() {
   if (ime_dialog_string(info.internal, "Enter IP or Address:", "") != 0) {
     return;
   }
-  // TODO receive user input
   info.port = 47989;
   ui_connect_and_pairing(&info);
 }

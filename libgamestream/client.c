@@ -184,6 +184,7 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
   char *stateText = NULL;
   char *serverCodecModeSupportText = NULL;
   char *httpsPortText = NULL;
+  char *macText = NULL;
 
   uuid_generate_random(uuid);
   uuid_unparse(uuid, uuid_str);
@@ -234,6 +235,13 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
   if (xml_search(data->memory, data->size, "HttpsPort", &httpsPortText) != GS_OK)
     goto cleanup;
 
+  if (xml_search(data->memory, data->size, "mac", &macText) == GS_OK && macText != NULL) {
+    strncpy(server->serverInfo.mac, macText, sizeof(server->serverInfo.mac) - 1);
+    server->serverInfo.mac[sizeof(server->serverInfo.mac) - 1] = '\0';
+  } else {
+    server->serverInfo.mac[0] = '\0';
+  }
+
   if (xml_modelist(data->memory, data->size, &server->modes) != GS_OK)
     goto cleanup;
 
@@ -260,6 +268,7 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
   ret = GS_OK;
 
   cleanup:
+
   if (data != NULL)
     http_free_data(data);
 
@@ -274,6 +283,9 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
 
   if (httpsPortText != NULL)
     free(httpsPortText);
+
+  if (macText != NULL)
+    free(macText);
 
   return ret;
 }

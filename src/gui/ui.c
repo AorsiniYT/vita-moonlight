@@ -53,6 +53,8 @@ int first_scan_pending = 0;
 enum {
   HOST_MANAGE_INFO = 2000,
   HOST_MANAGE_CONNECT,
+  HOST_MANAGE_CHECK_MAC = 3001,
+  HOST_MANAGE_WAKE = 3002,
   HOST_MANAGE_DELETE,
   HOST_MANAGE_CHANGE_IP,
   HOST_MANAGE_CHANGE_NAME,
@@ -66,6 +68,69 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     return 0;
   }
   switch (cursor) {
+    case HOST_MANAGE_CHECK_MAC: {
+      vita_debug_log("[UI] Menú gestión: check MAC %s", info->name);
+      char mac[18] = {0};
+      // Usar la versión que recibe device_info_t* para que use el key_dir y nombre del host correctos
+      extern int get_mac_from_device_vita_verbose(const device_info_t *info, char *mac_out, char *errbuf, size_t errlen, long *curl_code);
+      char errbuf[128] = {0};
+      long curl_code = 0;
+      int ok = 0;
+      ok = get_mac_from_device_vita_verbose(info, mac, errbuf, sizeof(errbuf), &curl_code);
+      if (ok) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "MAC: %s", mac);
+        flash_message(msg);
+        vita_debug_log("[UI] MAC obtenida para %s: %s", info->internal, mac);
+      } else {
+        char msg[128];
+        if (errbuf[0]) {
+          snprintf(msg, sizeof(msg), "Error MAC: %s", errbuf);
+        } else {
+          snprintf(msg, sizeof(msg), "No se pudo obtener la MAC (curl=%ld)", curl_code);
+        }
+        flash_message(msg);
+        vita_debug_log("[UI] No se pudo obtener la MAC para %s. curl_code=%ld, err=%s", info->internal, curl_code, errbuf);
+      }
+      sceKernelDelayThread(2*1000*1000); // Esperar 2 segundos para que el mensaje sea visible
+      return 1;
+    }
+    case HOST_MANAGE_WAKE: {
+      vita_debug_log("[UI] Menú gestión: Wake-on-LAN %s", info->name);
+      if (!info->mac[0]) {
+        flash_message("No MAC saved for this host");
+        vita_debug_log("[UI] Wake-on-LAN: No MAC for %s", info->name);
+        sceKernelDelayThread(2*1000*1000);
+        return 1;
+      }
+      // Calcular broadcast a partir de la IP interna
+      char broadcast[32] = {0};
+      const char *ip = info->internal;
+      if (!ip[0]) {
+        flash_message("No IP for this host");
+        return 1;
+      }
+      // Copiar IP y reemplazar el último octeto por 255
+      strncpy(broadcast, ip, sizeof(broadcast)-1);
+      char *last_dot = strrchr(broadcast, '.');
+      if (last_dot) {
+        strcpy(last_dot+1, "255");
+      } else {
+        flash_message("Invalid IP");
+        return 1;
+      }
+      extern bool send_wol_packet(const char *mac, const char *ip_broadcast, int port);
+      bool wol_ok = send_wol_packet(info->mac, broadcast, 9);
+      if (wol_ok) {
+        flash_message("Wake-on-LAN sent!");
+        vita_debug_log("[UI] Wake-on-LAN enviado a %s (%s)", info->name, info->mac);
+      } else {
+        flash_message("Wake-on-LAN failed");
+        vita_debug_log("[UI] Wake-on-LAN falló para %s (%s)", info->name, info->mac);
+      }
+      sceKernelDelayThread(2*1000*1000);
+      return 1;
+    }
     case HOST_MANAGE_CONNECT: {
       vita_debug_log("[UI] Menú gestión: conectar a %s", info->name);
       stop_host_scan();
@@ -206,6 +271,11 @@ void ui_host_manage_menu(device_info_t *info) {
   menu[idx++] = (menu_entry){ .name = "", .disabled = true, .separator = true };
   // Opciones (sin Info)
   menu[idx++] = (menu_entry){ .name = "Connect", .id = HOST_MANAGE_CONNECT };
+  menu[idx++] = (menu_entry){ .name = "Check MAC", .id = HOST_MANAGE_CHECK_MAC, .disabled = true };
+  menu[idx++] = (menu_entry){ .name = "Wake on LAN (WOL)", .id = HOST_MANAGE_WAKE };
+// Opción extra para pruebas
+#define HOST_MANAGE_CHECK_MAC 3001
+extern int get_mac_from_ip_vita(const char *ip, char *mac_out);
   menu[idx++] = (menu_entry){ .name = "Force connect", .id = HOST_MANAGE_FORCE_CONNECT };
   menu[idx++] = (menu_entry){ .name = "Delete", .id = HOST_MANAGE_DELETE };
   menu[idx++] = (menu_entry){ .name = "Change IP", .id = HOST_MANAGE_CHANGE_IP };

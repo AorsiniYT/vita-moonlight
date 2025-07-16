@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.2)
 
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(DEFINED ENV{VITASDK})
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
+	set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
   else()
-    message(FATAL_ERROR "Please define VITASDK to point to your SDK path!")
+	message(FATAL_ERROR "Please define VITASDK to point to your SDK path!")
   endif()
 endif()
 add_compile_options(-g3 -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
@@ -63,6 +63,8 @@ add_executable(${PROJECT_NAME}.elf
 	src/util.c
 	src/device.c
 	src/check_dir.c
+	src/wake_on_lan.c
+	src/get_mac.c
 
 	src/audio/vita.c
 	src/video/vita.c
@@ -194,8 +196,8 @@ add_custom_target(param.sfo ALL
 
 # Actualizar versión en template.xml automáticamente antes de empaquetar el VPK (solo la línea visual)
 add_custom_target(update_template_version ALL
-    COMMAND sed -i '/<str size=\"18.*>v[0-9]*\.[0-9]*\.[0-9]*<\\/str>/s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}/' sce_sys/livearea/contents/template.xml
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	COMMAND sed -i '/<str size=\"18.*>v[0-9]*\.[0-9]*\.[0-9]*<\\/str>/s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}/' sce_sys/livearea/contents/template.xml
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
 add_custom_target(${PROJECT_NAME}.vpk ALL

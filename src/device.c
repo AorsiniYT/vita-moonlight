@@ -7,6 +7,7 @@
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <psp2/io/dirent.h>
+#include "wake_on_lan.h"
 
 #include "device.h"
 #include "debug.h"
@@ -90,6 +91,9 @@ static int device_ini_handle(void *out, const char *section, const char *name,
     strncpy(info->internal, value, 255);
   } else if (strcmp(name, "external") == 0) {
     strncpy(info->external, value, 255);
+  } else if (strcmp(name, "mac") == 0) {
+    strncpy(info->mac, value, 17);
+    info->mac[17] = '\0';
   } else if (strcmp(name, "port") == 0) {
     info->port = INT(value);
   } else if (strcmp(name, "prefer_external") == 0) {
@@ -132,6 +136,8 @@ device_info_t* append_device(device_info_t *info) {
   p->paired = info->paired;
   strncpy(p->internal, info->internal, 255);
   strncpy(p->external, info->external, 255);
+  strncpy(p->mac, info->mac, 17);
+  p->mac[17] = '\0';
   p->port = info->port;
   p->prefer_external = info->prefer_external;
   vita_debug_log("append_device: device %s is added to the list\n", p->name);
@@ -215,6 +221,8 @@ void save_device_info(const device_info_t *info) {
   device_file_path(path, info->name);
   vita_debug_log("save_device_info: device file path: %s\n", path);
 
+  // Ya no se intenta obtener la MAC por ARP. Solo se guarda la que esté en info->mac.
+
   FILE* fd = fopen(path, "w");
   if (!fd) {
     // FIXME
@@ -230,6 +238,9 @@ void save_device_info(const device_info_t *info) {
 
   vita_debug_log("save_device_info: external = %s\n", info->external);
   write_string(fd, "external", info->external);
+
+  vita_debug_log("save_device_info: mac = %s\n", info->mac);
+  write_string(fd, "mac", info->mac);
 
   vita_debug_log("save_device_info: port = %d\n", info->port);
   write_int(fd, "port", info->port);

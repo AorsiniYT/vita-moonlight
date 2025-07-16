@@ -201,6 +201,7 @@ static int ui_search_device_callback(int id, void *context, const input_data *in
     strncpy(dev->internal, dev->internal, sizeof(dev->internal)-1); // IP ya está
     dev->internal[sizeof(dev->internal)-1] = '\0';
     dev->port = dev->port; // Puerto ya está
+    // La MAC ya está en dev->mac si mDNS la proveyó
     device_info_t *info = ui_connect_and_pairing(dev);
     if (info == NULL) {
       return 0;
@@ -265,7 +266,14 @@ int ui_search_device_loop() {
     if (p && p->paired) {
       continue;
     }
-    MENU_ENTRY(DEVICE_ITEM + i, DEVICE_VIEW_ITEM + i, devices[i].name, devices[i].internal);
+    // Mostrar MAC en el sufijo si está disponible
+    char suffix[64] = {0};
+    if (devices[i].mac[0]) {
+      snprintf(suffix, sizeof(suffix), "%s [%s]", devices[i].internal, devices[i].mac);
+    } else {
+      snprintf(suffix, sizeof(suffix), "%s", devices[i].internal);
+    }
+    MENU_ENTRY(DEVICE_ITEM + i, DEVICE_VIEW_ITEM + i, devices[i].name, suffix);
   }
   MENU_SEPARATOR();
   MENU_ENTRY(DEVICE_EXIT_SEARCH, DEVICE_VIEW_EXIT_SEARCH, "Return", "");

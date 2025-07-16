@@ -9,6 +9,7 @@ struct device_info {
   bool paired;
   char internal[256];
   char external[256];
+  char mac[18]; // XX:XX:XX:XX:XX:XX\0
   bool prefer_external;
 };
 
