@@ -354,9 +354,17 @@ int ui_main_menu_back(void *context) {
 }
 int ui_main_menu() {
   // Siempre reiniciar escaneo de hosts al entrar al menú principal
-  vita_debug_log("[UI] Entrando al menú principal, iniciando escaneo de hosts");
-  start_host_scan();
-  first_scan_pending = 1;
+  vita_debug_log("[UI] Entrando al menú principal");
+  // Solo iniciar escaneo si NO hay conexión activa
+  if (!ui_connect_connected()) {
+    vita_debug_log("[UI] Iniciando escaneo de hosts (no hay conexión activa)");
+    start_host_scan();
+    first_scan_pending = 1;
+  } else {
+    vita_debug_log("[UI] No se inicia escaneo de hosts porque hay conexión activa");
+    first_scan_pending = 0;
+    stop_host_scan(); // Detener escaneo si por alguna razón sigue activo
+  }
 
   menu_entry menu[16];
   int idx = 0;

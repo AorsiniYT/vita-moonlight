@@ -758,7 +758,21 @@ inline void vitainput_process(void) {
   } else {
     static bool mouse_released __attribute__((unused)) = false;
     mouse_released = false;
-    // mouse y gestos solo si no está en modo touchscreen
+  // mouse y gestos solo si no está en modo touchscreen
+  // Si el toque está en una sección de special key, NO procesar como ratón
+  bool in_special_key = false;
+  for (int i = 0; i < touch.finger; i++) {
+    int x = touch.points[i].x;
+    int y = touch.points[i].y;
+    for (int s = 0; s < 4; s++) {
+      if (IN_SECTION(FRONT_SECTIONS[s], x, y)) {
+        in_special_key = true;
+        break;
+      }
+    }
+    if (in_special_key) break;
+  }
+  if (!in_special_key) {
     switch (front_state) {
       case NO_TOUCH_ACTION:
         if (touch.finger > 0) {
@@ -811,6 +825,7 @@ inline void vitainput_process(void) {
         }
         break;
     }
+  }
   }
 
   // --- ENVÍO DE EVENTOS DE GAMEPAD SIEMPRE (en cualquier modo) ---
