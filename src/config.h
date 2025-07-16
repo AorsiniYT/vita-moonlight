@@ -81,8 +81,7 @@ typedef struct _CONFIGURATION {
   int pin;
   uint16_t port;
   int keyboard_layout; // 0=EN_US, 1=ES_ES, 2=ES_LATAM
-  bool absolute_mouse; // Nuevo: guardar estado de mouse absoluto
-  bool touchscreen_mode; // Nuevo: modo touchscreen multitouch Sunshine
+  int touchscreen_mode; // 0=off, 1=DS4, 2=Mouse absoluto, 3=Tableta multitouch
   int controller_type; // 1: Xbox, 2: PS (default), 3: Nintendo, 4: Generic
   bool swap_shoulder_buttons; // Nuevo: swap R1/L1 <-> R2/L2
 } CONFIGURATION, *PCONFIGURATION;

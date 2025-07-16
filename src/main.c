@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
   config_parse(argc, argv, &config);
 
   // Restaurar estado de Absolute Touch al iniciar
-  touchabsolute_enable(config.absolute_mouse);
+  touchabsolute_enable(config.touchscreen_mode == 2);
 
   // Aplicar el layout guardado después de cargar la config
   keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);

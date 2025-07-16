@@ -501,8 +501,8 @@ inline void vitainput_process(void) {
   update_touch_points();
   // Siempre procesar las esquinas del back (para compatibilidad o futuros usos)
   read_backscreen();
-  // --- SOLO PROCESAR SPECIAL KEYS Y ESQUINAS DEL FRENTE SI NO HAY MODO ABSOLUTO ACTIVO ---
-  if (!config.absolute_mouse && !config.touchscreen_mode) {
+  // --- SOLO PROCESAR SPECIAL KEYS Y ESQUINAS DEL FRENTE SI NO HAY MODO TÁCTIL EXCLUSIVO ACTIVO ---
+  if (config.touchscreen_mode == 0) {
     read_frontscreen();
     special(config.special_keys.nw,
             is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW),
@@ -614,7 +614,41 @@ inline void vitainput_process(void) {
   }
 
   // --- PROCESAMIENTO DE MODOS TÁCTILES EXCLUSIVOS ---
-  if (config.absolute_mouse) {
+  if (config.touchscreen_mode == 1) {
+    // Modo DS4 touchpad: emula el panel táctil de un DualShock 4 usando la pantalla frontal
+    static uint8_t prev_finger_active[10] = {0};
+    static int prev_x[10] = {0};
+    static int prev_y[10] = {0};
+    const int DS4_TOUCHPAD_MOVE_THRESHOLD = 4; // píxeles
+    for (int i = 0; i < 10; ++i) {
+      int x = (i < touch.finger) ? touch.points[i].x : 0;
+      int y = (i < touch.finger) ? touch.points[i].y : 0;
+      float norm_x = (float)x / (float)WIDTH;
+      float norm_y = (float)y / (float)HEIGHT;
+      int is_active = (x != 0 || y != 0);
+      if (is_active && !prev_finger_active[i]) {
+        // DOWN
+        LiSendControllerTouchEvent(0, LI_TOUCH_EVENT_DOWN, i, norm_x, norm_y, 1.0f);
+        vita_debug_log("[DS4_TOUCHPAD] DOWN finger=%d x=%.3f y=%.3f", i, norm_x, norm_y);
+      } else if (is_active && prev_finger_active[i]) {
+        // MOVE solo si la posición cambió más que el threshold
+        int dx = abs(x - prev_x[i]);
+        int dy = abs(y - prev_y[i]);
+        if (dx >= DS4_TOUCHPAD_MOVE_THRESHOLD || dy >= DS4_TOUCHPAD_MOVE_THRESHOLD) {
+          LiSendControllerTouchEvent(0, LI_TOUCH_EVENT_MOVE, i, norm_x, norm_y, 1.0f);
+          vita_debug_log("[DS4_TOUCHPAD] MOVE finger=%d x=%.3f y=%.3f (dx=%d dy=%d)", i, norm_x, norm_y, dx, dy);
+        }
+      } else if (!is_active && prev_finger_active[i]) {
+        // UP
+        LiSendControllerTouchEvent(0, LI_TOUCH_EVENT_UP, i, norm_x, norm_y, 0.0f);
+        vita_debug_log("[DS4_TOUCHPAD] UP finger=%d", i);
+      }
+      prev_finger_active[i] = is_active;
+      prev_x[i] = x;
+      prev_y[i] = y;
+    }
+    // NO bloque de mouse ni gestos
+  } else if (config.touchscreen_mode == 2) {
     // Modo Mouse Absoluto + gestos
     if (touchabsolute_is_enabled()) {
       // El cursor siempre sigue el primer dedo
@@ -734,7 +768,7 @@ inline void vitainput_process(void) {
         }
         break;
     }
-  } else if (config.touchscreen_mode) {
+  } else if (config.touchscreen_mode == 3) {
     // --- Touchscreen multitouch Sunshine tipo tableta gráfica ---
     static bool mouse_released __attribute__((unused)) = false;
     if (!mouse_released) {

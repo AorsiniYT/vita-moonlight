@@ -445,8 +445,7 @@ enum {
   SETTINGS_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
   SETTINGS_MOUSE_ACCEL,
   SETTINGS_KEYBOARD_LAYOUT,
-  SETTINGS_ABSOLUTE_MOUSE,
-  SETTINGS_TOUCHSCREEN_MODE // Nuevo: opción para modo touchscreen multitouch
+  SETTINGS_TOUCH_MODE_SELECT // Nuevo: selección de modo táctil exclusivo
 };
 
 enum {
@@ -477,8 +476,7 @@ enum {
   SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
   SETTINGS_VIEW_MOUSE_ACCEL,
   SETTINGS_VIEW_KEYBOARD_LAYOUT,
-  SETTINGS_VIEW_ABSOLUTE_MOUSE,
-  SETTINGS_VIEW_TOUCHSCREEN_MODE, // Nuevo: vista para modo touchscreen multitouch
+  SETTINGS_VIEW_TOUCH_MODE_SELECT, // Vista para modo táctil exclusivo
 
   SETTINGS_VIEW_MAX_COUNT,
 };
@@ -486,6 +484,8 @@ enum {
 static int SETTINGS_VIEW_IDX[SETTINGS_VIEW_MAX_COUNT];
 // Variable global para swap de botones
 bool swap_shoulder_buttons = false;
+// Variable global para modo táctil exclusivo
+int touch_mode_select = 0;
 
 // _countof only works for variable allocated on the stack, not from malloc (sizeof(i) will be incorrect).
 #define _countof(i) (sizeof(i) / sizeof((i)[0]))
@@ -518,6 +518,20 @@ static int settings_loop(int id, void *context, const input_data *input) {
   char current[256];
   int new_idx;
 
+  if (id == SETTINGS_TOUCH_MODE_SELECT) {
+    if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+      static const char* mode_names[] = {"Off", "DS4 Touchpad", "Mouse Absolute", "Tablet (Sunshine)"};
+      strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCH_MODE_SELECT]].subname, mode_names[config.touchscreen_mode]);
+      return 0;
+    }
+    config.touchscreen_mode = (config.touchscreen_mode + 1) % 4;
+    static const char* mode_names[] = {"Off", "DS4 Touchpad", "Mouse Absolute", "Tablet (Sunshine)"};
+    strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCH_MODE_SELECT]].subname, mode_names[config.touchscreen_mode]);
+    // Solo activar touchabsolute_enable en modo Mouse Absolute
+    touchabsolute_enable(config.touchscreen_mode == 2);
+    did_change = 1;
+    return 0;
+  }
   switch (id) {
     case SETTINGS_SWAP_SHOULDER_BUTTONS: {
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
@@ -556,29 +570,7 @@ static int settings_loop(int id, void *context, const input_data *input) {
       }
       break;
     }
-    case SETTINGS_ABSOLUTE_MOUSE:
-    case SETTINGS_TOUCHSCREEN_MODE: {
-      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
-        break;
-      }
-      did_change = 1;
-      if (id == SETTINGS_ABSOLUTE_MOUSE) {
-        config.absolute_mouse = !config.absolute_mouse;
-        if (config.absolute_mouse) config.touchscreen_mode = false;
-        touchabsolute_enable(config.absolute_mouse);
-        // Actualiza subname en el menú
-        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ABSOLUTE_MOUSE]].subname, config.absolute_mouse ? "yes" : "no");
-        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCHSCREEN_MODE]].subname, config.touchscreen_mode ? "yes" : "no");
-      } else {
-        config.touchscreen_mode = !config.touchscreen_mode;
-        if (config.touchscreen_mode) config.absolute_mouse = false;
-        touchabsolute_enable(false);
-        // Actualiza subname en el menú
-        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCHSCREEN_MODE]].subname, config.touchscreen_mode ? "yes" : "no");
-        strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_ABSOLUTE_MOUSE]].subname, config.absolute_mouse ? "yes" : "no");
-      }
-      break;
-    }
+    // Eliminados SETTINGS_ABSOLUTE_MOUSE y SETTINGS_TOUCHSCREEN_MODE: ahora todo es por touchscreen_mode
   }
 
 
@@ -957,10 +949,11 @@ static int settings_loop(int id, void *context, const input_data *input) {
   sprintf(current, "%d", config.mouse_acceleration);
   MENU_REPLACE(SETTINGS_VIEW_MOUSE_ACCEL, current);
 
-  sprintf(current, "%s", config.absolute_mouse ? "yes" : "no");
-  MENU_REPLACE(SETTINGS_VIEW_ABSOLUTE_MOUSE, current);
-  sprintf(current, "%s", config.touchscreen_mode ? "yes" : "no");
-  MENU_REPLACE(SETTINGS_VIEW_TOUCHSCREEN_MODE, current);
+  // Eliminar subnames antiguos de modos táctiles
+  static const char* mode_names[] = {"Off", "DS4 Touchpad", "Mouse Absolute", "Tablet (Sunshine)"};
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCH_MODE_SELECT]].subname, mode_names[config.touchscreen_mode]);
+  // No actualizar subnames de absolute_mouse ni touchscreen_mode boolean
+  // ...resto de actualizaciones de subname...
   return 0;
 }
 
@@ -1035,8 +1028,8 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_BACK_DEADZONE, SETTINGS_VIEW_BACK_DEADZONE, "Back touchscreen deadzone", "");
   MENU_ENTRY(SETTINGS_SPECIAL_KEYS, SETTINGS_VIEW_SPECIAL_KEYS, "Touchscreen special keys", "");
   // MENU_ENTRY(SETTINGS_HOTKEYS, SETTINGS_VIEW_HOTKEYS, "Configure hotkeys", ""); // Eliminado: hotkeys fijos
-  MENU_ENTRY(SETTINGS_ABSOLUTE_MOUSE, SETTINGS_VIEW_ABSOLUTE_MOUSE, "Touch Mouse Absolute (gestures)", "");
-  MENU_ENTRY(SETTINGS_TOUCHSCREEN_MODE, SETTINGS_VIEW_TOUCHSCREEN_MODE, "Touchscreen (Sunshine multitouch)", "");
+  // NUEVO: Opción para usar la pantalla táctil como touchpad DS4
+  MENU_ENTRY(SETTINGS_TOUCH_MODE_SELECT, SETTINGS_VIEW_TOUCH_MODE_SELECT, "Touchscreen mode", "");
   MENU_CATEGORY("Keyboard");
   MENU_ENTRY(SETTINGS_KEYBOARD_LAYOUT, SETTINGS_VIEW_KEYBOARD_LAYOUT, "Keyboard layout", "");
 
@@ -1058,6 +1051,9 @@ int ui_settings_menu() {
   // Swap shoulder buttons
   swap_shoulder_buttons = config.swap_shoulder_buttons;
   strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS]].subname, swap_shoulder_buttons ? "yes" : "no");
+  // Touchscreen mode
+  static const char* mode_names[] = {"Off", "DS4 Touchpad", "Mouse Absolute", "Tablet (Sunshine)"};
+  strcpy(menu[SETTINGS_VIEW_IDX[SETTINGS_VIEW_TOUCH_MODE_SELECT]].subname, mode_names[config.touchscreen_mode]);
   // Puedes agregar aquí más inicializaciones si quieres que otras opciones también muestren su valor actual al abrir el menú
 
   settings_loop_setup = 1;
@@ -1068,7 +1064,6 @@ int ui_settings_menu() {
 
 void ui_settings_save_config() {
   vita_debug_log("[DEBUG] Guardando configuración:");
-  vita_debug_log("  absolute_mouse = %d", config.absolute_mouse);
   vita_debug_log("  touchscreen_mode = %d", config.touchscreen_mode);
   vita_debug_log("  swap_shoulder_buttons = %d", config.swap_shoulder_buttons);
   vita_debug_log("  controller_type = %d", config.controller_type);

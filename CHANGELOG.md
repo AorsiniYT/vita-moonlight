@@ -1,3 +1,14 @@
+
+## 0.12.4
+
+* Wake-on-LAN (WOL) fully integrated into the host management menu: allows you to power on the remote PC from the Vita using the saved MAC and automatically calculated broadcast address.
+* The host MAC address is now saved and loaded correctly from the device.ini file, with all ARP/legacy logic removed.
+* WOL packet sending is robust and compatible with local networks, with cross-platform MAC parsing and detailed debug logs.
+* Added Python script (`tools/wol_sniffer.py`) to receive and verify Wake-on-LAN packets on the network, useful for testing without powering off the PC.
+* Minor UI fixes and improved visual feedback in the host management menu.
+* Fixed: Combos like L1+L2 and R1+R2 now work correctly even when used together with either touchscreen or backtouch. Pressing both at the same time no longer causes one to be lifted; both can be held simultaneously as expected.
+* Fixed: In absolute touch mode, special button overlays no longer interfere with touch input. If a special button is detected, the corresponding touchscreen input is ignored, allowing for true absolute touch and making all screen corners usable.
+
 ## 0.12.3
 
 * Moonlight now automatically selects and creates the best available folder for config and cache (supports ux0:/data/moonlight, ux0:/moonlight, uma0:/data/moonlight, and fallback to ux0:data).
