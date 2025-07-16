@@ -536,21 +536,31 @@ inline void vitainput_process(void) {
 
   // Swap L1<=>L2 y R1<=>R2 correctamente
   if (swap_shoulder_buttons) {
-    // Físicos: L1 manda L2 (analógico), L2 manda L1 (digital)
+    // Físicos: L1 manda L2 (analógico), rear touch L2 manda L1 (digital)
     if (is_pressed(map.btn_thumbl)) {
-      curr.lt = 0xff;
+      curr.lt = 0xff; // L1 físico activa L2 analógico
     }
     if (is_pressed(map.btn_tl)) {
-      curr.button |= LB_FLAG;
-      curr.lt = 0; // Desactiva trigger L2 si rear touch
+      curr.button |= LB_FLAG; // rear touch L2 activa L1 digital
     }
-    // Físicos: R1 manda R2 (analógico), R2 manda R1 (digital)
+    if (!is_pressed(map.btn_tl)) {
+      curr.button &= ~LB_FLAG;
+    }
+    if (!is_pressed(map.btn_thumbl)) {
+      curr.lt = 0;
+    }
+    // Físicos: R1 manda R2 (analógico), rear touch R2 manda R1 (digital)
     if (is_pressed(map.btn_thumbr)) {
-      curr.rt = 0xff;
+      curr.rt = 0xff; // R1 físico activa R2 analógico
     }
     if (is_pressed(map.btn_tr)) {
-      curr.button |= RB_FLAG;
-      curr.rt = 0; // Desactiva trigger R2 si rear touch
+      curr.button |= RB_FLAG; // rear touch R2 activa R1 digital
+    }
+    if (!is_pressed(map.btn_tr)) {
+      curr.button &= ~RB_FLAG;
+    }
+    if (!is_pressed(map.btn_thumbr)) {
+      curr.rt = 0;
     }
   } else {
     // Físicos: L1 manda L1 (digital), L2 manda L2 (analógico)
@@ -559,7 +569,7 @@ inline void vitainput_process(void) {
     }
     if (is_pressed(map.btn_tl)) {
       curr.lt = 0xff;
-      curr.button &= ~LB_FLAG; // Desactiva flag L1 solo si rear touch
+      // No modificar curr.button aquí
     }
     // Físicos: R1 manda R1 (digital), R2 manda R2 (analógico)
     if (is_pressed(map.btn_thumbr)) {
@@ -567,7 +577,7 @@ inline void vitainput_process(void) {
     }
     if (is_pressed(map.btn_tr)) {
       curr.rt = 0xff;
-      curr.button &= ~RB_FLAG; // Desactiva flag R1 solo si rear touch
+      // No modificar curr.button aquí
     }
   }
   // Zonas inferiores: L3/R3 (nunca swap)
@@ -868,6 +878,8 @@ bool vitainput_init() {
 }
 
 void vitainput_config(CONFIGURATION config) {
+  // Sincroniza el modo swap global con la configuración cargada
+  swap_shoulder_buttons = config.swap_shoulder_buttons;
   map.abs_x           = LEFTX               | INPUT_TYPE_ANALOG;
   map.abs_y           = LEFTY               | INPUT_TYPE_ANALOG;
   map.abs_rx          = RIGHTX              | INPUT_TYPE_ANALOG;
