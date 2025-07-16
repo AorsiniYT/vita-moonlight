@@ -64,6 +64,10 @@ enum {
 
 static int ui_host_manage_menu_loop(int cursor, void *context, const input_data *input) {
   device_info_t *info = (device_info_t *)context;
+  // Permitir regresar con el botón cancelar (O)
+  if ((input->buttons & config.btn_cancel) != 0) {
+    return 1; // Salir del menú
+  }
   if ((input->buttons & config.btn_confirm) == 0 || (input->buttons & SCE_CTRL_HOLD) != 0) {
     return 0;
   }
