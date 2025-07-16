@@ -271,7 +271,7 @@ void ui_host_manage_menu(device_info_t *info) {
   menu[idx++] = (menu_entry){ .name = "", .disabled = true, .separator = true };
   // Opciones (sin Info)
   menu[idx++] = (menu_entry){ .name = "Connect", .id = HOST_MANAGE_CONNECT };
-  menu[idx++] = (menu_entry){ .name = "Check MAC", .id = HOST_MANAGE_CHECK_MAC, .disabled = true };
+  // menu[idx++] = (menu_entry){ .name = "Check MAC", .id = HOST_MANAGE_CHECK_MAC }; // Oculta la opción Check MAC
   menu[idx++] = (menu_entry){ .name = "Wake on LAN (WOL)", .id = HOST_MANAGE_WAKE };
 // Opción extra para pruebas
 #define HOST_MANAGE_CHECK_MAC 3001
