@@ -25,8 +25,17 @@ static SceWChar16 output_text[4];      // Buffer para recibir el texto (aunque n
 // Layout seleccionado (por defecto EN_US)
 static KeyboardLayout g_keyboard_layout = KB_LAYOUT_EN_US;
 
+
+// Estado interno del overlay de teclado virtual
+static bool _keyboard_overlay_open = false;
+
 void keyboardsystem_set_layout(KeyboardLayout layout) {
     g_keyboard_layout = layout;
+}
+
+// Exponer el estado para otros módulos
+bool keyboardsystem_is_open(void) {
+    return _keyboard_overlay_open;
 }
 
 static int find_vk_for_char(wchar_t ch, int* vk, int* needs_shift) {
@@ -173,6 +182,9 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
 }
 
 void keyboardsystem_open_keyboard(void) {
+    // Marcar overlay como abierto
+    _keyboard_overlay_open = true;
+
     // Asegura que el layout global esté sincronizado con la config antes de abrir el IME
     keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
     sceClibPrintf("[IME MOONLIGHT] Teclado abierto\n");
@@ -227,6 +239,7 @@ void keyboardsystem_open_keyboard(void) {
     int res = sceImeOpen(&param);
     if (res < 0) {
         sceClibPrintf("Error al abrir IME: 0x%08X\n", res);
+        _keyboard_overlay_open = false;
         return;
     }
     // Solo aquí es seguro llamar a setText y setCaret
@@ -253,4 +266,6 @@ void keyboardsystem_open_keyboard(void) {
         }
         sceKernelDelayThread(1000); // Esperar 1 ms
     }
+    // Marcar overlay como cerrado al salir del bucle
+    _keyboard_overlay_open = false;
 }

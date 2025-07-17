@@ -20,6 +20,8 @@
         "fcntl.h": "c",
         "check_dir.h": "c",
         "wake_on_lan.h": "c",
-        "inet.h": "c"
+        "inet.h": "c",
+        "threadmgr.h": "c",
+        "ctrl.h": "c"
     }
 }

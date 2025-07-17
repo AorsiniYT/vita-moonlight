@@ -1,3 +1,4 @@
+
 /*
  * This file is part of Moonlight Embedded.
  *
@@ -25,7 +26,7 @@
 #include "video/vita.h"
 #include "audio/vita.h"
 #include <stdbool.h>
-
+#include "connection_overlay.h"
 #include "debug.h"
 
 static int connection_status = LI_DISCONNECTED;
@@ -33,6 +34,10 @@ static int connection_status = LI_DISCONNECTED;
 extern motion_data_state motion_state;
 
 int connection_stage = 0;
+
+bool pause_overlay_is_open(void) {
+    return connection_status == LI_MINIMIZED;
+}
 
 void pause_output() {
   vitainput_stop();

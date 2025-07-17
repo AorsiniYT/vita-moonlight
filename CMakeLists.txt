@@ -69,6 +69,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/audio/vita.c
 	src/video/vita.c
 	src/input/vita.c
+	src/input/shortcuts.c
 	src/power/vita.c
 	src/input/motion.c
 	src/graphics.c

@@ -37,7 +37,11 @@
 #include "mapping.h"
 #include "swap_shoulder_buttons.h"
 #include "../keyboardsystem.h"
+
+
 #include "touchabsolute.h"
+#include "shortcuts.h"
+#include "../connection_overlay.h"
 
 #include <Limelight.h>
 
@@ -329,14 +333,42 @@ inline void special(uint32_t defined, uint32_t pressed, uint32_t old_pressed) {
   if (pressed) {
     switch(dev_type) {
       case INPUT_TYPE_SPECIAL:
+        // Limpiar input físico ANTES de overlays/eventos modales
+        memset(&curr, 0, sizeof(input_data));
+        curr.lt = 0;
+        curr.rt = 0;
+        pad.buttons = 0;
+        // Enviar frame vacío al host para limpiar estado
+        LiSendMultiControllerEvent(0, 1, 0, 0, 0, 0, 0, 0, 0);
         if (dev_val == INPUT_SPECIAL_KEY_PAUSE) {
           connection_minimize();
+          // Limpiar input físico DESPUÉS de overlays/eventos modales
+          memset(&curr, 0, sizeof(input_data));
+          curr.lt = 0;
+          curr.rt = 0;
+          pad.buttons = 0;
+          // Enviar frame vacío al host para limpiar estado
+          LiSendMultiControllerEvent(0, 1, 0, 0, 0, 0, 0, 0, 0);
           return;
         }
         if (dev_val == INPUT_SPECIAL_KEY_KEYBOARD) {
           keyboardsystem_open_keyboard();
+          // Limpiar input físico DESPUÉS de overlays/eventos modales
+          memset(&curr, 0, sizeof(input_data));
+          curr.lt = 0;
+          curr.rt = 0;
+          pad.buttons = 0;
+          // Enviar frame vacío al host para limpiar estado
+          LiSendMultiControllerEvent(0, 1, 0, 0, 0, 0, 0, 0, 0);
           return;
         }
+        // Si hay otros overlays, añadir aquí
+        memset(&curr, 0, sizeof(input_data));
+        curr.lt = 0;
+        curr.rt = 0;
+        pad.buttons = 0;
+        // Enviar frame vacío al host para limpiar estado
+        LiSendMultiControllerEvent(0, 1, 0, 0, 0, 0, 0, 0, 0);
         return;
       case INPUT_TYPE_GAMEPAD:
         curr.button |= dev_val;
@@ -588,15 +620,70 @@ inline void vitainput_process(void) {
     curr.button |= RS_CLK_FLAG; // R3
   }
 
-  // Atajo: Start + L + R para pausar/desplegar menú de pausa
-  if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_L1) && (pad.buttons & SCE_CTRL_R1)) {
-    connection_minimize();
+// --- GESTIÓN DE LIMPIEZA DE INPUT AL ABRIR/CERRAR TECLADO VIRTUAL Y PAUSA ---
+static bool keyboard_overlay_active = false;
+static bool pause_overlay_active = false;
+static SceCtrlData pad_snapshot = {0};
+static input_data curr_snapshot = {0};
+
+// Hook para saber si el teclado virtual está abierto
+extern bool keyboardsystem_is_open(void);
+
+  bool shortcut_triggered = process_physical_shortcuts(&pad, &pad_old);
+  bool keyboard_now = keyboardsystem_is_open();
+  bool pause_now = pause_overlay_is_open();
+
+  // --- BLOQUEO Y LIMPIEZA DE INPUT AL ABRIR TECLADO VIRTUAL ---
+  if (keyboard_now && !keyboard_overlay_active) {
+    memcpy(&pad_snapshot, &pad, sizeof(SceCtrlData));
+    memcpy(&curr_snapshot, &curr, sizeof(input_data));
+    memset(&pad, 0, sizeof(SceCtrlData));
+    memset(&curr, 0, sizeof(input_data));
+    // Centrar sticks al bloquear input
+    pad.lx = 128; pad.ly = 128; pad.rx = 128; pad.ry = 128;
+    curr.lx = 128; curr.ly = 128; curr.rx = 128; curr.ry = 128;
+    curr.lt = 0;
+    curr.rt = 0;
+    vita_debug_log("[VITA.C] Overlay activo: ABRIR teclado, input bloqueado (sticks centrados, sin enviar frame vacío)");
+    keyboard_overlay_active = true;
+  } else if (!keyboard_now && keyboard_overlay_active) {
+    vita_debug_log("[VITA.C] Teclado virtual CERRADO: restaurando snapshot (sin enviar frame vacío)");
+    memcpy(&pad, &pad_snapshot, sizeof(SceCtrlData));
+    memcpy(&curr, &curr_snapshot, sizeof(input_data));
+    keyboard_overlay_active = false;
+  } else if (keyboard_overlay_active) {
+    memset(&pad, 0, sizeof(SceCtrlData));
+    memset(&curr, 0, sizeof(input_data));
+    pad.lx = 128; pad.ly = 128; pad.rx = 128; pad.ry = 128;
+    curr.lx = 128; curr.ly = 128; curr.rx = 128; curr.ry = 128;
+    curr.lt = 0;
+    curr.rt = 0;
   }
 
-  // Atajo: Start + Left para abrir el teclado (solo en flanco de subida)
-  if ((pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT) &&
-      !((pad_old.buttons & SCE_CTRL_START) && (pad_old.buttons & SCE_CTRL_LEFT))) {
-    keyboardsystem_open_keyboard();
+  // --- BLOQUEO Y LIMPIEZA DE INPUT AL ABRIR/CERRAR MENÚ DE PAUSA ---
+  if (pause_now && !pause_overlay_active) {
+    memcpy(&pad_snapshot, &pad, sizeof(SceCtrlData));
+    memcpy(&curr_snapshot, &curr, sizeof(input_data));
+    memset(&pad, 0, sizeof(SceCtrlData));
+    memset(&curr, 0, sizeof(input_data));
+    pad.lx = 128; pad.ly = 128; pad.rx = 128; pad.ry = 128;
+    curr.lx = 128; curr.ly = 128; curr.rx = 128; curr.ry = 128;
+    curr.lt = 0;
+    curr.rt = 0;
+    vita_debug_log("[VITA.C] Overlay activo: ABRIR menú de pausa, input bloqueado (sticks centrados, sin enviar frame vacío)");
+    pause_overlay_active = true;
+  } else if (!pause_now && pause_overlay_active) {
+    vita_debug_log("[VITA.C] Menú de pausa CERRADO: restaurando snapshot (sin enviar frame vacío)");
+    memcpy(&pad, &pad_snapshot, sizeof(SceCtrlData));
+    memcpy(&curr, &curr_snapshot, sizeof(input_data));
+    pause_overlay_active = false;
+  } else if (pause_overlay_active) {
+    memset(&pad, 0, sizeof(SceCtrlData));
+    memset(&curr, 0, sizeof(input_data));
+    pad.lx = 128; pad.ly = 128; pad.rx = 128; pad.ry = 128;
+    curr.lx = 128; curr.ly = 128; curr.rx = 128; curr.ry = 128;
+    curr.lt = 0;
+    curr.rt = 0;
   }
 
   // analogs: solo asignar si no están activos por rear touch
@@ -693,14 +780,18 @@ inline void vitainput_process(void) {
   }
   }
 
-  // --- ENVÍO DE EVENTOS DE GAMEPAD SIEMPRE (en cualquier modo) ---
-  if (memcmp(&curr, &old, sizeof(input_data)) != 0) {
-    LiSendMultiControllerEvent(0, 1, curr.button, curr.lt, curr.rt, curr.lx, -1 * curr.ly, curr.rx, -1 * curr.ry);
-    memcpy(&old, &curr, sizeof(input_data));
-    memcpy(&pad_old, &pad, sizeof(SceCtrlData));
-  }
-  if (memcmp(&touch, &touch_old, sizeof(TouchData)) != 0) {
-    memcpy(&touch_old, &touch, sizeof(TouchData));
+  // --- ENVÍO DE EVENTOS DE GAMEPAD SOLO SI NO hay overlay de teclado activo ---
+  // O si el overlay está activo pero NO están ambos botones del shortcut presionados
+  bool shortcut_both_pressed = (pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT);
+  if (!keyboard_overlay_active || (keyboard_overlay_active && !shortcut_both_pressed)) {
+    if (memcmp(&curr, &old, sizeof(input_data)) != 0) {
+      LiSendMultiControllerEvent(0, 1, curr.button, curr.lt, curr.rt, curr.lx, -1 * curr.ly, curr.rx, -1 * curr.ry);
+      memcpy(&old, &curr, sizeof(input_data));
+      memcpy(&pad_old, &pad, sizeof(SceCtrlData));
+    }
+    if (memcmp(&touch, &touch_old, sizeof(TouchData)) != 0) {
+      memcpy(&touch_old, &touch, sizeof(TouchData));
+    }
   }
 }
 
