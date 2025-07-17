@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <changeinfo>
 <changes app_ver="00.13"><![CDATA[
+## 0.13.1<br>
+* fix: Split shortcuts into individual files for better code organization and maintainability.<br>
+* fix: Resolved ghost/phantom button presses when handling overlays and shortcuts. Button state is now correctly reset and restored.<br>
+<br>
 ## 0.13.0<br>
 * You can now choose between three touchscreen modes: DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) from the settings menu.<br>
 * "DS4 Touchpad" mode lets you use the Vita screen as a DualShock 4-style multitouch touchpad, compatible with gestures and advanced controls in games and Steam Input.<br>

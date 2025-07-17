@@ -1,3 +1,8 @@
+## 0.13.1
+
+* fix: Split shortcuts into individual files for better code organization and maintainability.
+* fix: Resolved ghost/phantom button presses when handling overlays and shortcuts. Button state is now correctly reset and restored.
+
 ## 0.13.0
 
 * You can now choose between three touchscreen modes: DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) from the settings menu.
