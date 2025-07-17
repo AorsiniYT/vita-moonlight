@@ -2,6 +2,9 @@
 <changeinfo>
 <changes app_ver="00.12"><![CDATA[
 ## 0.12.4<br>
+* You can now choose between three touchscreen modes: DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) from the settings menu.<br>
+* "DS4 Touchpad" mode lets you use the Vita screen as a DualShock 4-style multitouch touchpad, compatible with gestures and advanced controls in games and Steam Input.<br>
+* DS4 Touchpad mode is now more sensitive and precise for a smoother experience.<br>
 * Wake-on-LAN (WOL) fully integrated into the host management menu: allows you to power on the remote PC from the Vita using the saved MAC and automatically calculated broadcast address.<br>
 * The host MAC address is now saved and loaded correctly from the device.ini file, with all ARP/legacy logic removed.<br>
 * WOL packet sending is robust and compatible with local networks, with cross-platform MAC parsing and detailed debug logs.<br>
