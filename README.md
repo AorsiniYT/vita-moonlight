@@ -1,16 +1,24 @@
 # Vita Moonlight
 
-Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch and multitouch support.
+Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch, multitouch, and DS4 touchpad emulation.
 
-## Highlights
-  
-- **Advanced Host Management:** Manage paired hosts with:
-  - Change host name
-  - Change host IP
-  - Delete hosts
-  - Force connection even if host is not shown as online
-- **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu for greater comfort and customization.
-- **Gamepad Type Selection:** Choose whether you want the buttons and interface to behave as an Xbox or PlayStation controller, directly from the settings menu.
+## Highlights (0.13.0)
+
+- **Touchscreen Modes Unified:** Select between three touchscreen modes from the settings menu:
+  - **DS4 Touchpad:** Emulates a DualShock 4-style multitouch touchpad, compatible with gestures and Steam Input advanced controls.
+  - **Absolute Mouse:** Use the Vita screen as a true absolute mouse (with improved gesture support).
+  - **Tablet (Sunshine):** Native multitouch for Sunshine streaming, with true multi-finger gestures.
+- **DS4 Touchpad Sensitivity:** DS4 mode is now more sensitive and precise for a smoother experience.
+- **Wake-on-LAN (WOL) Integration:** Power on your remote PC directly from the Vita, with robust MAC address handling and cross-platform compatibility.
+- **Host MAC Management:** MAC addresses are now saved/loaded correctly, with all ARP/legacy logic removed.
+- **WOL Packet Debugging:** Includes a Python script (`tools/wol_sniffer.py`) to verify WOL packets on your network.
+- **UI Improvements:**
+  - Host Management menu: improved navigation (O/cancel returns), clearer visual feedback, and unified status display.
+  - Special button overlays no longer interfere with absolute touch input.
+- **Combo Fixes:** L1+L2 and R1+R2 combos now work correctly, even with touchscreen or backtouch enabled.
+- **Robustness:** Many bugfixes, code cleanups, and internal refactors for stability and maintainability.
+- **L1/R1 and L2/R2 Swap:** Swap the functions of the L1/R1 and L2/R2 buttons from the settings menu for greater comfort and customization.
+- **Gamepad Type Selection:** Choose Xbox or PlayStation controller layout directly from the settings menu.
 
 ## Documentation
 
@@ -48,26 +56,22 @@ Stay tuned for more improvements!
 
 ---
 
-## What's New
-- **Advanced Host Management:**
-  - Change host name
-  - Change host IP
-  - Delete hosts
-  - Force connection even if host is not shown as online
-- **L1/R1 and L2/R2 Swap:** You can now swap the functions of the L1/R1 and L2/R2 buttons from the settings menu.
-- **Gamepad Type Selection:** Choose between Xbox and PlayStation controller layouts in the settings menu.
-- **Automatic pairing fixed:** The pairing process is now more reliable and user-friendly. You can now pair your PC directly from the Vita using "Search device"—no more manual pairing required!
-- **Absolute Touch (beta):** Experimental support for absolute touch controls.
-- **Motion controls (gyroscope):** Play with motion aiming and gyro support for a more immersive experience.
-- **Elevated floating keyboard:** The virtual keyboard now appears above the app, never covering the main screen (see screenshot below).
-- **Updated libraries:** All dependencies and core libraries (moonlight-common-c, enet, inih) have been updated for better compatibility and stability.
-- **New modular mDNS sniffer:** Fast and reliable device discovery on your local network.
-- **Host status indicators:** Colored dots show if a host is online (green), offline (red), or needs IP update (yellow).
-- **IP change detection:** If a host changes its IP, you'll see a confirmation dialog with the old and new IP before updating.
-- **Manual refresh:** Press TRIANGLE (△) in the main menu or device search to refresh host/device status instantly.
-- **UI and logic robust to missing/empty host fields.**
-- **Improved debug logging and error handling.**
-- **Many bugfixes and code cleanups.**
+
+## What's New in 0.13.0
+
+- **Unified Touchscreen Modes:** Choose between DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) modes from the settings menu.
+- **DS4 Touchpad Mode:** Vita screen acts as a DS4-style multitouch touchpad, supporting gestures and advanced controls in games and Steam Input.
+- **Improved DS4 Sensitivity:** Smoother and more precise touchpad emulation.
+- **Wake-on-LAN (WOL) Fully Integrated:** Power on your PC from the Vita, with robust MAC address handling and cross-platform support.
+- **Host MAC Address Management:** MAC addresses are now saved/loaded correctly; all ARP/legacy logic removed.
+- **WOL Packet Debugging:** Python script (`tools/wol_sniffer.py`) included to verify WOL packets on your network.
+- **UI Improvements:**
+  - Host Management menu: O/cancel returns to previous menu, improved feedback, unified status display.
+  - Special button overlays no longer interfere with absolute touch input.
+- **Combo Fixes:** L1+L2 and R1+R2 combos now work correctly, even with touchscreen or backtouch enabled.
+- **Many bugfixes, code cleanups, and internal refactors for stability and maintainability.
+
+---
 
 ---
 

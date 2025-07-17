@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <changeinfo>
-<changes app_ver="00.12"><![CDATA[
-## 0.12.4<br>
+<changes app_ver="00.13"><![CDATA[
+## 0.13.0<br>
 * You can now choose between three touchscreen modes: DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) from the settings menu.<br>
 * "DS4 Touchpad" mode lets you use the Vita screen as a DualShock 4-style multitouch touchpad, compatible with gestures and advanced controls in games and Steam Input.<br>
 * DS4 Touchpad mode is now more sensitive and precise for a smoother experience.<br>
