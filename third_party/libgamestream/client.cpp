@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sstream>
+#include <vector>
 
 #define CHANNEL_COUNT_STEREO 2
 #define CHANNEL_COUNT_51_SURROUND 6

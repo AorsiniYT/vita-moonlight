@@ -18,6 +18,10 @@
 
 #include "tab/settings_tab.hpp"
 #include <cstdlib>
+#include <string>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -134,12 +138,33 @@ SettingsTab::SettingsTab()
         std::string locale = (selected == 0) ? "es" : "en-US";
 #ifdef _WIN32
         _putenv_s("LANG", locale.c_str());
+        _putenv_s("BOREALIS_LANG", locale.c_str());
 #else
         setenv("LANG", locale.c_str(), 1);
+        setenv("BOREALIS_LANG", locale.c_str(), 1);
 #endif
+        
+        // Recargar traducciones
         brls::loadTranslations();
-        moonlight::settings::saveSettingsToConfig();
-        brls::Application::notify(locale == "es" ? "Idioma cambiado. Reinicia la app para aplicar completamente." : "Language changed. Please restart the app.");
+        
+        // Crear directorio si no existe
+        std::string configPath = ConfigManager::getConfigPath();
+        size_t pos = configPath.find_last_of("/\\");
+        if (pos != std::string::npos) {
+            std::string configDir = configPath.substr(0, pos);
+#ifdef _WIN32
+            CreateDirectoryA(configDir.c_str(), NULL);
+#else
+            mkdir(configDir.c_str(), 0755);
+#endif
+        }
+        
+        // Guardar el idioma seleccionado directamente
+        ConfigManager config;
+        config.set("general", "language", locale);
+        config.save();
+        
+        brls::Application::notify(locale == "es" ? "Idioma cambiado correctamente" : "Language changed successfully");
     });
     SettingsTab::languageSelectorPtr = languageSelector;
 }

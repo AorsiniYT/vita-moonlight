@@ -36,13 +36,14 @@ std::vector<RemoteAppInfo> ConnectionManager::fetchRemoteApps(const HostInfo& ho
     }
 
     // --- Obtener el puerto HTTPS real del serverinfo (como Moonlight-Switch) ---
-    // Si tu gs_init ya hace esto, puedes omitir, pero aquí lo forzamos:
-    extern "C" int load_serverinfo(SERVER_DATA* server, bool https); // Declaración C si no está en el header
-    int infoStatus = load_serverinfo(&serverData, true);
-    if (infoStatus != 0) {
-        brls::Logger::error("[ConnectionManager] Error al obtener serverinfo (puerto HTTPS): %s", host.ip.c_str());
-        return result;
-    }
+    // Nota: gs_init ya debería haber configurado el puerto correcto en serverData.httpsPort
+    // Si no, descomenta y ajusta la función load_serverinfo si es necesaria
+    // extern "C" int load_serverinfo(SERVER_DATA* server, bool https); // Declaración C si no está en el header
+    // int infoStatus = load_serverinfo(&serverData, true);
+    // if (infoStatus != 0) {
+    //     brls::Logger::error("[ConnectionManager] Error al obtener serverinfo (puerto HTTPS): %s", host.ip.c_str());
+    //     return result;
+    // }
     // El puerto correcto queda en serverData.httpsPort
 
     // 2. Obtener la lista de apps remotas usando el puerto correcto

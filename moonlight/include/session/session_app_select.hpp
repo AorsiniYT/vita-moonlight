@@ -36,7 +36,9 @@ class SessionAppSelect : public brls::Box {
     BRLS_BIND(brls::Label, app_select_title, "app_select_title");
     BRLS_BIND(brls::Label, app_select_subtitle, "app_select_subtitle");
     BRLS_BIND(brls::Box, app_grid_container, "app_grid_container");
+    BRLS_BIND(brls::Box, grid_placeholder, "grid_placeholder");
     BRLS_BIND(brls::Label, app_select_empty, "app_select_empty");
+    BRLS_BIND(brls::ProgressSpinner, loading_spinner, "loading_spinner");
 
     HostInfo host;
     GridView* gridView = nullptr;

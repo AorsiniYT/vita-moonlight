@@ -23,12 +23,19 @@
 #include <cstdlib>
 #include <string>
 #include <iostream>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "activity/main_activity.hpp"
 #include "settings.hpp"
 #include "tab/add_host_tab.hpp"
 #include "tab/settings_tab.hpp"
 #include "tab/hosts_tab.hpp"
+#include "ConfigManager.hpp"
 
 #include "utils/host_search.hpp"
 
@@ -48,12 +55,42 @@ using namespace brls::literals; // for _i18n
 
 int main(int argc, char* argv[])
 {
+    // Crear directorio de configuración si no existe
+    std::string configPath = ConfigManager::getConfigPath();
+    size_t pos = configPath.find_last_of("/\\");
+    if (pos != std::string::npos) {
+        std::string configDir = configPath.substr(0, pos);
+#ifdef _WIN32
+        CreateDirectoryA(configDir.c_str(), NULL);
+#else
+        mkdir(configDir.c_str(), 0755);
+#endif
+    }
+
+    // Crear directorio de keys si no existe
+    ConfigManager tempConfig;
+    std::string keysDir = tempConfig.getKeysDir();
+    pos = keysDir.find_last_of("/\\");
+    if (pos != std::string::npos) {
+        std::string keysParentDir = keysDir.substr(0, pos);
+#ifdef _WIN32
+        CreateDirectoryA(keysParentDir.c_str(), NULL);
+#else
+        mkdir(keysParentDir.c_str(), 0755);
+#endif
+    }
+
     // Leer idioma desde config y forzar variable de entorno antes de inicializar la app
     std::string lang = moonlight::settings::getLanguageFromConfig();
     std::cout << "[DEBUG] Idioma forzado desde config: " << lang << std::endl;
     if (!lang.empty()) {
-        moonlight::settings::applyLanguageEnv(lang);
-        brls::Application::setLocale(lang); // <-- Forzar el locale solo si hay config
+        moonlight::settings::applyLanguageEnv(lang); // <-- Forzar el locale solo si hay config
+        // Establecer el locale por defecto en la plataforma antes de init
+        if (lang == "es") {
+            brls::Platform::APP_LOCALE_DEFAULT = "es";
+        } else if (lang == "en-US") {
+            brls::Platform::APP_LOCALE_DEFAULT = "en-US";
+        }
     }
 
     // We recommend to use INFO for real apps
@@ -76,7 +113,18 @@ int main(int argc, char* argv[])
         brls::Logger::error("Unable to init Borealis application");
         return EXIT_FAILURE;
     }
-    // La carga de traducciones es automática tras Application::init() en esta versión de Borealis.
+
+    // Cambiar locale en la plataforma después de init
+    if (!lang.empty()) {
+        // Para PS Vita no necesitamos cambiar el locale dinámicamente
+        // El locale ya se estableció antes de init()
+    }
+
+    // Cargar traducciones después de aplicar el idioma desde config
+    if (!lang.empty()) {
+        brls::loadTranslations();
+        std::cout << "[DEBUG] Traducciones cargadas para idioma: " << lang << std::endl;
+    }
 
     std::cout << "[DEBUG] Locale detectado por Borealis: " << brls::Application::getLocale() << std::endl;
 

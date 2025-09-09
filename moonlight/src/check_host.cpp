@@ -17,8 +17,8 @@
 // Lógica centralizada de descubrimiento de hosts para PSVita y Windows
 // Permite iniciar/detener el hilo de descubrimiento de forma robusta y multiplataforma
 
-#include "../../../third_party/mdnsniff/udp_sniffer_vita.h"
-#include "../../../third_party/mdnsniff/udp_sniffer_win.h"
+#include "../../../library/mdnsniff/udp_sniffer_vita.h"
+#include "../../../library/mdnsniff/udp_sniffer_win.h"
 #include <borealis/core/logger.hpp>
 #include <thread>
 #include <atomic>

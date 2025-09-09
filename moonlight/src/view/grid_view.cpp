@@ -2,10 +2,12 @@
 #include <borealis/views/label.hpp>
 #include <borealis/views/image.hpp>
 #include <borealis/views/button.hpp>
+#include "view/pccard.hpp"  // Añadir include para PCCard
 
 GridView::GridView() {
     brls::Logger::info("[GridView] Constructor llamado");
-    this->setAxis(brls::Axis::COLUMN);
+    this->setAxis(brls::Axis::COLUMN);  // Cambiar a columna para filas
+    this->columns = 4;  // 4 columnas por defecto para PS Vita
     this->itemNames.clear();
     this->itemIcons.clear();
     this->onItemSelect = nullptr;
@@ -24,31 +26,112 @@ void GridView::setOnItemSelect(ItemSelectCallback cb) {
 
 void GridView::reload() {
     brls::Logger::info("[GridView] reload llamado, itemNames.size()=%zu", itemNames.size());
-    // Elimina todas las vistas hijas de forma segura
-    while (!this->getChildren().empty()) {
-        auto* child = this->getChildren().front();
-        if (child) {
-            brls::Logger::info("[GridView] removeView ejecutado para hijo (ptr)=%s", typeid(*child).name());
-            this->removeView(child);
-        } else {
-            brls::Logger::error("[GridView] ¡Intento de removeView con hijo nullptr!");
-            break;
-        }
-    }
-    for (size_t i = 0; i < itemNames.size(); ++i) {
-        brls::Logger::info("[GridView] Creando botón para '%s'", itemNames[i].c_str());
-        auto* btn = new brls::Button();
-        btn->setText(itemNames[i]);
-        btn->registerClickAction([this, i](brls::View*) {
-            brls::Logger::info("[GridView] Botón pulsado idx=%zu", i);
-            if (onItemSelect) onItemSelect(i);
-            return true;
-        });
-        this->addView(btn);
-        brls::Logger::info("[GridView] addView ejecutado para '%s'", itemNames[i].c_str());
-    }
+
+    // Limpiar vistas existentes
+    this->clearViews();
+    itemViews.clear();
+
     if (itemNames.empty()) {
-        brls::Logger::info("[GridView] reload: lista vacía, no se añaden botones");
+        brls::Logger::info("[GridView] reload: lista vacía, no se añaden elementos");
+        return;
     }
-    brls::Logger::info("[GridView] reload finalizado");
+
+    // Crear contenedores de fila según el número de columnas
+    size_t currentRow = 0;
+    brls::Box* currentRowBox = nullptr;
+
+    for (size_t i = 0; i < itemNames.size(); ++i) {
+        // Crear nueva fila si es necesario
+        if (i % columns == 0) {
+            currentRowBox = new brls::Box(brls::Axis::ROW);
+            currentRowBox->setAlignItems(brls::AlignItems::STRETCH);
+            this->addView(currentRowBox);
+            currentRow++;
+        }
+
+        // Crear PCCard para cada elemento
+        auto* card = new PCCard(itemNames[i], itemIcons.empty() ? "img/moonlight/pc.png" : itemIcons[i]);
+
+        // Configurar acción de clic
+        card->setClickAction([this, i]() {
+            brls::Logger::info("[GridView] Elemento seleccionado idx=%zu", i);
+            if (onItemSelect) onItemSelect(i);
+        });
+
+        // Hacer focusable y configurar navegación
+        card->setFocusable(true);
+
+        // Añadir márgenes para separación
+        if (i % columns != 0) {
+            card->setMarginLeft(12);  // Separación horizontal entre elementos
+        }
+
+        // Añadir a la fila actual
+        currentRowBox->addView(card);
+        itemViews.push_back(card);
+
+        brls::Logger::info("[GridView] Elemento añadido: '%s' en fila %zu, columna %zu",
+                          itemNames[i].c_str(), currentRow, (i % columns) + 1);
+    }
+
+    brls::Logger::info("[GridView] reload finalizado, %zu filas creadas", currentRow);
+}
+
+brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* currentView) {
+    if (!currentView || itemViews.empty())
+        return nullptr;
+
+    // Encontrar el índice del elemento actual
+    auto it = std::find(itemViews.begin(), itemViews.end(), currentView);
+    if (it == itemViews.end())
+        return nullptr;
+
+    size_t currentIndex = std::distance(itemViews.begin(), it);
+    size_t totalItems = itemViews.size();
+    int currentRow = currentIndex / columns;
+    int currentCol = currentIndex % columns;
+    int totalRows = (totalItems + columns - 1) / columns;
+
+    brls::View* nextView = nullptr;
+
+    switch (direction) {
+        case brls::FocusDirection::RIGHT:
+            if (currentCol < columns - 1 && currentIndex + 1 < totalItems) {
+                nextView = itemViews[currentIndex + 1];
+            }
+            break;
+
+        case brls::FocusDirection::LEFT:
+            if (currentCol > 0) {
+                nextView = itemViews[currentIndex - 1];
+            }
+            break;
+
+        case brls::FocusDirection::DOWN:
+            if (currentRow < totalRows - 1) {
+                int nextRowIndex = (currentRow + 1) * columns + currentCol;
+                if (nextRowIndex < (int)totalItems) {
+                    nextView = itemViews[nextRowIndex];
+                } else {
+                    // Si no hay elemento en esta columna, ir al último de la fila
+                    int lastInRow = std::min((int)totalItems - 1, (currentRow + 1) * columns + columns - 1);
+                    nextView = itemViews[lastInRow];
+                }
+            }
+            break;
+
+        case brls::FocusDirection::UP:
+            if (currentRow > 0) {
+                int prevRowIndex = (currentRow - 1) * columns + currentCol;
+                if (prevRowIndex < (int)totalItems) {
+                    nextView = itemViews[prevRowIndex];
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return nextView;
 }
