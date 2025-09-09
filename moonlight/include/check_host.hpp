@@ -22,12 +22,12 @@
 
 namespace check_host {
 #if defined(__PSV__)
-void startVitaDiscovery(std::function<void(int, const char*, const char*, const char*, int)> hostFoundCb);
+void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int));
 void stopVitaDiscovery();
 bool isVitaDiscoveryActive();
 #endif
 #if defined(_WIN32)
-void startWinDiscovery(std::function<void(int, const char*, const char*, const char*, int)> hostFoundCb);
+void startWinDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int));
 void stopWinDiscovery();
 bool isWinDiscoveryActive();
 #endif
