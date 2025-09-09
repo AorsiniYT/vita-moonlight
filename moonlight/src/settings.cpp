@@ -25,7 +25,7 @@ namespace moonlight {
 void settings::loadSettingsFromConfig() {
     ConfigManager config;
     config.load();
-    std::string lang = config.get("General", "language", "en-US");
+    std::string lang = config.get("general", "language", "en-US");
     // Ajustar el selector visual (solo después de init)
     if (lang == "es" || lang == "es-ES") {
         if (SettingsTab::languageSelectorPtr)
@@ -44,7 +44,7 @@ void settings::saveSettingsToConfig() {
     if (SettingsTab::languageSelectorPtr)
         langIdx = SettingsTab::languageSelectorPtr->getSelection();
     std::string lang = (langIdx == 0) ? "es" : "en-US";
-    config.set("General", "language", lang);
+    config.set("general", "language", lang);
     // Aquí puedes guardar más settings
     config.save();
 }
@@ -52,8 +52,8 @@ void settings::saveSettingsToConfig() {
 std::string settings::getLanguageFromConfig() {
     ConfigManager config;
     if (!config.load())
-        return "";
-    return config.get("General", "language", "");
+        return "en-US";  // Valor por defecto si no se puede cargar
+    return config.get("general", "language", "en-US");
 }
 
 void settings::applyLanguageEnv(const std::string& lang) {

@@ -47,9 +47,6 @@ endif ()
 
 add_subdirectory(third_party)
 
-
-
-
 find_package(Threads REQUIRED)
 list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
 
@@ -128,10 +125,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE moonlight ${APP_PLATFORM_INCL
 target_include_directories(${PROJECT_NAME} PUBLIC 
     moonlight/include
     moonlight/src/crypto
-    moonlight/src/libgamestream
+    third_party/libgamestream
 )
 target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
-target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff)
+target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff libgamestream)
 
 
 

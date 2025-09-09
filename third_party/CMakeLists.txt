@@ -26,6 +26,9 @@ target_include_directories(inih PUBLIC inih)
 
 add_subdirectory(borealis/library)
 
+# libgamestream static library
+add_subdirectory(libgamestream)
+
 # mdnsniff portable library (Vita y Windows)
 add_library(mdnsniff STATIC
     mdnsniff/udp_sniffer_vita.c

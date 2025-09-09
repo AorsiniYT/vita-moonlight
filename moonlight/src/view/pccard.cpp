@@ -16,6 +16,17 @@
 
 
 #include "view/pccard.hpp"
+#include <borealis/core/application.hpp>
+
+// Función helper para medir ancho de texto
+float measureTextWidth(int font, float fontSize, const std::string& text) {
+    NVGcontext* vg = brls::Application::getNVGContext();
+    nvgFontSize(vg, fontSize);
+    nvgFontFaceId(vg, font);
+    float bounds[4];
+    nvgTextBounds(vg, 0, 0, text.c_str(), nullptr, bounds);
+    return bounds[2] - bounds[0];
+}
 
 // Card visual como botón grande reutilizable
 PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Button() {
@@ -54,7 +65,7 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     label->setSingleLine(true); // Necesario para animación
     label->setAutoAnimate(false); // Desactivamos auto-animación por foco
     // Cálculo manual del ancho del texto para decidir animación y alineación usando la nueva API pública
-    float textWidth = brls::Label::measureTextWidth(label->getFont(), label->getFontSize(), name);
+    float textWidth = measureTextWidth(label->getFont(), label->getFontSize(), name);
     if (textWidth > 160) {
         label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
         label->setAnimated(true); // Animar si se trunca
@@ -64,7 +75,8 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     }
     box->addView(label);
 
-    this->setCustomContent(box);
+    this->clearViews();
+    this->addView(box);
     this->label = label;
 
     this->registerClickAction([this](brls::View*) {
@@ -79,7 +91,7 @@ void PCCard::setPCName(const std::string& name) {
     if (label) {
         label->setText(name);
         // Recalcular animación y alineación si cambia el nombre usando la nueva API pública
-        float textWidth = brls::Label::measureTextWidth(label->getFont(), label->getFontSize(), name);
+        float textWidth = measureTextWidth(label->getFont(), label->getFontSize(), name);
         if (textWidth > 160) {
             label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
             label->setAnimated(true);
