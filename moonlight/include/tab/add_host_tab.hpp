@@ -56,7 +56,4 @@ public:
     // --- Pairing seguro y asincrónico ---
     std::shared_ptr<PairingContext> pairingContext;
     std::thread pairingThread;
-    
-    // Lista de hosts descubiertos para VITA
-    std::vector<std::pair<std::string, std::string>> discoveredHosts;
 };
