@@ -54,6 +54,7 @@ static size_t _write_curl(void* contents, size_t size, size_t nmemb,
 }
 
 int http_init(const std::string& key_directory) {
+    std::string actual_key_directory = key_directory.empty() ? "." : key_directory;
     if (!curlGlobalInit) {
 #if LIBCURL_VERSION_NUM >= 0x075600
 #ifdef USE_OPENSSL_CRYPTO
@@ -68,8 +69,8 @@ int http_init(const std::string& key_directory) {
         return GS_OK;
     }
 
-    certificateFilePath = key_directory + "/" + CERTIFICATE_FILE_NAME;
-    keyFilePath = key_directory + "/" + KEY_FILE_NAME;
+    certificateFilePath = actual_key_directory + "/" + CERTIFICATE_FILE_NAME;
+    keyFilePath = actual_key_directory + "/" + KEY_FILE_NAME;
 
     curlGlobalInit = true;
     return GS_OK;

@@ -30,6 +30,7 @@
 #include <string.h>
 #include <sstream>
 #include <vector>
+#include <string>
 
 #define CHANNEL_COUNT_STEREO 2
 #define CHANNEL_COUNT_51_SURROUND 6
@@ -40,6 +41,13 @@
 static std::string unique_id = "0123456789ABCDEF";
 
 int extractVersionQuadFromString(const char* string, int* quad) {
+    if (!string) {
+        // If string is NULL, set all quads to 0
+        for (int i = 0; i < 4; i++) {
+            quad[i] = 0;
+        }
+        return -1;
+    }
     const char* nextNumber = string;
     for (int i = 0; i < 4; i++) {
         // Parse the next component
@@ -59,6 +67,9 @@ int extractVersionQuadFromString(const char* string, int* quad) {
 }
 
 bool _SERVER_DATA::isSunshine() {
+    if (serverInfoAppVersion.empty()) {
+        return false;
+    }
     int AppVersionQuad[4];
     extractVersionQuadFromString(serverInfoAppVersion.c_str(), AppVersionQuad);
     return AppVersionQuad[3] < 0;
@@ -67,96 +78,139 @@ bool _SERVER_DATA::isSunshine() {
 static int load_serverinfo(PSERVER_DATA server, bool https) {
     int ret = GS_INVALID;
     char url[4096];
-    std::string pairedText;
-    std::string currentGameText;
-    std::string stateText;
-    std::string httpsPortText;
-
-    // Modern GFE versions don't allow serverinfo to be fetched over HTTPS
-    // if the client is not already paired. Since we can't pair without
-    // knowing the server version, we make another request over HTTP if the
-    // HTTPS request fails. We can't just use HTTP for everything because it
-    // doesn't accurately tell us if we're paired.
+    // Canarios para detectar corrupción de memoria entre llamadas
+    static uint32_t canary1 = 0xA1B2C3D4;
+    static uint32_t canary2 = 0x11223344;
+    uint32_t localCanaryStart = 0x55AA7733;
+    brls::Logger::info("[load_serverinfo] inicio (https={}, addr='{}', httpPort={}, httpsPort={}, c1=0x{:08X}, c2=0x{:08X}, lc=0x{:08X})", https, server->serverInfo.address ? server->serverInfo.address : "(null)", server->httpPort, server->httpsPort, canary1, canary2, localCanaryStart);
 
     snprintf(url, sizeof(url), "%s://%s:%d/serverinfo?uniqueid=%s",
              https ? "https" : "http", server->serverInfo.address,
              https ? server->httpsPort : server->httpPort, unique_id.c_str());
 
     Data data;
-
     if (http_request(url, &data, HTTPRequestTimeoutLow) != GS_OK) {
-        ret = GS_IO_ERROR;
-        goto cleanup;
+        brls::Logger::error("[load_serverinfo] http_request fallo");
+        return GS_IO_ERROR;
     }
-
     if (xml_status(data) == GS_ERROR) {
-        ret = GS_ERROR;
-        goto cleanup;
+        brls::Logger::error("[load_serverinfo] xml_status error");
+        return GS_ERROR;
     }
 
-    if (xml_search(data, "currentgame", &currentGameText) != GS_OK) {
-        goto cleanup;
+    // Parser simple basado en búsqueda de tags para evitar crash observado en xml_search
+    auto extractTag = [](const std::string& xml, const char* tag, std::string& out) -> bool {
+        out.clear();
+        const std::string open = std::string("<") + tag + ">";
+        const std::string close = std::string("</") + tag + ">";
+        size_t p1 = xml.find(open);
+        if (p1 == std::string::npos) return false;
+        p1 += open.size();
+        size_t p2 = xml.find(close, p1);
+        if (p2 == std::string::npos || p2 < p1) return false;
+        out.assign(xml.data() + p1, p2 - p1);
+        return true;
+    };
+
+    brls::Logger::info("[load_serverinfo] antes de construir xmlPayload size(data)={}", (int)data.size());
+    const std::string xmlPayload((const char*)data.bytes(), data.size());
+    brls::Logger::info("[load_serverinfo] xmlPayload construido ptr=0x{:X} len={}", (uintptr_t)xmlPayload.c_str(), (int)xmlPayload.size());
+    // Guardar hash simple (suma bytes) para comparar si cambia inesperadamente
+    uint32_t hash = 0; 
+    for (size_t i=0;i<xmlPayload.size();++i) {
+        hash += (unsigned char)xmlPayload[i];
+        if (i < 4) {
+            brls::Logger::info("[load_serverinfo] byte{}=0x{:02X}", (int)i, (int)(unsigned char)xmlPayload[i]);
+        }
+    }
+    brls::Logger::info("[load_serverinfo] xml len={}, hash=0x{:08X}", (int)xmlPayload.size(), hash);
+    if (xmlPayload.size() < 20) {
+        brls::Logger::error("[load_serverinfo] XML demasiado corto");
+    }
+    std::string pairedText;
+    std::string currentGameText;
+    std::string stateText;
+    std::string httpsPortText;
+
+    if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344) {
+        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE currentgame c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
+    }
+    if (!extractTag(xmlPayload, "currentgame", currentGameText)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo currentgame");
+        return ret;
+    }
+    if (localCanaryStart != 0x55AA7733) {
+        brls::Logger::error("[load_serverinfo] LOCAL CANARY ALTERADO tras currentgame lc=0x{:08X}", localCanaryStart);
+    }
+    if (!extractTag(xmlPayload, "PairStatus", pairedText)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo PairStatus");
+        return ret;
+    }
+    if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344) {
+        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE appversion c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
+    }
+    if (!extractTag(xmlPayload, "appversion", server->serverInfoAppVersion)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo appversion");
+        return ret;
+    }
+    if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344 || localCanaryStart != 0x55AA7733) {
+        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE state c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", canary1, canary2, localCanaryStart);
+    }
+    if (!extractTag(xmlPayload, "state", stateText)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo state");
+        return ret;
     }
 
-    if (xml_search(data, "PairStatus", &pairedText) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "appversion", &server->serverInfoAppVersion) !=
-        GS_OK) {
-        goto cleanup;
+    std::string scms;
+    if (!extractTag(xmlPayload, "ServerCodecModeSupport", scms)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo ServerCodecModeSupport");
+        return ret;
     }
+    server->serverInfo.serverCodecModeSupport = scms.empty() ? 0 : atoi(scms.c_str());
 
-    if (xml_search(data, "state", &stateText) != GS_OK)
-        goto cleanup;
+    extractTag(xmlPayload, "gputype", server->gpuType);
+    extractTag(xmlPayload, "GsVersion", server->gsVersion);
+    if (!extractTag(xmlPayload, "hostname", server->hostname)) {
+        brls::Logger::error("[load_serverinfo] simpleXML fallo hostname");
+        return ret;
+    }
+    extractTag(xmlPayload, "GfeVersion", server->serverInfoGfeVersion);
+    extractTag(xmlPayload, "HttpsPort", httpsPortText);
+    extractTag(xmlPayload, "mac", server->mac);
 
-    if (xml_search(data, "ServerCodecModeSupport",
-                   &server->serverInfo.serverCodecModeSupport) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "gputype", &server->gpuType) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "GsVersion", &server->gsVersion) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "hostname", &server->hostname) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "GfeVersion", &server->serverInfoGfeVersion) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "HttpsPort", &httpsPortText) != GS_OK)
-        goto cleanup;
-
-    if (xml_search(data, "mac", &server->mac) != GS_OK)
-        goto cleanup;
-
-    // These fields are present on all version of GFE that this client
-    // supports
     if (currentGameText.empty() || pairedText.empty() ||
         server->serverInfoAppVersion.empty() || stateText.empty()) {
-        goto cleanup;
+        brls::Logger::error("[load_serverinfo] campos requeridos vacios");
+        return ret;
     }
 
     server->paired = pairedText == "1";
-    server->currentGame =
-        currentGameText.empty() ? 0 : atoi(currentGameText.c_str());
+    if (!server->paired) {
+        brls::Logger::info("[load_serverinfo] Host no emparejado (PairStatus=0). Se requerirá pairing antes de lanzar.");
+    }
+    if (currentGameText.size() > 32) {
+        brls::Logger::error("[load_serverinfo] currentGameText demasiado largo ({} bytes)", currentGameText.size());
+        return ret;
+    }
+    server->currentGame = currentGameText.empty() ? 0 : atoi(currentGameText.c_str());
+    if (server->currentGame != 0) {
+        brls::Logger::info("[load_serverinfo] currentGame reportado por host: {} (posible sesión previa)", server->currentGame);
+    }
     server->supports4K = server->serverInfo.serverCodecModeSupport != 0;
-    server->serverMajorVersion = atoi(server->serverInfoAppVersion.c_str());
-    server->httpsPort = atoi(httpsPortText.c_str());
+    if (server->serverInfoAppVersion.size() > 64) {
+        brls::Logger::error("[load_serverinfo] appversion demasiado largo ({} bytes)", server->serverInfoAppVersion.size());
+        return ret;
+    }
+    server->serverMajorVersion = server->serverInfoAppVersion.empty() ? 0 : atoi(server->serverInfoAppVersion.c_str());
+    server->httpsPort = httpsPortText.empty() ? 47984 : atoi(httpsPortText.c_str());
     if (!server->httpsPort)
         server->httpsPort = 47984;
 
     if (stateText == "_SERVER_BUSY") {
-        // After GFE 2.8, current game remains set even after streaming
-        // has ended. We emulate the old behavior by forcing it to zero
-        // if streaming is not active.
         server->currentGame = 0;
     }
-    ret = GS_OK;
-
-cleanup:
-    return ret;
+    brls::Logger::info("[load_serverinfo] OK paired={}, currentGame={}, appVersion='{}', httpsPort={}, state='{}' c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", server->paired, server->currentGame, server->serverInfoAppVersion, server->httpsPort, stateText, canary1, canary2, localCanaryStart);
+    return GS_OK;
 }
 
 static int load_server_status(PSERVER_DATA server) {
@@ -269,7 +323,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
     brls::Logger::info("Client: Start pairing stage #1");
 
     Data salt = Data::random_bytes(16);
-    Data salted_pin = salt.append(Data(pin, strlen(pin)));
+    Data salted_pin = salt.append(pin ? Data(pin, strlen(pin)) : Data());
 //    brls::Logger::info("Client: PIN: {}, salt {}", pin, salt.hex().bytes());
 
     snprintf(url, sizeof(url),
@@ -295,7 +349,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
     brls::Logger::info("Client: Start pairing stage #2");
 
-    Data plainCert = Data((char*)result.c_str(), result.size());
+    Data plainCert = result.empty() ? Data() : Data((char*)result.c_str(), result.size());
     Data aesKey;
 
     // Gen 7 servers use SHA256 to get the key
@@ -336,8 +390,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
     brls::Logger::info("Client: Start pairing stage #3");
 
-    Data encServerChallengeResp =
-        Data((char*)result.c_str(), result.size()).hex_to_bytes();
+    Data encServerChallengeResp = result.empty() ? Data() : Data((char*)result.c_str(), result.size()).hex_to_bytes();
     Data decServerChallengeResp =
         CryptoManager::aes_decrypt(encServerChallengeResp, aesKey);
     Data serverResponse = decServerChallengeResp.subdata(0, hashLength);
@@ -385,8 +438,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
     brls::Logger::info("Client: Start pairing stage #4");
 
-    Data serverSecretResp =
-        Data((char*)result.c_str(), result.size()).hex_to_bytes();
+    Data serverSecretResp = result.empty() ? Data() : Data((char*)result.c_str(), result.size()).hex_to_bytes();
     Data serverSecret = serverSecretResp.subdata(0, 16);
     Data serverSignature = serverSecretResp.subdata(16, 256);
 
@@ -454,16 +506,68 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST* list) {
     int ret = GS_OK;
     char url[4096];
     Data data;
+    *list = NULL;
 
     snprintf(url, sizeof(url), "https://%s:%u/applist?uniqueid=%s",
              server->serverInfo.address, server->httpsPort, unique_id.c_str());
 
-    if (http_request(url, &data, HTTPRequestTimeoutMedium) != GS_OK)
-        ret = GS_IO_ERROR;
-    else if (xml_status(data) == GS_ERROR)
-        ret = GS_ERROR;
-    else if (xml_applist(data, list) != GS_OK)
-        ret = GS_INVALID;
+    if (http_request(url, &data, HTTPRequestTimeoutMedium) != GS_OK) {
+        return GS_IO_ERROR;
+    }
+    if (xml_status(data) == GS_ERROR) {
+        return GS_ERROR;
+    }
+
+    // Parser simple de applist: busca bloques <App> ... </App>
+    std::string xml((const char*)data.bytes(), data.size());
+    size_t pos = 0;
+    PAPP_LIST head = NULL;
+    int appCount = 0;
+    while (true) {
+        size_t start = xml.find("<App>", pos);
+        if (start == std::string::npos) break;
+        size_t end = xml.find("</App>", start);
+        if (end == std::string::npos) break;
+        size_t contentStart = start + 5; // len("<App>")
+        std::string appBlock = xml.substr(contentStart, end - contentStart);
+
+        // Extraer <ID>
+        auto extract = [](const std::string& block, const char* tag, std::string& out)->bool {
+            out.clear();
+            std::string o = std::string("<") + tag + ">";
+            std::string c = std::string("</") + tag + ">";
+            size_t p1 = block.find(o);
+            if (p1 == std::string::npos) return false;
+            p1 += o.size();
+            size_t p2 = block.find(c, p1);
+            if (p2 == std::string::npos) return false;
+            out.assign(block.data() + p1, p2 - p1);
+            return true;
+        };
+        std::string idStr, titleStr;
+        if (!extract(appBlock, "ID", idStr) || !extract(appBlock, "AppTitle", titleStr)) {
+            brls::Logger::error("[gs_applist] fallo parse parcial appBlock");
+            pos = end + 6;
+            continue;
+        }
+        if (titleStr.size() > 256) titleStr.resize(256);
+        PAPP_LIST app = (PAPP_LIST)malloc(sizeof(APP_LIST));
+        if (!app) { brls::Logger::error("[gs_applist] malloc APP_LIST fallo"); break; }
+        memset(app, 0, sizeof(APP_LIST));
+        app->id = idStr.empty() ? 0 : atoi(idStr.c_str());
+        if (!titleStr.empty()) {
+            app->name = (char*)malloc(titleStr.size()+1);
+            if (app->name) {
+                memcpy(app->name, titleStr.c_str(), titleStr.size()+1);
+            }
+        }
+        app->next = head;
+        head = app;
+        appCount++;
+        pos = end + 6; // avanzar tras </App>
+    }
+    *list = head;
+    brls::Logger::info("[gs_applist] parse simple completo apps={} bytesXML={}", appCount, (int)xml.size());
     return ret;
 }
 
@@ -497,13 +601,22 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
 
     Data rand = Data::random_bytes(16);
     memcpy(config->remoteInputAesKey, rand.bytes(), 16);
+    // Instrumentación PS Vita: log parcial de la clave generada (primeros 6 bytes)
+    char keyPreview[32];
+    snprintf(keyPreview, sizeof(keyPreview), "%02X%02X%02X%02X%02X%02X...",
+             (unsigned char)config->remoteInputAesKey[0], (unsigned char)config->remoteInputAesKey[1],
+             (unsigned char)config->remoteInputAesKey[2], (unsigned char)config->remoteInputAesKey[3],
+             (unsigned char)config->remoteInputAesKey[4], (unsigned char)config->remoteInputAesKey[5]);
+    brls::Logger::info("[gs_start_app] remoteInputAesKey preview={} (len=16)", keyPreview);
 
     char url[4096];
     int rikeyid = 0;
 
     Data data;
 
-    if (server->currentGame == 0) {
+    extern bool g_force_fresh_launch_h264; // declarado en vita_session.cpp
+    bool forceFresh = g_force_fresh_launch_h264;
+    if (server->currentGame == 0 || forceFresh) {
         int channelCounnt =
             config->audioConfiguration == AUDIO_CONFIGURATION_STEREO
                 ? CHANNEL_COUNT_STEREO
@@ -521,6 +634,9 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
                  config->width, config->height, fps, sops, rand.hex().bytes(),
                  rikeyid, localaudio, (mask << 16) + channelCounnt,
                  gamepad_mask, gamepad_mask, LiGetLaunchUrlQueryParameters());
+        if (forceFresh && server->currentGame != 0) {
+            brls::Logger::warning("[gs_start_app] Ignorando resume para forzar renegociación H.264 (fresh launch)");
+        }
     } else {
         snprintf(url, sizeof(url),
                  "https://%s:%u/resume?uniqueid=%s&rikey=%s&rikeyid=%d%s",
@@ -545,12 +661,12 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
         goto exit;
     }
 
-    if (xml_search(data, "sessionUrl0", &result) == GS_OK) {
+    if (xml_search(data, "sessionUrl0", &result) == GS_OK && !result.empty()) {
         const std::string::size_type size = result.size();
         server->serverInfo.rtspSessionUrl = new char[size + 1];
         memcpy((void *) server->serverInfo.rtspSessionUrl, result.c_str(), size + 1);
     } else {
-        brls::Logger::error("sessionUrl0 not found");
+        brls::Logger::error("sessionUrl0 not found or empty");
     }
 
 exit:
@@ -595,8 +711,11 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
     }
 
     // Override port if it presented
-    if (seglist.size() > 1) {
-        httpPort = atoi(seglist[1].c_str());
+    if (seglist.size() > 1 && !seglist[1].empty()) {
+        const char* portStr = seglist[1].c_str();
+        if (portStr && strlen(portStr) > 0) {
+            httpPort = atoi(portStr);
+        }
     }
     
     if (!CryptoManager::load_cert_key_pair(keyDir)) {
@@ -612,14 +731,29 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
 
     LiInitializeServerInformation(&server->serverInfo);
     server->address = seglist[0];
-    server->serverInfo.address = server->address.c_str();
+    if (server->address.empty()) {
+        return GS_INVALID;
+    }
+    // Copia profunda de address
+    static std::vector<char*> _allocated; // NOTE: proceso simple; idealmente mover a destructor
+    auto dup_str = [&](const std::string& s)->const char* {
+        if (s.empty()) return nullptr;
+        char* cpy = (char*)malloc(s.size()+1);
+        if (!cpy) return nullptr;
+        memcpy(cpy, s.c_str(), s.size()+1);
+        _allocated.push_back(cpy);
+        return cpy;
+    };
+    server->serverInfo.address = dup_str(server->address);
     server->httpPort = httpPort;
     server->httpsPort = 0; /* Populated by load_server_status() */
 
     int result = load_server_status(server);
-    server->serverInfo.serverInfoAppVersion =
-        server->serverInfoAppVersion.c_str();
-    server->serverInfo.serverInfoGfeVersion =
-        server->serverInfoGfeVersion.c_str();
+    if (!server->serverInfoAppVersion.empty()) {
+        server->serverInfo.serverInfoAppVersion = dup_str(server->serverInfoAppVersion);
+    }
+    if (!server->serverInfoGfeVersion.empty()) {
+        server->serverInfo.serverInfoGfeVersion = dup_str(server->serverInfoGfeVersion);
+    }
     return result;
 }

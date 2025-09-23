@@ -18,9 +18,10 @@ static bool _generate_new_cert_key_pair();
 
 
 bool MbedTLSCryptoManager::load_cert_key_pair(const std::string& keyDir) {
+    std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
     if (m_key.is_empty() || m_cert.is_empty()) {
-        Data cert = Data::read_from_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
-        Data key = Data::read_from_file(keyDir + "/" + KEY_FILE_NAME);
+        Data cert = Data::read_from_file(actualKeyDir + "/" + CERTIFICATE_FILE_NAME);
+        Data key = Data::read_from_file(actualKeyDir + "/" + KEY_FILE_NAME);
         if (!cert.is_empty() && !key.is_empty()) {
             m_cert = cert;
             m_key = key;
@@ -33,10 +34,9 @@ bool MbedTLSCryptoManager::load_cert_key_pair(const std::string& keyDir) {
 
 
 bool MbedTLSCryptoManager::generate_new_cert_key_pair(const std::string& keyDir) {
-    if (_generate_new_cert_key_pair()) {
+    std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
+    if (_generate_new_cert_key_pair(actualKeyDir)) {
         if (!m_cert.is_empty() && !m_key.is_empty()) {
-            m_cert.write_to_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
-            m_key.write_to_file(keyDir + "/" + KEY_FILE_NAME);
             return true;
         }
     }
@@ -45,8 +45,9 @@ bool MbedTLSCryptoManager::generate_new_cert_key_pair(const std::string& keyDir)
 
 
 void MbedTLSCryptoManager::remove_cert_key_pair(const std::string& keyDir) {
-    remove((keyDir + "/" + CERTIFICATE_FILE_NAME).c_str());
-    remove((keyDir + "/" + KEY_FILE_NAME).c_str());
+    std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
+    remove((actualKeyDir + "/" + CERTIFICATE_FILE_NAME).c_str());
+    remove((actualKeyDir + "/" + KEY_FILE_NAME).c_str());
     m_cert = Data();
     m_key = Data();
 }
@@ -222,7 +223,7 @@ static void _generate_cert(mbedtls_x509write_cert* cert,
     mbedtls_entropy_free(&entropy);
 }
 
-static bool _generate_new_cert_key_pair() {
+static bool _generate_new_cert_key_pair(const std::string& keyDir) {
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
 
@@ -254,6 +255,11 @@ static bool _generate_new_cert_key_pair() {
     mbedtls_pk_free(&key);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
+    
+    // Guardar archivos de certificado y clave
+    m_cert.write_to_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
+    m_key.write_to_file(keyDir + "/" + KEY_FILE_NAME);
+    
     return true;
 }
 

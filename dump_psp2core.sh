@@ -19,7 +19,7 @@ FTP_USER="anonymous"
 FTP_PASS="anonymous"
 FTP_PATH="ux0:/data"
 LOCAL_TMP="psp2core_tmp.psp2dmp"
-PARSE_CORE="./library/vita-parse-core/vita-parse-core"
+PARSE_CORE="./reference/vita-parse-core/vita-parse-core"
 MOONLIGHT_BIN="./cmake-build-psv/moonlight_vita"
 
 # 1. Listar archivos psp2core-*.psp2dmp en la Vita

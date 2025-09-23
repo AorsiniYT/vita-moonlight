@@ -17,14 +17,18 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Data.hpp"
+// C++ ONLY header (usa std::string y clase Data)
 #pragma once
+#include "Data.hpp"
+#include <string>
 
-typedef struct _APP_LIST {
+struct _APP_LIST {
     char* name;
     int id;
-    struct _APP_LIST* next;
-} APP_LIST, *PAPP_LIST;
+    _APP_LIST* next;
+};
+using APP_LIST = _APP_LIST;
+using PAPP_LIST = APP_LIST*;
 
 int xml_search(const Data& data, const std::string node, int* result);
 int xml_search(const Data& data, const std::string node, std::string* result);

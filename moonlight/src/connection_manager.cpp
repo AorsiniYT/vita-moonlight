@@ -29,6 +29,10 @@ std::vector<RemoteAppInfo> ConnectionManager::fetchRemoteApps(const HostInfo& ho
     std::string keyDir = baseDir + "/" + safeHostName;
 
     // 1. Inicializar sesión y obtener serverinfo para el puerto correcto
+    if (address.empty()) {
+        brls::Logger::error("[ConnectionManager] Dirección IP vacía");
+        return result;
+    }
     int status = gs_init(&serverData, address, keyDir);
     if (status != 0) {
         brls::Logger::error("[ConnectionManager] Error al conectar con el host: %s", host.ip.c_str());
@@ -54,13 +58,27 @@ std::vector<RemoteAppInfo> ConnectionManager::fetchRemoteApps(const HostInfo& ho
         return result;
     }
 
+    // Guardar referencia a la cabeza de la lista para liberación posterior
+    PAPP_LIST listHead = list;
+
     while (list) {
         RemoteAppInfo info;
         info.id = std::to_string(list->id);
-        info.name = list->name;
+        info.name = list->name ? std::string(list->name) : "Unknown App";
         info.iconUrl = ""; // Si tienes iconos, asígnalos aquí
         result.push_back(info);
         list = list->next;
+    }
+
+    // Liberar la memoria de la lista de aplicaciones
+    PAPP_LIST current = listHead;
+    while (current) {
+        PAPP_LIST next = current->next;
+        if (current->name) {
+            free(current->name);
+        }
+        free(current);
+        current = next;
     }
 
     // Ordenar por nombre (opcional)

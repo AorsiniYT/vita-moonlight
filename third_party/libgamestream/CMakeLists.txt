@@ -5,6 +5,7 @@ add_library(libgamestream STATIC
     client.cpp
     http.cpp
     xml.cpp
+    sps.cpp
 )
 
 # Establecer estándar C++17
@@ -18,6 +19,7 @@ target_include_directories(libgamestream PUBLIC
     ${CMAKE_SOURCE_DIR}/third_party/borealis/library/include
     ${CMAKE_SOURCE_DIR}/moonlight/include
     ${CMAKE_SOURCE_DIR}/moonlight/src/crypto
+    ${CMAKE_SOURCE_DIR}/third_party/h264bitstream
 )
 
 # Enlazar dependencias

@@ -28,6 +28,20 @@
 
 namespace fs = std::filesystem;
 
+std::string makeSafeHostId(const std::string& raw) {
+    std::string out = raw;
+    for (char& c : out) {
+        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|' )
+            c = '_';
+    }
+    // Limitar longitud excesiva para evitar problemas en filesystem
+    if (out.size() > 60)
+        out = out.substr(0, 60);
+    if (out.empty())
+        out = "host"; // fallback
+    return out;
+}
+
 // Genera el archivo device.ini en la carpeta del host
 bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& safeHostName, const char* address, int port, bool paired) {
     std::string deviceIniPath = hostDir + "/device.ini";
@@ -105,8 +119,9 @@ std::vector<HostInfo> HostStorage::loadHosts() {
             std::cout << "[DEBUG][HostStorage] No se pudo abrir: '" << iniPath << "'\n";
             continue;
         }
-        HostInfo host;
-        host.name = folder;
+    HostInfo host;
+    host.name = folder; // Por retrocompatibilidad: la carpeta era el nombre
+    host.safeId = folder;
         std::cout << "[DEBUG][HostStorage] Leyendo device.ini para host: '" << folder << "'\n";
         std::string line;
         while (std::getline(ini, line)) {
@@ -135,11 +150,12 @@ bool HostStorage::saveHosts(const std::vector<HostInfo>&) { return false; }
 bool HostStorage::addHost(const HostInfo& host) {
     ConfigManager config;
     std::string baseDir = config.getKeysDir();
-    std::string keyDirStr = baseDir + "/" + host.name;
+    std::string safe = host.safeId.empty() ? makeSafeHostId(host.name.empty()? host.ip : host.name) : host.safeId;
+    std::string keyDirStr = baseDir + "/" + safe;
     std::string deviceIniPath = keyDirStr + "/device.ini";
     if (fs::exists(deviceIniPath)) return false;
     fs::create_directories(keyDirStr);
-    return HostStorage::writeDeviceIni(keyDirStr, host.name, host.ip.c_str(), host.port, host.paired);
+    return HostStorage::writeDeviceIni(keyDirStr, safe, host.ip.c_str(), host.port, host.paired);
 }
 
 std::optional<HostInfo> HostStorage::findHost(const std::string& name) {
@@ -153,7 +169,13 @@ std::optional<HostInfo> HostStorage::findHost(const std::string& name) {
 bool HostStorage::removeHost(const std::string& name) {
     ConfigManager config;
     std::string baseDir = config.getKeysDir();
+    // name puede ser el nombre visible; intentar ambas rutas (name y safeId derivado)
     std::string keyDirStr = baseDir + "/" + name;
+    if (!fs::exists(keyDirStr)) {
+        std::string safe = makeSafeHostId(name);
+        std::string alt = baseDir + "/" + safe;
+        if (fs::exists(alt)) keyDirStr = alt;
+    }
     if (!fs::exists(keyDirStr)) return false;
     return fs::remove_all(keyDirStr) > 0;
 }

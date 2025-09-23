@@ -41,6 +41,28 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::DetailCell, notify, "notify");
     BRLS_BIND(brls::SelectorCell, languageSelector, "languageSelector");
 
+    // Nuevos elementos para configuración de streaming
+    BRLS_BIND(brls::SelectorCell, renderModeSelector, "renderModeSelector");
+    BRLS_BIND(brls::SelectorCell, resolutionSelector, "resolutionSelector");
+    BRLS_BIND(brls::SelectorCell, fpsSelector, "fpsSelector");
+    BRLS_BIND(brls::SelectorCell, bitrateSelector, "bitrateSelector");
+    BRLS_BIND(brls::BooleanCell, sopsToggle, "sopsToggle");
+    BRLS_BIND(brls::BooleanCell, localAudioToggle, "localAudioToggle");
+    BRLS_BIND(brls::BooleanCell, fullscreenToggle, "fullscreenToggle");
+    // lowLatencyToggle eliminado
+    BRLS_BIND(brls::BooleanCell, framePacerToggle, "framePacerToggle");
+    BRLS_BIND(brls::BooleanCell, centerRegionToggle, "centerRegionToggle");
+    BRLS_BIND(brls::BooleanCell, showFpsToggle, "showFpsToggle");
+    BRLS_BIND(brls::BooleanCell, debugLogToggle, "debugLogToggle");
+    BRLS_BIND(brls::BooleanCell, refFrameInvalidationToggle, "refFrameInvalidationToggle");
+    BRLS_BIND(brls::BooleanCell, vblankWaitToggle, "vblankWaitToggle");
+    BRLS_BIND(brls::BooleanCell, motionControlsToggle, "motionControlsToggle");
+    BRLS_BIND(brls::BooleanCell, doubleTapSprintToggle, "doubleTapSprintToggle");
+    BRLS_BIND(brls::BooleanCell, absoluteMouseToggle, "absoluteMouseToggle");
+    BRLS_BIND(brls::BooleanCell, touchscreenModeToggle, "touchscreenModeToggle");
+    BRLS_BIND(brls::SliderCell, mouseAccelerationSlider, "mouseAccelerationSlider");
+    BRLS_BIND(brls::SelectorCell, keyboardLayoutSelector, "keyboardLayoutSelector");
+
     static inline brls::SelectorCell* languageSelectorPtr = nullptr;
 
     static brls::View* create();

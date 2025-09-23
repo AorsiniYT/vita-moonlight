@@ -1,5 +1,6 @@
 #include "session/streaming_manager.hpp"
 #include "Limelight.h"
+#include "video/VideoManager.hpp"
 #include <borealis/core/thread.hpp>
 
 // Implementación de los callbacks estáticos
@@ -91,6 +92,12 @@ void StreamingManager::audio_renderer_decode_and_play_sample(char* sample_data, 
 // Implementación de la clase StreamingManager
 
 StreamingManager::StreamingManager() {
+    // Inicializar VideoManager
+    _videoManager = std::make_unique<VideoManager>();
+    if (!_videoManager->initialize()) {
+        brls::Logger::error("[StreamingManager] Error inicializando VideoManager");
+    }
+
     // Inicializar los structs de callbacks a cero
     LiInitializeConnectionCallbacks(&_conn_callbacks);
     LiInitializeVideoCallbacks(&_video_callbacks);
@@ -104,11 +111,25 @@ StreamingManager::StreamingManager() {
     _conn_callbacks.connectionTerminated = connection_terminated;
     _conn_callbacks.logMessage = log_message;
 
-    _video_callbacks.setup = video_decoder_setup;
-    _video_callbacks.start = video_decoder_start;
-    _video_callbacks.stop = video_decoder_stop;
-    _video_callbacks.cleanup = video_decoder_cleanup;
-    _video_callbacks.submitDecodeUnit = video_decoder_submit_decode_unit;
+    // Usar callbacks del VideoManager en lugar de los básicos
+    if (_videoManager->isInitialized()) {
+        _video_callbacks = _videoManager->getDecoderCallbacks();
+        brls::Logger::info("[StreamingManager] Usando callbacks del VideoManager");
+        brls::Logger::info("[StreamingManager] Callbacks configurados - setup: {}, start: {}, stop: {}, cleanup: {}, submit: {}",
+                          (_video_callbacks.setup != nullptr ? "OK" : "NULL"),
+                          (_video_callbacks.start != nullptr ? "OK" : "NULL"),
+                          (_video_callbacks.stop != nullptr ? "OK" : "NULL"),
+                          (_video_callbacks.cleanup != nullptr ? "OK" : "NULL"),
+                          (_video_callbacks.submitDecodeUnit != nullptr ? "OK" : "NULL"));
+    } else {
+        // Fallback a callbacks básicos si VideoManager falla
+        _video_callbacks.setup = video_decoder_setup;
+        _video_callbacks.start = video_decoder_start;
+        _video_callbacks.stop = video_decoder_stop;
+        _video_callbacks.cleanup = video_decoder_cleanup;
+        _video_callbacks.submitDecodeUnit = video_decoder_submit_decode_unit;
+        brls::Logger::warning("[StreamingManager] VideoManager no inicializado, usando callbacks básicos");
+    }
 
     _audio_callbacks.init = audio_renderer_init;
     _audio_callbacks.start = audio_renderer_start;
@@ -126,14 +147,43 @@ StreamingManager::~StreamingManager() {
 bool StreamingManager::start(SERVER_DATA& server, STREAM_CONFIGURATION& streamConfig) {
     brls::Logger::info("[STREAM] Iniciando conexión de streaming...");
 
+    // Debug: Verificar parámetros de entrada
+    const char* input_addr = server.serverInfo.address ? server.serverInfo.address : "NULL";
+    brls::Logger::info("[STREAM] Parámetros de entrada - Server address: '{}', HTTPS port: {}",
+                      input_addr, server.httpsPort);
+    brls::Logger::info("[STREAM] Parámetros de entrada - Stream: {}x{} @ {}fps, {}kbps",
+                      streamConfig.width, streamConfig.height, streamConfig.fps, streamConfig.bitrate);
+
+    // Iniciar video si VideoManager está disponible
+    if (_videoManager && _videoManager->isInitialized()) {
+        _videoManager->startVideo();
+    }
+
     // La llamada a LiStartConnection es bloqueante, por lo que la ejecutamos en un hilo
-    brls::async([this, &server, &streamConfig]() {
+    // Usar referencia directa en lugar de copia superficial (patrón Moonlight-Switch)
+    brls::async([this, &server, &streamConfig]() mutable {
+        brls::Logger::info("[STREAM] Llamando a LiStartConnection con parámetros:");
+        const char* server_addr = server.serverInfo.address ? server.serverInfo.address : "NULL";
+        brls::Logger::info("[STREAM] - Server: {}:{}", server_addr, server.httpsPort);
+        brls::Logger::info("[STREAM] - Stream: {}x{} @ {}fps, {}kbps",
+                          streamConfig.width, streamConfig.height, streamConfig.fps, streamConfig.bitrate);
+        brls::Logger::info("[STREAM] - Callbacks válidos: conn={}, video={}, audio={}",
+                          (_conn_callbacks.connectionStarted != nullptr ? "OK" : "NULL"),
+                          (_video_callbacks.setup != nullptr ? "OK" : "NULL"),
+                          (_audio_callbacks.init != nullptr ? "OK" : "NULL"));
+
+        // Verificar que serverInfo esté inicializada
+        const char* srv_addr = server.serverInfo.address ? server.serverInfo.address : "NULL";
+        const char* srv_url = server.serverInfo.rtspSessionUrl ? server.serverInfo.rtspSessionUrl : "NULL";
+        brls::Logger::info("[STREAM] - ServerInfo address: {}", srv_addr);
+        brls::Logger::info("[STREAM] - ServerInfo rtspSessionUrl: {}", srv_url);
+
         int result = LiStartConnection(
-            &server.serverInfo, 
-            &streamConfig, 
-            &_conn_callbacks, 
-            &_video_callbacks, 
-            &_audio_callbacks, 
+            &server.serverInfo,
+            &streamConfig,
+            &_conn_callbacks,
+            &_video_callbacks,
+            &_audio_callbacks,
             nullptr, // renderContext
             0,       // drFlags
             nullptr, // audioContext
@@ -154,6 +204,12 @@ bool StreamingManager::start(SERVER_DATA& server, STREAM_CONFIGURATION& streamCo
 
 void StreamingManager::stop() {
     brls::Logger::info("[STREAM] Deteniendo conexión de streaming...");
+
+    // Detener video
+    if (_videoManager && _videoManager->isInitialized()) {
+        _videoManager->stopVideo();
+    }
+
     LiStopConnection();
     _is_running = false;
 }

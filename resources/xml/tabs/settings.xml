@@ -20,6 +20,100 @@
             paddingBottom="@style/brls/sidebar/padding_bottom"
             paddingLeft="@style/brls/sidebar/padding_left">
             
+            <!-- Sección de Configuración de Streaming -->
+            <brls:Header title="Configuración de Streaming"/>
+            
+            <!-- Modo de renderizado -->
+            <brls:SelectorCell
+                id="renderModeSelector"
+                title="Modo de Renderizado"/>
+                
+            <!-- Resolución -->
+            <brls:SelectorCell
+                id="resolutionSelector"
+                title="Resolución"/>
+                
+            <!-- FPS -->
+            <brls:SelectorCell
+                id="fpsSelector"
+                title="FPS"/>
+                
+            <!-- Bitrate -->
+            <brls:SelectorCell
+                id="bitrateSelector"
+                title="Bitrate (Kbps)"/>
+                
+            <!-- Opciones de Video -->
+            <brls:BooleanCell
+                id="sopsToggle"
+                title="Optimización de Stream"/>
+                
+            <brls:BooleanCell
+                id="localAudioToggle"
+                title="Audio Local"/>
+                
+            <brls:BooleanCell
+                id="fullscreenToggle"
+                title="Pantalla Completa"/>
+            
+            <!-- Low Latency eliminado -->
+                
+            <brls:BooleanCell
+                id="framePacerToggle"
+                title="Frame Pacer"/>
+                
+            <brls:BooleanCell
+                id="centerRegionToggle"
+                title="Solo Región Central"/>
+                
+            <brls:BooleanCell
+                id="showFpsToggle"
+                title="Mostrar FPS"/>
+                
+            <brls:BooleanCell
+                id="debugLogToggle"
+                title="Guardar Log de Debug"/>
+                
+            <brls:BooleanCell
+                id="refFrameInvalidationToggle"
+                title="Invalidación de Frame de Referencia"/>
+                
+            <brls:BooleanCell
+                id="vblankWaitToggle"
+                title="Esperar VBlank Vita"/>
+                
+            <!-- Opciones de Control -->
+            <brls:Header title="Controles"/>
+            
+            <brls:BooleanCell
+                id="motionControlsToggle"
+                title="Controles de Movimiento"/>
+                
+            <brls:BooleanCell
+                id="doubleTapSprintToggle"
+                title="Doble Tap para Correr"/>
+                
+            <brls:BooleanCell
+                id="absoluteMouseToggle"
+                title="Mouse Absoluto"/>
+                
+            <brls:BooleanCell
+                id="touchscreenModeToggle"
+                title="Modo Touchscreen"/>
+                
+            <!-- Aceleración del Mouse -->
+            <brls:SliderCell
+                id="mouseAccelerationSlider"
+                title="Aceleración del Mouse"/>
+                
+            <!-- Layout del Teclado -->
+            <brls:SelectorCell
+                id="keyboardLayoutSelector"
+                title="Layout del Teclado"/>
+                
+            <!-- Opciones del Sistema (originales) -->
+            <brls:Header title="Sistema"/>
+            
             <brls:RadioCell
                 id="radio"/>
                 
