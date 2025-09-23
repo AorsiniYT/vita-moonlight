@@ -139,3 +139,75 @@ std::string ConfigManager::get(const std::string& section, const std::string& ke
 void ConfigManager::set(const std::string& section, const std::string& key, const std::string& value) {
     data[section][key] = value;
 }
+
+// --- Implementación de configuración de streaming ---
+
+StreamConfiguration ConfigManager::getStreamConfig() const {
+    StreamConfiguration config;
+    config.width = std::stoi(get("stream", "width", "1280"));
+    config.height = std::stoi(get("stream", "height", "720"));
+    config.fps = std::stoi(get("stream", "fps", "60"));
+    config.bitrate = std::stoi(get("stream", "bitrate", "-1"));
+    config.packetSize = std::stoi(get("stream", "packetsize", "1024"));
+    config.streamingRemotely = std::stoi(get("stream", "streaming_remotely", "0"));
+    config.audioConfiguration = std::stoi(get("stream", "audio_config", "2"));
+    config.supportedVideoFormats = std::stoi(get("stream", "video_formats", "1"));
+    return config;
+}
+
+void ConfigManager::setStreamConfig(const StreamConfiguration& config) {
+    set("stream", "width", std::to_string(config.width));
+    set("stream", "height", std::to_string(config.height));
+    set("stream", "fps", std::to_string(config.fps));
+    set("stream", "bitrate", std::to_string(config.bitrate));
+    set("stream", "packetsize", std::to_string(config.packetSize));
+    set("stream", "streaming_remotely", std::to_string(config.streamingRemotely));
+    set("stream", "audio_config", std::to_string(config.audioConfiguration));
+    set("stream", "video_formats", std::to_string(config.supportedVideoFormats));
+}
+
+VideoSettings ConfigManager::getVideoSettings() const {
+    VideoSettings settings;
+    settings.sops = get("video", "sops", "true") == "true";
+    settings.localaudio = get("video", "localaudio", "false") == "true";
+    settings.fullscreen = get("video", "fullscreen", "true") == "true";
+    settings.enable_frame_pacer = get("video", "enable_frame_pacer", "true") == "true";
+    settings.center_region_only = get("video", "center_region_only", "false") == "true";
+    settings.show_fps = get("video", "show_fps", "false") == "true";
+    settings.save_debug_log = get("video", "save_debug_log", "false") == "true";
+    settings.enable_ref_frame_invalidation = get("video", "enable_ref_frame_invalidation", "false") == "true";
+    settings.enable_vita_vblank_wait = get("video", "enable_vita_vblank_wait", "false") == "true";
+    settings.enable_motion_controls = get("video", "enable_motion_controls", "false") == "true";
+    settings.enable_double_tap_sprint = get("video", "enable_double_tap_sprint", "false") == "true";
+    settings.absolute_mouse = get("video", "absolute_mouse", "false") == "true";
+    settings.touchscreen_mode = get("video", "touchscreen_mode", "false") == "true";
+    settings.double_tap_sprint_step_time = std::stoi(get("video", "double_tap_sprint_step_time", "200"));
+    settings.motion_controls_scalar_x = std::stof(get("video", "motion_controls_scalar_x", "1.2"));
+    settings.motion_controls_scalar_y = std::stof(get("video", "motion_controls_scalar_y", "0.8"));
+    settings.mouse_acceleration = std::stoi(get("video", "mouse_acceleration", "150"));
+    settings.keyboard_layout = std::stoi(get("video", "keyboard_layout", "0"));
+    settings.render_mode = std::stoi(get("video", "render_mode", "0"));
+    return settings;
+}
+
+void ConfigManager::setVideoSettings(const VideoSettings& settings) {
+    set("video", "sops", settings.sops ? "true" : "false");
+    set("video", "localaudio", settings.localaudio ? "true" : "false");
+    set("video", "fullscreen", settings.fullscreen ? "true" : "false");
+    set("video", "enable_frame_pacer", settings.enable_frame_pacer ? "true" : "false");
+    set("video", "center_region_only", settings.center_region_only ? "true" : "false");
+    set("video", "show_fps", settings.show_fps ? "true" : "false");
+    set("video", "save_debug_log", settings.save_debug_log ? "true" : "false");
+    set("video", "enable_ref_frame_invalidation", settings.enable_ref_frame_invalidation ? "true" : "false");
+    set("video", "enable_vita_vblank_wait", settings.enable_vita_vblank_wait ? "true" : "false");
+    set("video", "enable_motion_controls", settings.enable_motion_controls ? "true" : "false");
+    set("video", "enable_double_tap_sprint", settings.enable_double_tap_sprint ? "true" : "false");
+    set("video", "absolute_mouse", settings.absolute_mouse ? "true" : "false");
+    set("video", "touchscreen_mode", settings.touchscreen_mode ? "true" : "false");
+    set("video", "double_tap_sprint_step_time", std::to_string(settings.double_tap_sprint_step_time));
+    set("video", "motion_controls_scalar_x", std::to_string(settings.motion_controls_scalar_x));
+    set("video", "motion_controls_scalar_y", std::to_string(settings.motion_controls_scalar_y));
+    set("video", "mouse_acceleration", std::to_string(settings.mouse_acceleration));
+    set("video", "keyboard_layout", std::to_string(settings.keyboard_layout));
+    set("video", "render_mode", std::to_string(settings.render_mode));
+}

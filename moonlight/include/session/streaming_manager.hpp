@@ -1,9 +1,12 @@
 #pragma once
 
 #include <borealis/core/logger.hpp>
+#include <memory>
 #include "client.h"
 #include "errors.h"
 #include "Limelight.h"
+
+class VideoManager;
 
 class StreamingManager {
 public:
@@ -41,6 +44,9 @@ private:
     CONNECTION_LISTENER_CALLBACKS _conn_callbacks;
     DECODER_RENDERER_CALLBACKS _video_callbacks;
     AUDIO_RENDERER_CALLBACKS _audio_callbacks;
+
+    // VideoManager
+    std::unique_ptr<VideoManager> _videoManager;
 
     bool _is_running = false;
 };

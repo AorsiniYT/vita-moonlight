@@ -20,6 +20,7 @@
 #pragma once
 
 #include "Data.hpp"
+#include <string>
 
 enum HTTPRequestTimeout : long {
     HTTPRequestTimeoutLow = 1,

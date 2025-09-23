@@ -7,12 +7,21 @@
 
 // Implementación para redirigir logs de libgamestream en Vita
 extern "C" void vita_debug_log(const char* fmt, ...) {
+    char buffer[1024];
     va_list args;
     va_start(args, fmt);
-#if defined(__PSV__)
-    sceClibPrintf(fmt, args);
-#else
-    vprintf(fmt, args);
-#endif
+    int n = vsnprintf(buffer, sizeof(buffer)-1, fmt, args);
     va_end(args);
+    if (n < 0) {
+        return;
+    }
+    buffer[sizeof(buffer)-1] = '\0';
+    // Asegurar newline para separar entradas (el código de llamadas a veces concatena)
+    bool need_newline = (n == 0) || (buffer[n-1] != '\n');
+#if defined(__PSV__)
+    sceClibPrintf("%s%s", buffer, need_newline?"\n":"");
+#else
+    fprintf(stdout, "%s%s", buffer, need_newline?"\n":"");
+    fflush(stdout);
+#endif
 }

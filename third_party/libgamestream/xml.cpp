@@ -20,9 +20,12 @@
 #include "xml.h"
 #include "client.h"
 #include "errors.h"
+#include <borealis/core/logger.hpp>
 
 #include <expat.h>
 #include <string.h>
+#include <string>
+#include <exception>
 
 #define STATUS_OK 200
 
@@ -33,18 +36,35 @@ struct xml_query {
     void* data;
 };
 
-static void XMLCALL _xml_start_element(void* userData, const char* name,
-                                       const char** atts) {
-    struct xml_query* search = (struct xml_query*)userData;
-    if (strcmp((const char*)search->data, name) == 0) {
-        search->start++;
+// Estructura segura para búsqueda de un único nodo
+struct xml_string_query {
+    const char* target;        // nombre del nodo objetivo
+    int depth;                 // profundidad de coincidencia anidada
+    bool capturing;            // estamos capturando texto
+    std::string* out;          // acumulador destino
+};
+
+// Callbacks para búsqueda de nodo (versión segura)
+static void XMLCALL _xml_string_start(void* userData, const char* name, const char** atts) {
+    xml_string_query* q = (xml_string_query*)userData;
+    if (strcmp(name, q->target) == 0) {
+        // Entramos en el nodo objetivo (soportamos anidación rara)
+        if (q->depth == 0) {
+            q->capturing = true; // empezar a capturar
+        }
+        q->depth++;
     }
 }
 
-static void XMLCALL _xml_end_element(void* userData, const char* name) {
-    struct xml_query* search = (struct xml_query*)userData;
-    if (strcmp((const char*)search->data, name) == 0) {
-        search->start--;
+static void XMLCALL _xml_string_end(void* userData, const char* name) {
+    xml_string_query* q = (xml_string_query*)userData;
+    if (strcmp(name, q->target) == 0) {
+        if (q->depth > 0) {
+            q->depth--;
+            if (q->depth == 0) {
+                q->capturing = false; // terminamos nodo raíz objetivo
+            }
+        }
     }
 }
 
@@ -76,10 +96,18 @@ static void XMLCALL _xml_end_applist_element(void* userData, const char* name) {
             return;
 
         if (strcmp("ID", name) == 0) {
-            list->id = atoi(search->memory);
+            list->id = search->memory ? atoi(search->memory) : 0;
             free(search->memory);
+            search->memory = NULL;
         } else if (strcmp("AppTitle", name) == 0) {
-            list->name = search->memory;
+            // Copiar la memoria para evitar punteros colgantes
+            if (search->memory) {
+                list->name = strdup(search->memory);
+                free(search->memory);
+                search->memory = NULL;
+            } else {
+                list->name = NULL;
+            }
         }
         search->start = 0;
     }
@@ -91,10 +119,15 @@ static void XMLCALL _xml_start_status_element(void* userData, const char* name,
         int* status = (int*)userData;
         for (int i = 0; atts[i]; i += 2) {
             if (strcmp("status_code", atts[i]) == 0) {
-                *status = atoi(atts[i + 1]);
+                *status = atts[i + 1] ? atoi(atts[i + 1]) : 0;
             } else if (*status != STATUS_OK &&
                        strcmp("status_message", atts[i]) == 0) {
-                gs_set_error(strdup(atts[i + 1]));
+                if (atts[i + 1]) {
+                    char* msg_copy = strdup(atts[i + 1]);
+                    if (msg_copy) {
+                        gs_set_error(msg_copy);
+                    }
+                }
             }
         }
     }
@@ -102,18 +135,36 @@ static void XMLCALL _xml_start_status_element(void* userData, const char* name,
 
 static void XMLCALL _xml_end_status_element(void* userData, const char* name) {}
 
-static void XMLCALL _xml_write_data(void* userData, const XML_Char* s,
-                                    int len) {
+static void XMLCALL _xml_write_data_legacy(void* userData, const XML_Char* s, int len) {
     struct xml_query* search = (struct xml_query*)userData;
     if (search->start > 0) {
-        search->memory = (char*)realloc(search->memory, search->size + len + 1);
-        if (search->memory == NULL) {
+        const size_t MAX_XML_VALUE = 8192;
+        if (search->size + (size_t)len + 1 > MAX_XML_VALUE) {
+            brls::Logger::error("[xml] Valor XML demasiado grande (>8KB), abortando acumulación");
             return;
         }
+        char* newMem = (char*)realloc(search->memory, search->size + len + 1);
+        if (!newMem) {
+            brls::Logger::error("[xml] realloc falló (size={}, len={})", search->size, len);
+            return;
+        }
+        search->memory = newMem;
+        if (len > 0) {
+            memcpy(search->memory + search->size, s, len);
+            search->size += len;
+        }
+        search->memory[search->size] = '\0';
+    }
+}
 
-        memcpy(&(search->memory[search->size]), s, len);
-        search->size += len;
-        search->memory[search->size] = 0;
+static void XMLCALL _xml_write_data_string(void* userData, const XML_Char* s, int len) {
+    xml_string_query* q = (xml_string_query*)userData;
+    if (q->capturing && len > 0) {
+        if (q->out->size() + (size_t)len > 8192) {
+            brls::Logger::error("[xml_string] Valor excede máximo 8KB, truncando");
+            return;
+        }
+        q->out->append(s, len);
     }
 }
 
@@ -121,35 +172,46 @@ static void XMLCALL _xml_write_data(void* userData, const XML_Char* s,
 int xml_search(const Data& data, const std::string node, int* result) {
     std::string text;
     auto res = xml_search(data, node, &text);
-    *result = std::stoi(text);
+    if (res != GS_OK || text.empty()) {
+        *result = 0;
+        return res;
+    }
+    try {
+        *result = std::stoi(text);
+    } catch (const std::exception&) {
+        *result = 0;
+        return GS_INVALID;
+    }
     return res;
 }
 
 int xml_search(const Data& data, const std::string node, std::string* result) {
-    struct xml_query search;
-    search.data = (void*)node.c_str();
-    search.start = 0;
-    search.memory = (char*)calloc(1, 1);
-    search.size = 0;
+    brls::Logger::info("[xml_search] (safe) Buscando nodo '{}' ({} bytes)", node, (int)data.size());
+    result->clear();
+    xml_string_query q;
+    q.target = node.c_str();
+    q.depth = 0;
+    q.capturing = false;
+    q.out = result;
 
     XML_Parser parser = XML_ParserCreate("UTF-8");
-    XML_SetUserData(parser, &search);
-    XML_SetElementHandler(parser, _xml_start_element, _xml_end_element);
-    XML_SetCharacterDataHandler(parser, _xml_write_data);
+    if (!parser) {
+        gs_set_error("XML_ParserCreate fallo");
+        return GS_INVALID;
+    }
+    XML_SetUserData(parser, &q);
+    XML_SetElementHandler(parser, _xml_string_start, _xml_string_end);
+    XML_SetCharacterDataHandler(parser, _xml_write_data_string);
 
     if (!XML_Parse(parser, (const char*)data.bytes(), (int)data.size(), 1)) {
         XML_Error code = XML_GetErrorCode(parser);
         gs_set_error(XML_ErrorString(code));
+        brls::Logger::error("[xml_search] Parse FAIL nodo='{}' error={}", node, (int)code);
         XML_ParserFree(parser);
-        free(search.memory);
         return GS_INVALID;
-    } else if (search.memory == NULL) {
-        XML_ParserFree(parser);
-        return GS_OUT_OF_MEMORY;
     }
-
     XML_ParserFree(parser);
-    *result = std::string(search.memory);
+    brls::Logger::info("[xml_search] (safe) Nodo '{}' => '{}' (len={})", node, *result, result->size());
     return GS_OK;
 }
 
@@ -164,7 +226,7 @@ int xml_applist(const Data& data, PAPP_LIST* app_list) {
     XML_SetUserData(parser, &query);
     XML_SetElementHandler(parser, _xml_start_applist_element,
                           _xml_end_applist_element);
-    XML_SetCharacterDataHandler(parser, _xml_write_data);
+    XML_SetCharacterDataHandler(parser, _xml_write_data_legacy);
 
     if (!XML_Parse(parser, (const char*)data.bytes(), (int)data.size(), 1)) {
         XML_Error code = XML_GetErrorCode(parser);
@@ -174,6 +236,7 @@ int xml_applist(const Data& data, PAPP_LIST* app_list) {
     }
 
     XML_ParserFree(parser);
+    free(query.memory);  // Liberar memoria no utilizada
     *app_list = (PAPP_LIST)query.data;
     return GS_OK;
 }

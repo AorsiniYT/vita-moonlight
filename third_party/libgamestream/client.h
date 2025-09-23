@@ -19,15 +19,16 @@
 
 #pragma once
 
+// NOTE: C++ ONLY header (uses std::string) – no intentar incluir desde C puro
 #include "Data.hpp"
 #include "xml.h"
 #include <Limelight.h>
-#include <stdbool.h>
+#include <string>
 
 #define MIN_SUPPORTED_GFE_VERSION 3
 #define MAX_SUPPORTED_GFE_VERSION 7
 
-typedef struct _SERVER_DATA {
+struct _SERVER_DATA {
     std::string address;
     std::string serverInfoAppVersion;
     std::string serverInfoGfeVersion;
@@ -43,7 +44,10 @@ typedef struct _SERVER_DATA {
     unsigned short httpPort;
     unsigned short httpsPort;
     bool isSunshine();
-} SERVER_DATA, *PSERVER_DATA;
+};
+
+using SERVER_DATA = _SERVER_DATA;
+using PSERVER_DATA = SERVER_DATA*;
 
 void gs_set_error(std::string error);
 std::string gs_error();

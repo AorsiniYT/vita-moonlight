@@ -20,13 +20,20 @@ include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
 # project info
 project(moonlight_vita)
 
-## Forzar rutas de OpenSSL para MinGW/Windows (antes de cualquier add_subdirectory o find_package)
+## Forzar rutas de OpenSSL para MinGW/Windows y PS Vita (antes de cualquier add_subdirectory o find_package)
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 if(WIN32)
   set(OPENSSL_ROOT_DIR "${CMAKE_SOURCE_DIR}/openssl-mingw" CACHE PATH "" FORCE)
   set(OPENSSL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/openssl-mingw/include" CACHE PATH "" FORCE)
   set(OPENSSL_CRYPTO_LIBRARY "${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libcrypto.a" CACHE FILEPATH "" FORCE)
   set(OPENSSL_SSL_LIBRARY "${CMAKE_SOURCE_DIR}/openssl-mingw/lib/libssl.a" CACHE FILEPATH "" FORCE)
+  set(OPENSSL_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY};${OPENSSL_SSL_LIBRARY}" CACHE STRING "" FORCE)
+elseif(PLATFORM_PSV)
+  # Para PS Vita, usar OpenSSL del sistema (igual que moonlight-legacy)
+  set(OPENSSL_ROOT_DIR "$ENV{VITASDK}/arm-vita-eabi" CACHE PATH "" FORCE)
+  set(OPENSSL_INCLUDE_DIR "$ENV{VITASDK}/arm-vita-eabi/include" CACHE PATH "" FORCE)
+  set(OPENSSL_CRYPTO_LIBRARY "$ENV{VITASDK}/arm-vita-eabi/lib/libcrypto.a" CACHE FILEPATH "" FORCE)
+  set(OPENSSL_SSL_LIBRARY "$ENV{VITASDK}/arm-vita-eabi/lib/libssl.a" CACHE FILEPATH "" FORCE)
   set(OPENSSL_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY};${OPENSSL_SSL_LIBRARY}" CACHE STRING "" FORCE)
 endif()
 set(TITLE "Moonlight")
@@ -53,7 +60,13 @@ list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
 # setting src and include
 
 list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/moonlight/include)
+list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/video)
 file(GLOB_RECURSE MAIN_SRC moonlight/*.cpp)
+# Nota: NetworkOptimizations.cpp añadido en moonlight/src/network/ queda incluido por el GLOB anterior.
+# Si se desea desactivar en runtime se expone vita_netopt_set_enabled().
+add_definitions(-DVITA_NETOPT_ENABLED)
+# vita.cpp se movió a video/legacy/vita.cpp y ya entra en el glob
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/legacy)
 
 
 
@@ -71,18 +84,27 @@ endif ()
 
 
 
-# Configuración de curl y OpenSSL para MinGW/Windows
+# Configuración de curl y OpenSSL para MinGW/Windows y PS Vita
 if(WIN32)
     include_directories(SYSTEM /usr/x86_64-w64-mingw32/include)
     link_directories(/usr/x86_64-w64-mingw32/lib)
     include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/openssl-mingw/include)
     link_directories(${CMAKE_SOURCE_DIR}/openssl-mingw/lib)
     add_definitions(-DOPENSSL_NO_SECURE_MEMORY)
+elseif(PLATFORM_PSV)
+    include_directories(SYSTEM $ENV{VITASDK}/arm-vita-eabi/include)
+    link_directories($ENV{VITASDK}/arm-vita-eabi/lib)
+    add_definitions(-DUSE_OPENSSL_CRYPTO)
 endif()
 
 # building target
 program_target(${PROJECT_NAME} "${MAIN_SRC}")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
+# Envolver LiRequestIdrFrame para redirigir a optimizaciones de red
+if (PLATFORM_PSV)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--wrap=LiRequestIdrFrame)
+endif()
 
 
 # building release file
@@ -124,8 +146,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE moonlight ${APP_PLATFORM_INCL
 # Incluye los headers principales, crypto y libgamestream para todo el proyecto
 target_include_directories(${PROJECT_NAME} PUBLIC 
     moonlight/include
+    moonlight/src
     moonlight/src/crypto
-    third_party/libgamestream
+    third_party/
 )
 target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
 target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff libgamestream)
@@ -139,14 +162,6 @@ if(PLATFORM_PSV)
         -lSceVshBridge_stub
         -lexpat
         -lcurl
-        -lmbedtls
-        -lmbedx509
-        -lmbedcrypto
-        inih
-        mdnsniff
-        enet
-        h264bitstream
-        moonlight-common-c
         -lz
         -lssl
         -lcrypto
@@ -175,9 +190,16 @@ if(PLATFORM_PSV)
         -lz
         -lm
         -lc
+        inih
+        mdnsniff
+        enet
+        h264bitstream
+        moonlight-common-c
     )
     include_directories(
     include/
+    moonlight/include
+    moonlight/src
     third_party/moonlight-common-c/src/
     third_party/moonlight-common-c/reedsolomon/
     third_party/libgamestream/

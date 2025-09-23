@@ -89,6 +89,12 @@
         "cinttypes": "cpp",
         "valarray": "cpp",
         "variant": "cpp",
-        "cerrno": "cpp"
+        "cerrno": "cpp",
+        "coroutine": "c",
+        "limelight-internal.h": "c",
+        "h264_stream.h": "c",
+        "videodec.h": "c",
+        "unordered_set": "cpp",
+        "future": "cpp"
     }
 }

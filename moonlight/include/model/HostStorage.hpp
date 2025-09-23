@@ -23,7 +23,12 @@ struct HostInfo {
     std::string ip;
     int port = 47989; // Puerto por defecto Sunshine
     bool paired = false;
+    // Identificador seguro (carpeta) derivado del nombre o IP; se usa como keyDir
+    std::string safeId;
 };
+
+// Genera un identificador "seguro" para usar como nombre de carpeta
+std::string makeSafeHostId(const std::string& raw);
 
 class HostStorage {
 public:

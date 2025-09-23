@@ -20,6 +20,7 @@
 #include <borealis/views/cells/cell_selector.hpp>
 #include "view/pccard.hpp"
 #include "model/HostStorage.hpp"
+#include "GameStreamClient.hpp"
 #include <borealis/core/logger.hpp>
 #include <borealis/views/progress_spinner.hpp>
 #include <fstream>
@@ -49,7 +50,7 @@ std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin();
 
 
 #include "check_host.hpp"
-#include "connection/pairing.hpp"
+// pairing unificado eliminado: futura integración en GameStreamClient (TODO)
 
 using namespace brls::literals;
 
@@ -161,18 +162,17 @@ AddHostTab::AddHostTab() {
             // Lógica de pairing: delegar la UI del diálogo a pairing.cpp
             brls::Application::blockInputs();
             auto weakSelf = this->weak_from_this();
-            startMoonlightPairingWithPopup(ipInput, name, [weakSelf](bool pairingSuccess) {
-                auto self = weakSelf.lock();
-                if (!self) return;
-                brls::sync([self, pairingSuccess]() {
-                    brls::Application::unblockInputs();
-                    if (pairingSuccess) {
-                        if (self->ipField) self->ipField->setValue("");
-                        if (self->nameField) self->nameField->setValue("");
-                        if (self->preferExternalSelector) self->preferExternalSelector->setSelection(0);
-                        self->refreshHostsList();
-                    }
-                });
+            HostInfo h; h.ip = ipInput; h.name = name; h.safeId = makeSafeHostId(name.empty()? ipInput : name);
+            GameStreamClient::instance().beginPairing(h, [this](bool ok){
+                if (ok) {
+                    brls::Application::notify("Emparejado");
+                    if (this->ipField) this->ipField->setValue("");
+                    if (this->nameField) this->nameField->setValue("");
+                    if (this->preferExternalSelector) this->preferExternalSelector->setSelection(0);
+                    this->refreshHostsList();
+                } else {
+                    brls::Application::notify("Fallo emparejar");
+                }
             });
             return true;
         });
