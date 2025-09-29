@@ -44,8 +44,10 @@ void VitaStreamOverlayView::draw(NVGcontext* vg, float x, float y, float width, 
 
     char statsBuf[512];
     int off = 0;
-    off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "FPS: %u/%u\n", (unsigned)cached.current_fps, (unsigned)cached.target_fps);
-    off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Decoded: %u Presented: %u\n", (unsigned)cached.frames_decoded, (unsigned)cached.frames_presented);
+    // current_fps ahora refleja presentedFPS en la ventana más reciente calculada por renderer
+    off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "FPS (presented/target): %u/%u\n", (unsigned)cached.current_fps, (unsigned)cached.target_fps);
+    // Añadir ratio decoded vs presented
+    off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Frames dec/pres: %u/%u\n", (unsigned)cached.frames_decoded, (unsigned)cached.frames_presented);
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "DroppedNet: %u Pacer: %u\n", (unsigned)cached.frames_dropped_network, (unsigned)cached.frames_dropped_pacer);
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "IDR: %u P: %u\n", (unsigned)cached.idr_count, (unsigned)cached.p_slice_count);
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Session(ms): %u\n", (unsigned)cached.session_ms);

@@ -3,6 +3,7 @@
 #include "ffmpeg/ffmpeg.h"
 #include <borealis/core/logger.hpp>
 #include "legacy/modules/vita_globals.h"
+#include "video/render_mode_cache.hpp"
 
 // Snapshot global consumido por vita.cpp
 VideoSettings g_video_settings_snapshot = {};
@@ -50,6 +51,16 @@ bool VideoManager::initialize() {
     // Cargar configuración
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
+    bool updated = false;
+    if (settings.render_mode != 0 && settings.pixel_format_mode != 0) {
+        brls::Logger::info("[VideoManager] Reiniciando pixel_format_mode a RGBA porque el modo moderno no lo soporta");
+        settings.pixel_format_mode = 0;
+        updated = true;
+    }
+    if (updated) {
+        _config.setVideoSettings(settings);
+        _config.save();
+    }
     g_video_settings_snapshot = settings; // sincronizar snapshot global
     // Sincronizar flags globales legacy que afectan render inmediato
     video_fullscreen_stretch = settings.fullscreen;
@@ -92,9 +103,14 @@ void VideoManager::setRenderMode(const std::string& mode) {
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
     settings.render_mode = _currentModeInt;
+    if (_currentModeInt != 0 && settings.pixel_format_mode != 0) {
+        brls::Logger::info("[VideoManager] Desactivando formato YUV experimental: sólo disponible en modo legacy");
+        settings.pixel_format_mode = 0;
+    }
     g_video_settings_snapshot = settings; // actualizar snapshot global
     _config.setVideoSettings(settings);
     _config.save();
+    set_render_mode_cached(_currentModeInt);
 
     // Inicializar nuevo contexto
     // No necesitamos contextos manuales ya que el sistema legacy maneja su propio estado
@@ -132,6 +148,27 @@ void VideoManager::startVideo() {
         brls::Logger::warning("[VideoManager] Video ya está corriendo");
         return;
     }
+
+    _config.load();
+    VideoSettings settings = _config.getVideoSettings();
+    bool needsSave = false;
+    if (settings.render_mode != _currentModeInt) {
+        _currentModeInt = settings.render_mode;
+        _currentMode = (_currentModeInt == 0) ? "legacy" : "ffmpeg";
+        set_render_mode_cached(_currentModeInt);
+        brls::Logger::info("[VideoManager] Modo de render actualizado dinámicamente a {}", _currentMode);
+    }
+    if (_currentModeInt != 0 && settings.pixel_format_mode != 0) {
+        brls::Logger::info("[VideoManager] Ajustando pixel_format_mode a RGBA para modos no legacy");
+        settings.pixel_format_mode = 0;
+        needsSave = true;
+    }
+    if (needsSave) {
+        _config.setVideoSettings(settings);
+        _config.save();
+    }
+    g_video_settings_snapshot = settings;
+    video_fullscreen_stretch = settings.fullscreen;
 
     brls::Logger::info("[VideoManager] Iniciando video en modo {}", _currentMode);
 

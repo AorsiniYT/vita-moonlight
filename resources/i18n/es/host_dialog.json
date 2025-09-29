@@ -7,6 +7,7 @@
     "title": "Opciones del host"
   },
   "dropdown": {
+    "change_ip": "Cambiar IP",
     "delete": "Eliminar host",
     "pair_online": "Emparejar online fuera de casa",
     "title": "Acciones para"
@@ -25,5 +26,11 @@
   "pairing_success": "Emparejamiento exitoso",
   "pairing_error_init": "Error inicializando conexión con el host",
   "pairing_error": "Error de emparejamiento: $(error)",
-  "notification_deleted": "Host eliminado con éxito"
+  "notification_deleted": "Host eliminado con éxito",
+  "change_ip_title": "Actualizar IP del host",
+  "change_ip_hint": "Ingresa la nueva IP o IP:Puerto",
+  "change_ip_empty_error": "La IP no puede estar vacía",
+  "change_ip_same": "La IP ya está configurada con ese valor",
+  "change_ip_success": "IP del host actualizada",
+  "change_ip_failure": "No se pudo actualizar la IP del host"
 }

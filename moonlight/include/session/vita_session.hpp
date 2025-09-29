@@ -7,10 +7,23 @@
 
 // Estructura ligera de estadísticas (placeholder, ampliar luego)
 struct VitaSessionStats {
-    uint64_t videoFrames = 0;
-    uint64_t videoBytes = 0;
-    uint64_t lastFrameNumber = 0;
+    uint64_t videoFrames = 0;          // frames decodificados (onFrameDecoded)
+    uint64_t videoBytes = 0;           // futuro: acumular tamaño AU
+    uint64_t lastFrameNumber = 0;      // no usado aún (para drops network en Fase3)
     uint64_t firstFrameTimestampMs = 0;
+    // Ventana FPS
+    uint32_t windowFrames = 0;
+    uint64_t windowStartMs = 0;
+    uint32_t fps = 0;                  // calculado cada ~1000ms
+};
+
+// Mini snapshot para overlay (agregado sin exponer VitaVideoStats directamente)
+struct VitaOverlaySnapshot {
+    uint32_t fps_presented = 0;
+    uint32_t fps_target = 0;
+    uint64_t session_ms = 0;
+    uint32_t frames_decoded = 0;
+    uint32_t frames_presented = 0;
 };
 
 class VitaSession {
@@ -34,6 +47,15 @@ public:
     static VitaSession* active();
     // Destruye (stop + free) la sesión activa si existe
     static void destroyActive(bool terminateApp);
+
+    // Notificación desde el decoder cuando un frame queda listo (post swap)
+    static void onFrameDecoded();
+
+    // Dibuja frame actual
+    void draw(float viewportW, float viewportH);
+
+    // Obtiene snapshot para overlay (usa vitavideo_get_stats internamente)
+    VitaOverlaySnapshot overlaySnapshot() const;
 
 private:
     // Callbacks estáticos estilo Moonlight-Switch

@@ -26,6 +26,7 @@
 #include <windows.h>
 #endif
 #include "settings.hpp"
+#include "video/render_mode_cache.hpp"
 
 using namespace brls::literals;  // for _i18n
 
@@ -53,20 +54,74 @@ SettingsTab::SettingsTab()
     config.load();
     StreamConfiguration streamConfig = config.getStreamConfig();
     VideoSettings videoSettings = config.getVideoSettings();
+    if (videoSettings.render_mode != 0 && videoSettings.pixel_format_mode != 0) {
+        videoSettings.pixel_format_mode = 0;
+        config.setVideoSettings(videoSettings);
+        config.save();
+    }
 
-    // Configurar selector de modo de renderizado
-    std::vector<std::string> renderModes = {"Legacy (SceVideodec)", "Modern (FFmpeg)"};
-    renderModeSelector->init("Modo de Renderizado", renderModes, videoSettings.render_mode, [this](int selected) {
+    // Selector de modo de render (Direct GXM eliminado): 0=Legacy, 1=FFmpeg (futuro)
+    std::vector<std::string> renderModes = {
+        "Legacy (SceVideodec)",
+        "Modern (FFmpeg)"
+    };
+    auto updatePixelSelectorVisibility = [this](int renderMode, bool persistReset) {
+        bool legacyMode = (renderMode == 0);
+        if (pixelFormatSelector) {
+            pixelFormatSelector->setVisibility(legacyMode ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
+            if (!legacyMode) {
+                pixelFormatSelector->setSelection(0, true);
+                if (persistReset) {
+                    ConfigManager cfg;
+                    cfg.load();
+                    VideoSettings vs = cfg.getVideoSettings();
+                    if (vs.pixel_format_mode != 0) {
+                        vs.pixel_format_mode = 0;
+                        cfg.setVideoSettings(vs);
+                        cfg.save();
+                    }
+                }
+            }
+        }
+    };
+
+    int initialRenderMode = videoSettings.render_mode;
+    if (initialRenderMode < 0 || initialRenderMode >= (int)renderModes.size()) initialRenderMode = 0; // clamp si config tiene valor desconocido
+    renderModeSelector->init("Modo de Renderizado", renderModes, initialRenderMode, [this, updatePixelSelectorVisibility](int selected) {
         ConfigManager config;
         config.load();
         VideoSettings settings = config.getVideoSettings();
-        settings.render_mode = selected;
+        settings.render_mode = selected; // 0=legacy,1=ffmpeg
+        if (selected != 0 && settings.pixel_format_mode != 0) {
+            settings.pixel_format_mode = 0;
+        }
         config.setVideoSettings(settings);
         config.save();
-        
-        std::string modeName = (selected == 0) ? "Legacy" : "Modern";
+        // Actualizar cache atómico sin relectura posterior
+        set_render_mode_cached(selected);
+        updatePixelSelectorVisibility(selected, true);
+        std::string modeName;
+        switch (selected) {
+            case 0: modeName = "Legacy"; break;
+            case 1: modeName = "Modern"; break;
+            default: modeName = "Desconocido"; break;
+        }
         brls::Application::notify("Modo de renderizado: " + modeName);
     });
+
+    // Selector de formato de pixel (para pruebas RGBA vs YUV)
+    std::vector<std::string> pixelFormats = {"RGBA directo", "YUV420 (experimental)"};
+    pixelFormatSelector->init("Formato de Pixel", pixelFormats, videoSettings.pixel_format_mode, [this](int selected) {
+        ConfigManager config;
+        config.load();
+        VideoSettings settings = config.getVideoSettings();
+        settings.pixel_format_mode = selected;
+        config.setVideoSettings(settings);
+        config.save();
+        std::string pf = (selected == 0) ? "RGBA" : "YUV420";
+        brls::Application::notify("Formato de pixel: " + pf);
+    });
+    updatePixelSelectorVisibility(initialRenderMode, false);
 
     // Configurar selectores de resolución con valores permitidos para PS Vita
     std::vector<std::string> resolutions = {

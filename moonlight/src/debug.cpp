@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "debug.h"
+#include "debug.hpp"
 #if defined(__PSV__)
 #include <psp2/kernel/clib.h>
 #endif

@@ -179,3 +179,27 @@ bool HostStorage::removeHost(const std::string& name) {
     if (!fs::exists(keyDirStr)) return false;
     return fs::remove_all(keyDirStr) > 0;
 }
+
+bool HostStorage::updateHostIp(const std::string& name, const std::string& newIp) {
+    if (newIp.empty()) return false;
+
+    auto hostOpt = HostStorage::findHost(name);
+    if (!hostOpt.has_value()) return false;
+
+    HostInfo host = *hostOpt;
+    host.ip = newIp;
+
+    ConfigManager config;
+    std::string baseDir = config.getKeysDir();
+    std::string safe = !host.safeId.empty() ? host.safeId : makeSafeHostId(name);
+    std::string hostDir = baseDir + "/" + safe;
+
+    if (!fs::exists(hostDir)) {
+        safe = makeSafeHostId(name);
+        hostDir = baseDir + "/" + safe;
+        if (!fs::exists(hostDir)) return false;
+        host.safeId = safe;
+    }
+
+    return HostStorage::writeDeviceIni(hostDir, safe, host.ip.c_str(), host.port, host.paired);
+}

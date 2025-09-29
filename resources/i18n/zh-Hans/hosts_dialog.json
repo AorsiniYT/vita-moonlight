@@ -5,5 +5,18 @@
         "info": "信息",
         "close": "关闭",
         "title": "主机选项"
-    }
+    },
+    "dropdown": {
+        "change_ip": "修改 IP 地址",
+        "delete": "删除主机",
+        "pair_online": "远程配对（外出）",
+        "title": "操作对象"
+    },
+    "notification_deleted": "主机已成功删除",
+    "change_ip_title": "更新主机 IP",
+    "change_ip_hint": "输入新的 IP 或 IP:端口",
+    "change_ip_empty_error": "IP 不能为空",
+    "change_ip_same": "该 IP 已经设置",
+    "change_ip_success": "主机 IP 已更新",
+    "change_ip_failure": "无法更新主机 IP"
 }

@@ -36,7 +36,7 @@ std::string ConfigManager::getConfigPath() {
     size_t pos = path.find_last_of("/\\");
     if (pos != std::string::npos) path = path.substr(0, pos+1);
     return path + "moonlight-vita.conf";
-#elif defined(__PSV__) || defined(__PSV__)
+#elif defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
     return "ux0:data/moonlight/moonlight-vita.conf";
 #else
     return "moonlight-vita.conf";
@@ -65,7 +65,7 @@ std::string ConfigManager::getKeysDir() const {
         return cachedKeysDir;
     }
     // 2. Si no está en config, usar valor multiplataforma por defecto
-#if defined(__PSV__) || defined(__PSV__)
+#if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
     cachedKeysDir = "ux0:data/moonlight/devices";
 #elif defined(_WIN32)
     cachedKeysDir = "moonlight/devices";
@@ -100,6 +100,7 @@ bool ConfigManager::load() {
     }
     return true;
 }
+
 
 bool ConfigManager::save() const {
     std::string path = getConfigPath();
@@ -187,6 +188,7 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.mouse_acceleration = std::stoi(get("video", "mouse_acceleration", "150"));
     settings.keyboard_layout = std::stoi(get("video", "keyboard_layout", "0"));
     settings.render_mode = std::stoi(get("video", "render_mode", "0"));
+    settings.pixel_format_mode = std::stoi(get("video", "pixel_format_mode", "0"));
     return settings;
 }
 
@@ -210,4 +212,5 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "mouse_acceleration", std::to_string(settings.mouse_acceleration));
     set("video", "keyboard_layout", std::to_string(settings.keyboard_layout));
     set("video", "render_mode", std::to_string(settings.render_mode));
+    set("video", "pixel_format_mode", std::to_string(settings.pixel_format_mode));
 }

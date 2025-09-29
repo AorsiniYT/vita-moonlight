@@ -46,6 +46,7 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::SelectorCell, resolutionSelector, "resolutionSelector");
     BRLS_BIND(brls::SelectorCell, fpsSelector, "fpsSelector");
     BRLS_BIND(brls::SelectorCell, bitrateSelector, "bitrateSelector");
+    BRLS_BIND(brls::SelectorCell, pixelFormatSelector, "pixelFormatSelector");
     BRLS_BIND(brls::BooleanCell, sopsToggle, "sopsToggle");
     BRLS_BIND(brls::BooleanCell, localAudioToggle, "localAudioToggle");
     BRLS_BIND(brls::BooleanCell, fullscreenToggle, "fullscreenToggle");

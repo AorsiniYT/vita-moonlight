@@ -4,6 +4,7 @@
 #include <psp2/kernel/processmgr.h>
 #include <psp2/display.h>
 #include <psp2/videodec.h>
+#include <psp2/gxm.h>
 #include <vita2d.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +27,8 @@ uint64_t vita_monotonic_ms() {
 int vita_pacer_thread_main(SceSize args, void* argp) {
 	(void)args; (void)argp;
 	VITA_DEBUG_LOG("[Video][PACER] thread iniciado");
+	// Ajustar afinidad: permitir que el pacer use dos núcleos si disponibles (user 0 y 1)
+	sceKernelChangeThreadCpuAffinityMask(sceKernelGetThreadId(), SCE_KERNEL_CPU_MASK_USER_0 | SCE_KERNEL_CPU_MASK_USER_1);
 	uint64_t last_50_tick = vita_monotonic_ms();
 	uint64_t last_500_tick = last_50_tick;
 	// Sincronizar target fps con configuración actual (curr_fps[1] se actualiza externamente)
@@ -70,24 +73,40 @@ extern "C" void vita_cleanup() {
 	if (decoder_info) { free(decoder_info); decoder_info = NULL; }
 	for (int i=0;i<2;i++) { if (frame_textures[i]) { vita2d_free_texture(frame_textures[i]); frame_textures[i]=NULL; } }
 	if (decoder_buffer) { free(decoder_buffer); decoder_buffer = NULL; decoder_buffer_size = 0; }
-	if (decoder_yuv_raw) { free(decoder_yuv_raw); decoder_yuv_raw=NULL; decoder_yuv_buffer=NULL; decoder_yuv_buffer_size=0; }
-	if (decoder_rgba_buffer) { decoder_rgba_buffer = nullptr; }
-	if (decoder_out_rgba) { free(decoder_out_rgba); decoder_out_rgba = NULL; decoder_out_rgba_size = 0; }
+	if (decoder_yuv_raw) { free(decoder_yuv_raw); decoder_yuv_raw=NULL; decoder_yuv_buffer=NULL; decoder_yuv_buffer_size=0; decoder_yuv_total_alloc = 0; }
+	if (decoder_linear_rgba_memblock >= 0) {
+		sceKernelFreeMemBlock(decoder_linear_rgba_memblock);
+		decoder_linear_rgba_memblock = -1;
+	} else if (decoder_linear_rgba) {
+		free(decoder_linear_rgba);
+	}
+	decoder_linear_rgba = nullptr;
+	decoder_linear_rgba_size = 0;
+	decoder_linear_rgba_guard = nullptr;
+	decoder_linear_rgba_guard_size = 0;
+	decoder_linear_rgba_total_alloc = 0;
+	decoder_linear_rgba_pitch_pixels = 0;
+	decoder_linear_rgba_height = 0;
+	// Buffers staging RGBA eliminados
+	decoder_linear_rgba_physically_backed = false;
 	if (decoder_output_phys_block >= 0) {
+		if (decoder_output_phys_mapped && decoder_output_phys_ptr) {
+			sceGxmUnmapMemory(decoder_output_phys_ptr);
+			decoder_output_phys_mapped = false;
+		}
 		sceKernelFreeMemBlock(decoder_output_phys_block);
 		decoder_output_phys_block = -1;
 		decoder_output_phys_ptr = nullptr;
 		decoder_output_phys_size = 0;
 	}
-	if (g_sps_ctx) { delete g_sps_ctx; g_sps_ctx = NULL; }
-	if (video_nvg_image_id != 0) {
-		NVGcontext* vg = brls::Application::getNVGContext();
-		if (vg) nvgDeleteImage(vg, video_nvg_image_id);
-		video_nvg_image_id = 0;
-		video_nvg_image_ready = false;
-		video_nvg_frame_dirty = false;
-	}
+	// g_sps_ctx eliminado temporalmente
+	// Recursos NVG eliminados
 	video_status = VITA_VIDEO_NOT_INIT;
+	if (vita2d_inited) {
+		vita2d_fini();
+		vita2d_inited = false;
+		VITA_DEBUG_LOG("[Video] vita2d finalizado");
+	}
 	VITA_DEBUG_LOG("[Video] cleanup completado");
 }
 
