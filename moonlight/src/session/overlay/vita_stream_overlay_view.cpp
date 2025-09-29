@@ -1,4 +1,4 @@
-#include "ui/vita_stream_overlay_view.hpp"
+#include "session/overlay/vita_stream_overlay_view.hpp"
 #include <borealis.hpp>
 #include <cstdio>
 #include <cstring>

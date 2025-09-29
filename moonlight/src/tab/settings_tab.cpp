@@ -27,6 +27,7 @@
 #endif
 #include "settings.hpp"
 #include "video/render_mode_cache.hpp"
+#include "network/NetworkOptimizations.h"
 
 using namespace brls::literals;  // for _i18n
 
@@ -59,6 +60,13 @@ SettingsTab::SettingsTab()
         config.setVideoSettings(videoSettings);
         config.save();
     }
+
+    // Inicializar flag global para debug logs
+    extern bool g_debug_log_enabled;
+    g_debug_log_enabled = videoSettings.save_debug_log;
+
+    // Inicializar optimizaciones de red
+    vita_netopt_set_enabled(videoSettings.enable_network_optimizations ? 1 : 0);
 
     // Selector de modo de render (Direct GXM eliminado): 0=Legacy, 1=FFmpeg (futuro)
     std::vector<std::string> renderModes = {
@@ -260,6 +268,19 @@ SettingsTab::SettingsTab()
         config.save();
     });
 
+    // Toggle para optimizaciones de red (IDR smart, pacing, etc.)
+    networkOptimizationsToggle->init("Optimizaciones de Red", videoSettings.enable_network_optimizations, [this](bool value) {
+        ConfigManager config;
+        config.load();
+        VideoSettings settings = config.getVideoSettings();
+        settings.enable_network_optimizations = value;
+        config.setVideoSettings(settings);
+        config.save();
+        // Aplicar inmediatamente
+        vita_netopt_set_enabled(value ? 1 : 0);
+        brls::Application::notify(value ? "Optimizaciones de red activadas" : "Optimizaciones de red desactivadas");
+    });
+
     localAudioToggle->init("Audio Local", videoSettings.localaudio, [this](bool value) {
         ConfigManager config;
         config.load();
@@ -314,6 +335,9 @@ SettingsTab::SettingsTab()
         settings.save_debug_log = value;
         config.setVideoSettings(settings);
         config.save();
+        // Actualizar flag global para debug logs
+        extern bool g_debug_log_enabled;
+        g_debug_log_enabled = value;
     });
 
     refFrameInvalidationToggle->init("Invalidación de Frame de Referencia", videoSettings.enable_ref_frame_invalidation, [this](bool value) {

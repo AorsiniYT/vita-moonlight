@@ -5,8 +5,16 @@
 #include <psp2/kernel/clib.h>
 #endif
 
+// Incluir para acceder a g_debug_log_enabled
+#include "video/legacy/modules/vita_globals.h"
+
 // Implementación para redirigir logs de libgamestream en Vita
 extern "C" void vita_debug_log(const char* fmt, ...) {
+    // Solo imprimir si el debug log está habilitado
+    if (!g_debug_log_enabled) {
+        return;
+    }
+
     char buffer[1024];
     va_list args;
     va_start(args, fmt);

@@ -5,12 +5,13 @@
 #include <string>
 #include "model/HostStorage.hpp"      // HostInfo
 #include "connection_manager.hpp"     // RemoteAppInfo
-#include "ui/vita_stream_overlay_view.hpp"
+#include "session/overlay/vita_stream_overlay_view.hpp"
 
 // Vista principal de la sesión de streaming (usando XML)
 class SessionMainView : public brls::Box {
 public:
     SessionMainView(const HostInfo& host, const RemoteAppInfo& app);
+    ~SessionMainView();
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
 private:
     void openSessionMenu();

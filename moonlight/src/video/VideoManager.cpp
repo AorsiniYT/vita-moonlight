@@ -8,6 +8,9 @@
 // Snapshot global consumido por vita.cpp
 VideoSettings g_video_settings_snapshot = {};
 
+// Flag para habilitar/deshabilitar debug logs
+bool g_debug_log_enabled = false;
+
 // Declaraciones extern para las funciones de vita.cpp
 extern "C" {
     int vitavideo_setup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags);

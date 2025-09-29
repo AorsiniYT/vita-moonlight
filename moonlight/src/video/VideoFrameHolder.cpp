@@ -31,11 +31,11 @@ void VideoFrameHolder::pushTexture(const vita2d_texture* texture, uint32_t w, ui
 
     hasNew_.store(true, std::memory_order_release);
     framesPushed_.fetch_add(1, std::memory_order_relaxed);
-    VITA_DEBUG_LOG("[VideoFrameHolder][pushTex] listo tex=%p size=%ux%u framesPushed=%llu",
-        texture,
-        w,
-        h,
-        (unsigned long long)framesPushed_.load(std::memory_order_relaxed));
+    // VITA_DEBUG_LOG("[VideoFrameHolder][pushTex] listo tex=%p size=%ux%u framesPushed=%llu",
+    //     texture,
+    //     w,
+    //     h,
+    //     (unsigned long long)framesPushed_.load(std::memory_order_relaxed));
 }
 
 bool VideoFrameHolder::popLatest(GxmFrame& out) {

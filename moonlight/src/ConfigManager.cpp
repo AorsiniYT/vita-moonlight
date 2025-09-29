@@ -182,6 +182,7 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.enable_double_tap_sprint = get("video", "enable_double_tap_sprint", "false") == "true";
     settings.absolute_mouse = get("video", "absolute_mouse", "false") == "true";
     settings.touchscreen_mode = get("video", "touchscreen_mode", "false") == "true";
+    settings.enable_network_optimizations = get("video", "enable_network_optimizations", "true") == "true";
     settings.double_tap_sprint_step_time = std::stoi(get("video", "double_tap_sprint_step_time", "200"));
     settings.motion_controls_scalar_x = std::stof(get("video", "motion_controls_scalar_x", "1.2"));
     settings.motion_controls_scalar_y = std::stof(get("video", "motion_controls_scalar_y", "0.8"));
@@ -206,6 +207,7 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "enable_double_tap_sprint", settings.enable_double_tap_sprint ? "true" : "false");
     set("video", "absolute_mouse", settings.absolute_mouse ? "true" : "false");
     set("video", "touchscreen_mode", settings.touchscreen_mode ? "true" : "false");
+    set("video", "enable_network_optimizations", settings.enable_network_optimizations ? "true" : "false");
     set("video", "double_tap_sprint_step_time", std::to_string(settings.double_tap_sprint_step_time));
     set("video", "motion_controls_scalar_x", std::to_string(settings.motion_controls_scalar_x));
     set("video", "motion_controls_scalar_y", std::to_string(settings.motion_controls_scalar_y));

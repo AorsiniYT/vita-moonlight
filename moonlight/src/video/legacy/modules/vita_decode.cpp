@@ -304,15 +304,15 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // Si ya estamos en modo fallback y aún no tenemos bloque, intentar asignar con varios tipos
     // (Las rutas antiguas de fallback directo se integran arriba en useFallbackBuffer)
 
-    VITA_DEBUG_LOG("[Video][DECODE] call fmt=%s w=%u h=%u strideBytes=%u pitchPx=%u phys=%s tex=%p staging=%s",
-        decodeYuv ? "YUV420" : "RGBA",
-        picture.frame.frameWidth,
-        picture.frame.frameHeight,
-        strideBytes,
-        picture.frame.framePitch,
-        decoder_use_phys_fallback ? "yes" : "no",
-        texBack,
-        useLinearStaging ? "yes" : "no");
+    // VITA_DEBUG_LOG("[Video][DECODE] call fmt=%s w=%u h=%u strideBytes=%u pitchPx=%u phys=%s tex=%p staging=%s",
+    //     decodeYuv ? "YUV420" : "RGBA",
+    //     picture.frame.frameWidth,
+    //     picture.frame.frameHeight,
+    //     strideBytes,
+    //     picture.frame.framePitch,
+    //     decoder_use_phys_fallback ? "yes" : "no",
+    //     texBack,
+    //     useLinearStaging ? "yes" : "no");
     ret = sceAvcdecDecode(decoder, &au, &array_picture);
     if (guardBasePtr) {
         if (decoder_linear_rgba_memblock >= 0) {
@@ -355,7 +355,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
             case SCE_AVCDEC_ERROR_NOT_PHY_CONTINUOUS_MEMORY: errName = "NOT_PHY_CONT_MEM"; break;
             case SCE_AVCDEC_ERROR_INVALID_POINTER: errName = "INVALID_POINTER"; break;
         }
-        VITA_DEBUG_LOG("[Video][DECODE] ret=0x%x (%s) outputs=%d", ret, errName, array_picture.numOfOutput);
+        // VITA_DEBUG_LOG("[Video][DECODE] ret=0x%x (%s) outputs=%d", ret, errName, array_picture.numOfOutput);
     if (ret == SCE_AVCDEC_ERROR_UNSUPPORT_IMAGE_SIZE) {
         VITA_DEBUG_LOG("[Video][ERR] UNSUPPORT_IMAGE_SIZE w=%u h=%u pitch=%u -> DR_NEED_IDR", picture.frame.frameWidth, picture.frame.frameHeight, picture.frame.framePitch);
         return DR_NEED_IDR;
@@ -492,7 +492,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         int tmp = frame_front_idx;
         frame_front_idx = frame_back_idx;
         frame_back_idx = tmp;
-        VITA_DEBUG_LOG("[Video][DECODE] swap buffers front=%d back=%d", frame_front_idx, frame_back_idx);
+        // VITA_DEBUG_LOG("[Video][DECODE] swap buffers front=%d back=%d", frame_front_idx, frame_back_idx);
     }
 
     // Marcar primer frame (log previo a incrementar frames_decoded)
@@ -511,13 +511,13 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
                 w,
                 h);
         } else {
-            VITA_DEBUG_LOG("[Video][DECODE] publicar frame front=%d tex=%p w=%u h=%u (mode=%s pitchBytes=%u)",
-                frame_front_idx,
-                texFront,
-                w,
-                h,
-                cpuPushPtr ? "cpu" : "tex",
-                cpuPushPitchBytes);
+            // VITA_DEBUG_LOG("[Video][DECODE] publicar frame front=%d tex=%p w=%u h=%u (mode=%s pitchBytes=%u)",
+            //     frame_front_idx,
+            //     texFront,
+            //     w,
+            //     h,
+            //     cpuPushPtr ? "cpu" : "tex",
+            //     cpuPushPitchBytes);
             VideoFrameHolder::instance().pushTexture(texFront, w, h, monotonicMs_local());
         }
     }

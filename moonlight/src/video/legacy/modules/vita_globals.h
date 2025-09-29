@@ -181,6 +181,9 @@ extern VideoStatusInfo g_video_status_info;
 
 extern ::VideoSettings g_video_settings_snapshot;
 
+// Flag para habilitar/deshabilitar debug logs
+extern bool g_debug_log_enabled;
+
 // Function declarations
 void vitavideo_update_scaling_settings(int width, int height);
 void yuv_write_canaries();
