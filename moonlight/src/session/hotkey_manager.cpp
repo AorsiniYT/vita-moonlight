@@ -9,7 +9,9 @@ void HotkeyManager::onButtonEvent(brls::ControllerButton button, bool pressed) {
     auto now = Clock::now();
     switch (button) {
         case brls::ControllerButton::BUTTON_START:
-            btnStart = pressed; if (pressed) lastStart = now; break;
+            btnStart = pressed; if (pressed) lastStart = now;
+            // START solo no activa nada, solo para combos
+            break;
     case brls::ControllerButton::BUTTON_LB:
             btnL = pressed; if (pressed) lastL = now; break;
     case brls::ControllerButton::BUTTON_RB:

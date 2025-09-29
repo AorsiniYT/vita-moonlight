@@ -54,6 +54,10 @@
                 title="Optimización de Stream"/>
                 
             <brls:BooleanCell
+                id="networkOptimizationsToggle"
+                title="Optimizaciones de Red"/>
+                
+            <brls:BooleanCell
                 id="localAudioToggle"
                 title="Audio Local"/>
                 

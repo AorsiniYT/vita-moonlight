@@ -17,6 +17,9 @@
 #include <cstdlib>  // Para malloc/free
 #include <cstring>  // Para strcpy
 #include <string>   // Para std::string
+#include <borealis/core/application.hpp>
+#include <borealis/core/logger.hpp>
+#include <borealis/core/thread.hpp>
 
 using namespace brls::literals;
 
@@ -63,10 +66,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
             running.id = "0";
         }
         auto* sessionView = new SessionMainView(this->host, running);
-        auto* frame = new brls::AppletFrame(sessionView);
-        frame->setHeaderVisibility(brls::Visibility::GONE);
-        frame->setFooterVisibility(brls::Visibility::GONE);
-        brls::Application::pushActivity(new brls::Activity(frame));
+        brls::Application::pushActivity(new brls::Activity(sessionView), brls::TransitionAnimation::NONE);
         // Mostrar menú inmediatamente
         brls::async([](){ brls::Logger::info("[SessionAppSelect] (async) Sesión retomada"); });
         return;
@@ -318,9 +318,5 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
 
     // Crear vista de sesión activa y transicionar
     auto* sessionView = new SessionMainView(this->host, app);
-    auto* frame = new brls::AppletFrame(sessionView);
-    frame->setHeaderVisibility(brls::Visibility::GONE);
-    frame->setFooterVisibility(brls::Visibility::GONE);
-
-    brls::Application::pushActivity(new brls::Activity(frame));
+    brls::Application::pushActivity(new brls::Activity(sessionView), brls::TransitionAnimation::NONE);
 }

@@ -56,6 +56,7 @@ struct VideoSettings {
     bool enable_double_tap_sprint = false;
     bool absolute_mouse = false;
     bool touchscreen_mode = false;
+    bool enable_network_optimizations = true; // Optimizaciones de red (IDR smart, pacing, etc.)
     int double_tap_sprint_step_time = 200;
     float motion_controls_scalar_x = 1.2f;
     float motion_controls_scalar_y = 0.8f;

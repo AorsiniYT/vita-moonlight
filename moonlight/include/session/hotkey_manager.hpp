@@ -27,6 +27,7 @@ private:
     HotkeyManager& operator=(const HotkeyManager&) = delete;
 
     std::function<void()> pauseCallback;
+    std::function<void()> menuCallback;
 
     // Estado de botones relevantes
     bool btnStart = false;

@@ -130,7 +130,7 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
         currentTexture = tex;
         storedW = (int)texW;
         storedH = (int)texH;
-        VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d tex=%p w=%u h=%u", nvgImageId, tex, texW, texH);
+        // VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d tex=%p w=%u h=%u", nvgImageId, tex, texW, texH);
     }
 
     int dw = fullscreenStretch ? (int)viewportW : image_scaling.display_width;

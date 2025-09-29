@@ -48,6 +48,7 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::SelectorCell, bitrateSelector, "bitrateSelector");
     BRLS_BIND(brls::SelectorCell, pixelFormatSelector, "pixelFormatSelector");
     BRLS_BIND(brls::BooleanCell, sopsToggle, "sopsToggle");
+    BRLS_BIND(brls::BooleanCell, networkOptimizationsToggle, "networkOptimizationsToggle");
     BRLS_BIND(brls::BooleanCell, localAudioToggle, "localAudioToggle");
     BRLS_BIND(brls::BooleanCell, fullscreenToggle, "fullscreenToggle");
     // lowLatencyToggle eliminado
