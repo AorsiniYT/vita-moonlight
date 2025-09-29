@@ -27,6 +27,11 @@
             <brls:SelectorCell
                 id="renderModeSelector"
                 title="Modo de Renderizado"/>
+            
+            <!-- Formato de Pixel -->
+            <brls:SelectorCell
+                id="pixelFormatSelector"
+                title="Formato de Pixel"/>
                 
             <!-- Resolución -->
             <brls:SelectorCell

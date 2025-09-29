@@ -92,19 +92,14 @@ typedef struct {
 extern "C" void vitavideo_get_stats(VitaVideoStats* outStats);
 extern "C" void vitavideo_reset_stats();
 
-// Modo de presentación: inmediato (dentro de submit) o diferido (llamando a vitavideo_external_present en el loop principal)
-extern "C" void vitavideo_enable_external_present(bool enable);
-extern "C" void vitavideo_external_present(); // Dibuja el último frame disponible + overlays
+// Modo de presentación ahora siempre inmediato; funciones externas eliminadas
 
 // Funciones de configuración
 extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags);
 extern "C" void vita_cleanup();
 extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit);
 
-// Modos legacy de diagnóstico
-extern "C" void vitavideo_set_legacy_direct_output_mode(bool enable);
-extern "C" void vitavideo_set_legacy_strict_parity_mode(bool enable);
-extern "C" void vitavideo_set_legacy_pure_copy_mode(bool enable);
+// Modos legacy eliminados
 
 // Funciones de renderizado (legacy eliminadas; usar VitaVideoRenderer en lugar de vitavideo_draw_streaming*_*)
 void vitavideo_draw_fps();      // TODO: pendiente de implementación real (texto)

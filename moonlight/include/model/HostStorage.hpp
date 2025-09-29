@@ -42,6 +42,8 @@ public:
     static std::optional<HostInfo> findHost(const std::string& name);
     // Elimina un host por nombre (borra la carpeta)
     static bool removeHost(const std::string& name);
+    // Actualiza la dirección IP de un host existente
+    static bool updateHostIp(const std::string& name, const std::string& newIp);
     // Guarda un host tras pairing exitoso (crea device.ini)
     static bool savePairedHost(const std::string& name, const std::string& ip, int port, bool paired);
     // Genera el archivo device.ini en la carpeta del host (llamar tras pairing exitoso)

@@ -7,6 +7,7 @@
     "settings": "Settings"
   },
   "dropdown": {
+    "change_ip": "Change IP address",
     "delete": "Delete host",
     "pair_online": "Pair online (outside home)",
     "title": "Actions for"
@@ -25,5 +26,11 @@
   "pairing_success": "Pairing successful",
   "pairing_error_init": "Error initializing connection to host",
   "pairing_error": "Pairing error: $(error)",
-  "notification_deleted": "Host deleted successfully"
+  "notification_deleted": "Host deleted successfully",
+  "change_ip_title": "Update host IP",
+  "change_ip_hint": "Enter the new IP or IP:Port",
+  "change_ip_empty_error": "The IP can't be empty",
+  "change_ip_same": "That IP is already set",
+  "change_ip_success": "Host IP updated",
+  "change_ip_failure": "Couldn't update the host IP"
 }

@@ -1,19 +1,31 @@
-// VitaVideoRenderer.hpp - Renderer unificado para presentar video vía NanoVG
+// VitaVideoRenderer.hpp - Renderer simplificado centralizado (sin staging NVG)
 #pragma once
 
-#include <borealis.hpp>
 #include <stdint.h>
+#include <vita2d.h>
+extern bool vita2d_inited; // definido en vita_globals.cpp
+struct NVGcontext; // forward
 
-class VitaVideoRenderer {
+// No dependemos de NanoVG para el render (solo vita2d)
+
+class VitaVideoRenderer final {
 public:
-	static VitaVideoRenderer& instance();
-
-	// Dibuja el frame de video actual (si existe) dentro del rect (x,y,w,h)
-	void draw(NVGcontext* vg, float x, float y, float w, float h, float alpha=1.0f);
-
-	// Fuerza invalidar la imagen NVG (p.ej. cambio de tamaño)
-	void invalidate();
-
+    static VitaVideoRenderer& instance();
+    void draw(float viewportW, float viewportH);
+    // Compatibilidad con llamada antigua que incluía NVGcontext/alpha
+    void draw(struct NVGcontext* vg, float viewportW, float viewportH, float alpha = 1.0f);
+    // Nueva ruta: dibujar usando NanoVG (evita begin/end duplicados de vita2d)
+    void drawNVG(struct NVGcontext* vg, float viewportW, float viewportH, float alpha = 1.0f);
+    void setFullscreenStretch(bool stretch);
+    bool isFullscreenStretch() const { return fullscreenStretch; }
 private:
-	VitaVideoRenderer() = default;
+    VitaVideoRenderer() = default;
+    bool fullscreenStretch = true; // sincronizado con global video_fullscreen_stretch
+    // Recursos para imagen NVG (textura GXM directa)
+    int nvgImageId = -1;
+    const vita2d_texture* currentTexture = nullptr;
+    int storedW = 0;
+    int storedH = 0;
+    void destroyImage(struct NVGcontext* vg);
 };
+

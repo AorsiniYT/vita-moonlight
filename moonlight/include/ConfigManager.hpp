@@ -30,7 +30,7 @@ struct StreamConfiguration {
 
     // Método para validar y ajustar resolución para PS Vita
     void validateAndAdjustResolution() {
-#ifdef __PSV__
+#if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
         // Aplicar restricciones de PS Vita: múltiplos de 16, mínimo 64
         width = (width < 64) ? 64 : ((width + 15) / 16) * 16;
         height = (height < 64) ? 64 : ((height + 15) / 16) * 16;
@@ -64,6 +64,7 @@ struct VideoSettings {
     
     // Nueva opción: modo de renderizado
     int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
+    int pixel_format_mode = 0; // 0=RGBA directo, 1=YUV420 (pruebas)
 };
 
 class ConfigManager {

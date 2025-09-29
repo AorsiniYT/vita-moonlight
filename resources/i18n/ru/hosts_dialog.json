@@ -5,5 +5,18 @@
         "info": "Инфо",
         "close": "Закрыть",
         "title": "Опции хоста"
-    }
+    },
+    "dropdown": {
+        "change_ip": "Изменить IP-адрес",
+        "delete": "Удалить хост",
+        "pair_online": "Удалённое сопряжение (вне дома)",
+        "title": "Действия для"
+    },
+    "notification_deleted": "Хост успешно удалён",
+    "change_ip_title": "Обновить IP-адрес хоста",
+    "change_ip_hint": "Введите новый IP или IP:Порт",
+    "change_ip_empty_error": "IP-адрес не может быть пустым",
+    "change_ip_same": "Этот IP уже установлен",
+    "change_ip_success": "IP-адрес хоста обновлён",
+    "change_ip_failure": "Не удалось обновить IP-адрес хоста"
 }

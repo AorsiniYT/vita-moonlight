@@ -19,44 +19,7 @@ extern "C" int vitavideo_initialized() {
     return video_status != VITA_VIDEO_NOT_INIT;
 }
 
-extern "C" void vitavideo_set_legacy_direct_output_mode(bool enable) {
-    legacy_direct_output_mode = enable;
-    VITA_DEBUG_LOG("[Video][CFG] legacy_direct_output_mode=%d", (int)legacy_direct_output_mode);
-}
-
-extern "C" void vitavideo_set_legacy_strict_parity_mode(bool enable) {
-    legacy_strict_parity_mode = enable;
-    if (enable) {
-        legacy_direct_output_mode = true; // implicar directo
-        VITA_DEBUG_LOG("[Video][CFG] legacy_strict_parity_mode=1 (forzando direct_output y primer intento fullLength)");
-    } else {
-        VITA_DEBUG_LOG("[Video][CFG] legacy_strict_parity_mode=0");
-    }
-}
-
-extern "C" void vitavideo_set_legacy_pure_copy_mode(bool enable) {
-    legacy_pure_copy_mode = enable;
-    if (enable) {
-        VITA_DEBUG_LOG("[Video][CFG] legacy_pure_copy_mode=1 (start code synth off, heuristica HEVC off, au.es.size=fullLength)");
-    } else {
-        VITA_DEBUG_LOG("[Video][CFG] legacy_pure_copy_mode=0");
-    }
-}
-
-extern "C" void vitavideo_set_legacy_strict_diagnostic_mode(bool enable) {
-    legacy_strict_diagnostic_mode = enable;
-    VITA_DEBUG_LOG("[Video][CFG] legacy_strict_diagnostic_mode=%d", (int)enable);
-}
-
-extern "C" void vitavideo_enable_external_present(bool enable) {
-    external_present_enabled = enable;
-    frame_ready_flag = false;
-}
-
-extern "C" void vitavideo_set_standalone_present_mode(bool enable) {
-    standalone_present_mode = enable;
-    VITA_DEBUG_LOG("[Video][CFG] standalone_present_mode=%d", (int)standalone_present_mode);
-}
+// (Funciones legacy de configuración eliminadas; modos simplificados a pixel_format_mode y flags básicos)
 
 // Funciones de estadísticas
 extern "C" void vitavideo_get_stats(VitaVideoStats* outStats) {

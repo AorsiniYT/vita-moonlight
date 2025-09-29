@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <memory>
 
+// Zero-copy eliminado: se simplifica el pipeline a texturas vita2d
+// Se preservan solo métricas mínimas necesarias
+
+// (includes básicos ya movidos arriba)
+
 // VitaSDK headers
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
@@ -18,8 +23,11 @@
 // Project headers
 #include <Limelight.h>
 #include "ConfigManager.hpp"
-#include "debug.h"
+#include "debug.hpp"
+#ifdef __cplusplus
 #include "libgamestream/sps.h"
+extern gs::SpsContext* g_sps_ctx; // contexto SPS (puntero crudo)
+#endif
 
 // --- Mitigación de colisiones de nombres con Borealis ---
 // Limelight.h define macros para botones de ratón: BUTTON_LEFT / BUTTON_RIGHT / etc.
@@ -103,38 +111,36 @@ extern int frame_back_idx;
 #define FRAME_BACK()  (frame_textures[frame_back_idx])
 // Modo de un solo buffer (sin doble buffering). Cuando está activo, FRONT y BACK son el mismo índice.
 extern bool single_frame_buffer;
+// Flag de inicialización de vita2d (nuevo) para asegurarnos de no llamar APIs sin contexto GXM
+extern bool vita2d_inited;
 
 extern image_scaling_settings image_scaling;
 
 extern bool active_video_thread;
-extern bool external_present_enabled;
-extern bool standalone_present_mode;
 extern bool frame_ready_flag;
 extern uint32_t frame_count;
 extern int need_drop;
 
-extern bool legacy_direct_output_mode;
-extern bool legacy_strict_parity_mode;
-extern bool legacy_pure_copy_mode;
-extern bool legacy_synthesize_startcodes_in_pure;
-extern int pure_copy_failure_count;
-extern bool legacy_strict_diagnostic_mode;
+// Modos legacy eliminados
 
 extern bool hevc_abort_flag;
 
+// Buffers intermedios (solo usados por modo YUV experimental). En modo RGBA directo no se usan.
 extern uint8_t* decoder_yuv_raw;
 extern uint8_t* decoder_yuv_buffer;
 extern size_t decoder_yuv_buffer_size;
 extern size_t decoder_yuv_total_alloc;
-extern uint8_t* decoder_rgba_buffer;
-extern uint8_t* decoder_out_rgba; // nuevo buffer intermedio de salida
-extern size_t decoder_out_rgba_size;
-extern uint32_t decoder_out_guard_pre;
-extern uint32_t decoder_out_guard_post;
-// Imagen NanoVG para integración Borealis (opción B)
-extern int video_nvg_image_id;      // handle NanoVG
-extern bool video_nvg_image_ready;  // true cuando hay datos actualizados
-extern volatile bool video_nvg_frame_dirty; // indica que decoder_out_rgba tiene frame nuevo pendiente de subir a NVG
+// (Staging RGBA y NVG eliminados: dibujamos directo sobre la textura)
+// Buffer staging RGBA opcional para depuración (se activa cuando decoder_output_mode==0 y queremos aislar overflow)
+extern uint8_t* decoder_linear_rgba;
+extern size_t decoder_linear_rgba_size;
+extern uint8_t* decoder_linear_rgba_guard;
+extern size_t decoder_linear_rgba_guard_size;
+extern size_t decoder_linear_rgba_total_alloc;
+extern uint32_t decoder_linear_rgba_pitch_pixels;
+extern uint32_t decoder_linear_rgba_height;
+extern int decoder_linear_rgba_memblock;
+extern bool decoder_linear_rgba_physically_backed;
 
 // Modo experimental: replicar comportamiento legacy (un solo buffer + decode->draw inmediato)
 extern bool legacy_single_immediate_present; // si true, el submit decodifica y presenta inmediatamente (sin frame_ready_flag)
@@ -146,19 +152,19 @@ extern bool video_fullscreen_stretch;
 extern void* decoder_output_phys_ptr;
 extern size_t decoder_output_phys_size;
 extern int decoder_output_phys_block; // SceUID
+extern bool decoder_output_phys_mapped;
 
-// Estrategia de salida del decoder
-enum DecoderOutputMode {
-    DECODER_OUT_DIRECT_TEXTURE = 0,   // intentar escribir a textura (legacy rápido)
-    DECODER_OUT_PHYS_BUFFER_COPY = 1, // escribir a buffer físico y copiar a textura
-    DECODER_OUT_YUV_CONVERT = 2       // decodificar YUV y convertir a RGBA
-};
-extern DecoderOutputMode decoder_output_mode;
+// Estrategia de salida del decoder:
+// 0 = RGBA directo (preferido, decodifica a textura o buffer físico RGBA y copia)
+// 1 = YUV420 planar experimental (decodifica a buffer YUV y se convierte en CPU a RGBA)
+extern int decoder_output_mode;
 extern bool decoder_tried_direct_texture;
 extern int decoder_src_width;
 extern int decoder_src_height;
 extern int decoder_width;
 extern int decoder_height;
+// Indica si estamos usando fallback: decoder -> buffer físico contiguo -> memcpy a textura
+extern bool decoder_use_phys_fallback;
 
 extern VitaVideoStats g_stats;
 extern uint64_t stats_start_ms;
@@ -169,7 +175,7 @@ extern bool active_pacer_thread;
 
 extern indicator_status poor_net_indicator;
 
-extern gs::SpsContext* g_sps_ctx;
+// (SPS context deshabilitado temporalmente en build Vita simplificado)
 
 extern VideoStatusInfo g_video_status_info;
 

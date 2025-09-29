@@ -23,12 +23,14 @@
 #include "connection_manager.hpp"
 #include "session/session_app_select.hpp"
 
+#include <borealis/core/application.hpp>
 #include <borealis/core/logger.hpp>
 #include <fstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <cstring>
+#include <cctype>
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -39,6 +41,16 @@
 #else
 #define VITALOG(...) ((void)0)
 #endif
+
+namespace {
+std::string trim_copy(const std::string& value) {
+    auto begin = value.begin();
+    auto end = value.end();
+    while (begin != end && std::isspace(static_cast<unsigned char>(*begin))) ++begin;
+    while (end != begin && std::isspace(static_cast<unsigned char>(*(end - 1)))) --end;
+    return std::string(begin, end);
+}
+}
 
 HostsTab::HostsTab() {
     VITALOG("[HostsTab::HostsTab] Constructor llamado\n");
@@ -110,6 +122,7 @@ void HostsTab::refreshHostsList() {
                 brls::sync([this, host]() {
                     VITALOG("[hosts_tab.cpp] Entrando en brls::sync para crear Dropdown de settings para host: %s\n", host.name);
                     std::vector<std::string> options = {
+                        brls::getStr("host_dialog/dropdown/change_ip"),
                         brls::getStr("host_dialog/dropdown/delete"),
                         brls::getStr("host_dialog/dropdown/pair_online")
                     };
@@ -118,6 +131,40 @@ void HostsTab::refreshHostsList() {
                     auto* dropdown = new brls::Dropdown(dropdownTitle, options, [this, host](int selected) {
                         VITALOG("[Dropdown] Opción seleccionada: %d para host: %s\n", selected, host.name);
                         if (selected == 0) {
+                            auto ime = brls::Application::getImeManager();
+                            if (!ime) {
+                                brls::Logger::error("[HostsTab] ImeManager no disponible para cambiar IP");
+                                brls::Application::notify(brls::getStr("host_dialog/change_ip_failure"));
+                                return;
+                            }
+                            std::string currentIp = host.ip;
+                            ime->openForText([this, host, currentIp](const std::string& input) {
+                                std::string trimmed = trim_copy(input);
+                                if (trimmed.empty()) {
+                                    brls::Application::notify(brls::getStr("host_dialog/change_ip_empty_error"));
+                                    return;
+                                }
+                                if (trimmed == currentIp) {
+                                    brls::Application::notify(brls::getStr("host_dialog/change_ip_same"));
+                                    return;
+                                }
+                                std::string targetName = !host.safeId.empty() ? host.safeId : host.name;
+                                if (HostStorage::updateHostIp(targetName, trimmed)) {
+                                    std::string msg = brls::getStr("host_dialog/change_ip_success");
+                                    brls::Application::notify(msg);
+                                    brls::sync([this]() {
+                                        this->refreshHostsList();
+                                    });
+                                } else {
+                                    brls::Application::notify(brls::getStr("host_dialog/change_ip_failure"));
+                                }
+                            },
+                            brls::getStr("host_dialog/change_ip_title"),
+                            brls::getStr("host_dialog/change_ip_hint"),
+                            64,
+                            currentIp,
+                            0);
+                        } else if (selected == 1) {
                             brls::sync([this, host]() {
                                 std::string confirmMsg = brls::getStr("host_dialog/confirm_delete_msg") + "\n" + host.name;
                                 auto* confirm = new brls::Dialog(confirmMsg);
@@ -143,7 +190,7 @@ void HostsTab::refreshHostsList() {
                                 });
                                 confirm->open();
                             });
-                        } else if (selected == 1) {
+                        } else if (selected == 2) {
                             sceClibPrintf("[PCCard] Emparejar online fuera de casa: %s\n", host.name);
                             // Lógica real para emparejar online aquí
                         }
