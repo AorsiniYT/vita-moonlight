@@ -27,6 +27,7 @@
 #include <vita2d.h>
 #include <borealis/extern/nanovg/nanovg.h>
 #include "controller/ControllerInput.hpp"
+#include "debug.hpp"
 
 #include "session/hotkey_manager.hpp"
 
@@ -44,6 +45,9 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
 
     // Inicializar input manager
     g_controllerInput = new ControllerInputManager();
+
+    // Registrar callback de pausa en ControllerInputManager (START+L1+R1)
+    g_controllerInput->setPauseCallback([this]() { openSessionMenu(); });
 
     // Resetear input para evitar estados residuales de la UI anterior
     if (g_controllerInput) g_controllerInput->dropInput();
@@ -64,6 +68,9 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     ConfigManager cfgMgr; cfgMgr.load();
     StreamConfiguration streamCfg = cfgMgr.getStreamConfig();
     VideoSettings videoSettings = cfgMgr.getVideoSettings();
+
+    // Set touchscreen mode
+    g_controllerInput->setTouchscreenMode(videoSettings.touchscreen_mode);
 
     if (!overlayStatsView) {
         overlayStatsView = std::make_unique<VitaStreamOverlayView>();
@@ -97,6 +104,7 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
 }
 
 void SessionMainView::openSessionMenu() {
+    vita_debug_log("[SessionMainView] openSessionMenu llamado - abriendo diálogo de pausa");
     auto dialog = new brls::Dialog("Menú de pausa");
 
     dialog->addButton("Reanudar", [dialog]() {

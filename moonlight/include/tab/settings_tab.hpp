@@ -60,10 +60,10 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::BooleanCell, vblankWaitToggle, "vblankWaitToggle");
     BRLS_BIND(brls::BooleanCell, motionControlsToggle, "motionControlsToggle");
     BRLS_BIND(brls::BooleanCell, doubleTapSprintToggle, "doubleTapSprintToggle");
-    BRLS_BIND(brls::BooleanCell, absoluteMouseToggle, "absoluteMouseToggle");
-    BRLS_BIND(brls::BooleanCell, touchscreenModeToggle, "touchscreenModeToggle");
+    BRLS_BIND(brls::SelectorCell, touchscreenModeSelector, "touchscreenModeSelector");
     BRLS_BIND(brls::SliderCell, mouseAccelerationSlider, "mouseAccelerationSlider");
     BRLS_BIND(brls::SelectorCell, keyboardLayoutSelector, "keyboardLayoutSelector");
+    BRLS_BIND(brls::DetailCell, rearTouchSettingsEntry, "rearTouchSettingsEntry");
 
     static inline brls::SelectorCell* languageSelectorPtr = nullptr;
 

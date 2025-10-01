@@ -1,8 +1,8 @@
 #include "connection_manager.hpp"
-#include "ConfigManager.hpp"
 #include <vector>
 #include <string>
 #include <borealis.hpp>
+#include "ConfigManager.hpp"
 #include "Data.hpp"
 #undef BUTTON_RIGHT
 #undef BUTTON_START

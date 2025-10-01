@@ -6,6 +6,7 @@
 #include "video/legacy/modules/vita_globals.h"
 #include "video/legacy/vita.h" // vitavideo_get_stats, decoder callbacks
 #include "GameStreamClient.hpp"
+#include "controller/audio.hpp"
 #include <cstring>
 
 VitaSession* VitaSession::s_active = nullptr;
@@ -155,8 +156,22 @@ void VitaSession::video_decoder_cleanup() {}
 int VitaSession::video_decoder_submit_decode_unit(PDECODE_UNIT) { return 0; }
 
 // ==== Audio callbacks (stubs) ====
-int VitaSession::audio_renderer_init(int, const POPUS_MULTISTREAM_CONFIGURATION, void*, int){ return 0; }
-void VitaSession::audio_renderer_start() {}
-void VitaSession::audio_renderer_stop() {}
-void VitaSession::audio_renderer_cleanup() {}
-void VitaSession::audio_renderer_decode_and_play_sample(char*, int) {}
+int VitaSession::audio_renderer_init(int audioConfiguration, const POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* audioContext, int arFlags) {
+    return controller::audio_init(audioConfiguration, opusConfig, audioContext, arFlags);
+}
+
+void VitaSession::audio_renderer_start() {
+    controller::audio_start();
+}
+
+void VitaSession::audio_renderer_stop() {
+    controller::audio_stop();
+}
+
+void VitaSession::audio_renderer_cleanup() {
+    controller::audio_cleanup();
+}
+
+void VitaSession::audio_renderer_decode_and_play_sample(char* data, int length) {
+    controller::audio_decode_and_play_sample(data, length);
+}

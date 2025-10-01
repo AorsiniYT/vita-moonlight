@@ -62,10 +62,31 @@
         "add_host_online": "Online (external)",
         "moonlight/settings/language": "Language",
         "hosts_list_title": "Saved PCs",
-        "hosts_list_empty": "No saved PCs",
+    "hosts_list_empty": "No saved PCs",
+    "rear_touch_detail": "Configure rear touch zones and actions",
         "add_host_connect_question_dialog": "Connect to $(name) at $(ip)?",
         "add_host_connect": "Connect",
         "add_host_cancel": "Cancel"
+    },
+    "rear_touch": {
+        "title": "Rear touch",
+        "toggle": "Rear touch",
+        "calibrate": "Calibrate rear touch",
+        "calibration_zone_title": "Active zone",
+        "calibration_zone_detail": "Adjust the margins with calibration",
+        "actions_header": "Corner actions",
+        "action_nw": "North-west corner action",
+        "action_ne": "North-east corner action",
+        "action_sw": "South-west corner action",
+        "action_se": "South-east corner action",
+        "notify_enabled": "Rear touch enabled",
+        "notify_disabled": "Rear touch disabled",
+        "notify_action_saved": "Rear touch action saved",
+        "notify_calibration_saved": "Rear touch calibration saved",
+        "detail_top": "Top",
+        "detail_bottom": "Bottom",
+        "detail_left": "Left",
+        "detail_right": "Right"
     },
     "hints": {
         "cancel": "Cancel"

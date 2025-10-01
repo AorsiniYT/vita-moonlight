@@ -14,8 +14,9 @@
     limitations under the License.
 */
 #include "settings.hpp"
-#include "ConfigManager.hpp"
 #include "tab/settings_tab.hpp"
+#include "ConfigManager.hpp"
+#include <borealis.hpp>
 #include <string>
 
 using namespace brls;

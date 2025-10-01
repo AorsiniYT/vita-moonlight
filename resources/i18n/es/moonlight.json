@@ -61,11 +61,31 @@
         "add_host_lan": "LAN (local)",
         "add_host_online": "Online (externo)",
         "hosts_list_title": "PCs guardados",
-        "hosts_list_empty": "No hay PCs guardados"
-        ,
+    "hosts_list_empty": "No hay PCs guardados",
+    "rear_touch_detail": "Configura el panel trasero y sus acciones",
         "add_host_connect_question_dialog": "¿Conectar con $(name) en $(ip)?",
         "add_host_connect": "Conectar",
         "add_host_cancel": "Cancelar"
+    },
+    "rear_touch": {
+        "title": "Touch trasero",
+        "toggle": "Touch trasero",
+        "calibrate": "Calibrar touch trasero",
+        "calibration_zone_title": "Zona activa",
+        "calibration_zone_detail": "Ajusta los márgenes con la calibración",
+        "actions_header": "Acciones por esquina",
+        "action_nw": "Acción esquina NW",
+        "action_ne": "Acción esquina NE",
+        "action_sw": "Acción esquina SW",
+        "action_se": "Acción esquina SE",
+        "notify_enabled": "Touch trasero activado",
+        "notify_disabled": "Touch trasero desactivado",
+        "notify_action_saved": "Acción del touch trasero guardada",
+        "notify_calibration_saved": "Calibración del touch trasero guardada",
+        "detail_top": "Sup",
+        "detail_bottom": "Inf",
+        "detail_left": "Izq",
+        "detail_right": "Der"
     },
     "hints": {
         "cancel": "Cancelar"
