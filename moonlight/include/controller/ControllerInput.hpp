@@ -2,12 +2,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <functional>
 #include <psp2/ctrl.h>
-#include <psp2/touch.h>
-#include "Limelight.h"
+#include "controller/TouchInput.hpp"
+#include "controller/RearTouchInput.hpp"
+#include "controller/GamepadState.hpp"
 
-// Estructura para estado de gamepad
-typedef struct {
+struct VitaMouseState {
     uint16_t buttonFlags;
     unsigned char leftTrigger;
     unsigned char rightTrigger;
@@ -15,15 +16,7 @@ typedef struct {
     short leftStickY;
     short rightStickX;
     short rightStickY;
-} GamepadState;
-
-// Estructura para estado de mouse
-typedef struct {
-    float scroll_y;
-    bool l_pressed;
-    bool m_pressed;
-    bool r_pressed;
-} VitaMouseState;
+};
 
 // Clase para manejar input en PS Vita
 class ControllerInputManager {
@@ -37,14 +30,17 @@ public:
     // Resetear estados de input (al desconectar)
     void dropInput();
 
+    // Set touchscreen mode
+    void setTouchscreenMode(int mode) { touchscreenMode = mode; }
+
     // Enviar estado de gamepad
     void sendGamepadState(const GamepadState& state);
 
-    // Enviar eventos de táctil
-    void handleTouch();
+    // Callback para hotkey de pausa (START+L1+R1)
+    void setPauseCallback(const std::function<void()>& cb);
 
-    // Enviar eventos de mouse (emulado por táctil si es necesario)
-    void handleMouse();
+    void applyRearTouchSettings(const RearTouchSettings& settings);
+    void setRearTouchEnabled(bool enabled);
 
 private:
     bool inputEnabled;
@@ -53,13 +49,48 @@ private:
     // Estados anteriores para detectar cambios
     GamepadState lastGamepadState;
     VitaMouseState lastMouseState;
+    SceCtrlData lastCtrlData;
 
-    // Touch states
-    SceTouchData touchData;
-    SceTouchData lastTouchData;
+    int touchscreenMode;
 
-    // Mapeo de botones Vita a flags Limelight
-    uint16_t mapButtons(uint32_t vitaButtons);
+    TouchInputManager* touchManager;
+    RearTouchInputManager* rearTouchManager;
+
+    // Hotkey state
+    std::function<void()> pauseCallback;
+
+    struct ButtonMapping {
+        uint32_t btnDpadUp;
+        uint32_t btnDpadDown;
+        uint32_t btnDpadLeft;
+        uint32_t btnDpadRight;
+        uint32_t btnSouth;
+        uint32_t btnEast;
+        uint32_t btnNorth;
+        uint32_t btnWest;
+        uint32_t btnSelect;
+        uint32_t btnStart;
+        uint32_t btnL1;
+        uint32_t btnR1;
+        uint32_t btnL2;
+        uint32_t btnR2;
+        uint32_t btnL3;
+        uint32_t btnR3;
+        uint32_t absLX;
+        uint32_t absLY;
+        uint32_t absRX;
+        uint32_t absRY;
+    };
+
+    ButtonMapping mapping;
+    bool isPstvModel;
+
+    void initMapping();
+    GamepadState buildGamepadState(const SceCtrlData& ctrlData) const;
+    bool isPressed(uint32_t binding, const SceCtrlData& pad) const;
+    unsigned char readTrigger(uint32_t binding, const SceCtrlData& pad) const;
+    short readAxis(uint32_t binding, const SceCtrlData& pad) const;
+    short applyDeadzone(short value) const;
 };
 
 extern ControllerInputManager* g_controllerInput;

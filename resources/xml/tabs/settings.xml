@@ -93,6 +93,10 @@
                 
             <!-- Opciones de Control -->
             <brls:Header title="Controles"/>
+
+            <brls:DetailCell
+                id="rearTouchSettingsEntry"
+                title="@i18n/moonlight/rear_touch/title"/>
             
             <brls:BooleanCell
                 id="motionControlsToggle"
@@ -102,14 +106,10 @@
                 id="doubleTapSprintToggle"
                 title="Doble Tap para Correr"/>
                 
-            <brls:BooleanCell
-                id="absoluteMouseToggle"
-                title="Mouse Absoluto"/>
-                
-            <brls:BooleanCell
-                id="touchscreenModeToggle"
+            <brls:SelectorCell
+                id="touchscreenModeSelector"
                 title="Modo Touchscreen"/>
-                
+
             <!-- Aceleración del Mouse -->
             <brls:SliderCell
                 id="mouseAccelerationSlider"

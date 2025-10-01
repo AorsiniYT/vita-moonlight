@@ -17,6 +17,8 @@
 */
 
 #include "tab/settings_tab.hpp"
+#include "ConfigManager.hpp"
+#include "tab/rear_touch_settings_tab.hpp"
 #include <cstdlib>
 #include <string>
 #ifndef _WIN32
@@ -376,22 +378,26 @@ SettingsTab::SettingsTab()
         config.save();
     });
 
-    absoluteMouseToggle->init("Mouse Absoluto", videoSettings.absolute_mouse, [this](bool value) {
-        ConfigManager config;
-        config.load();
-        VideoSettings settings = config.getVideoSettings();
-        settings.absolute_mouse = value;
-        config.setVideoSettings(settings);
-        config.save();
-    });
+    if (rearTouchSettingsEntry)
+    {
+        rearTouchSettingsEntry->setDetailText(brls::getStr("moonlight/settings/rear_touch_detail"));
+        rearTouchSettingsEntry->registerClickAction([](brls::View*) {
+            auto* rearTouchView = new RearTouchSettingsTab();
+            brls::Application::pushActivity(new brls::Activity(rearTouchView));
+            return true;
+        });
+    }
 
-    touchscreenModeToggle->init("Modo Touchscreen", videoSettings.touchscreen_mode, [this](bool value) {
+    // Configurar selector de modo touchscreen
+    std::vector<std::string> touchscreenModes = {"Desactivado", "DS4 Touchpad", "Mouse Absoluto", "Tableta Multitouch"};
+    touchscreenModeSelector->init("Modo Touchscreen", touchscreenModes, videoSettings.touchscreen_mode, [this](int selected) {
         ConfigManager config;
         config.load();
         VideoSettings settings = config.getVideoSettings();
-        settings.touchscreen_mode = value;
+        settings.touchscreen_mode = selected;
         config.setVideoSettings(settings);
         config.save();
+        brls::Application::notify("Modo touchscreen guardado");
     });
 
     // Configurar slider de aceleración del mouse

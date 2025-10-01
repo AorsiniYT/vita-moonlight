@@ -19,6 +19,7 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 // Definición fuera de clase para static std::string ConfigManager::getConfigPath();
 #ifdef _WIN32
@@ -169,6 +170,17 @@ void ConfigManager::setStreamConfig(const StreamConfiguration& config) {
 
 VideoSettings ConfigManager::getVideoSettings() const {
     VideoSettings settings;
+    auto readUint = [this](const std::string& section, const std::string& key, std::uint32_t def) -> std::uint32_t {
+        std::string value = get(section, key, "");
+        if (value.empty()) {
+            return def;
+        }
+        try {
+            return static_cast<std::uint32_t>(std::stoul(value, nullptr, 0));
+        } catch (...) {
+            return def;
+        }
+    };
     settings.sops = get("video", "sops", "true") == "true";
     settings.localaudio = get("video", "localaudio", "false") == "true";
     settings.fullscreen = get("video", "fullscreen", "true") == "true";
@@ -181,7 +193,14 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.enable_motion_controls = get("video", "enable_motion_controls", "false") == "true";
     settings.enable_double_tap_sprint = get("video", "enable_double_tap_sprint", "false") == "true";
     settings.absolute_mouse = get("video", "absolute_mouse", "false") == "true";
-    settings.touchscreen_mode = get("video", "touchscreen_mode", "false") == "true";
+    std::string touchscreenStr = get("video", "touchscreen_mode", "0");
+    if (touchscreenStr == "true") {
+        settings.touchscreen_mode = 2; // Mouse Absolute
+    } else if (touchscreenStr == "false") {
+        settings.touchscreen_mode = 0; // Off
+    } else {
+        settings.touchscreen_mode = std::stoi(touchscreenStr);
+    }
     settings.enable_network_optimizations = get("video", "enable_network_optimizations", "true") == "true";
     settings.double_tap_sprint_step_time = std::stoi(get("video", "double_tap_sprint_step_time", "200"));
     settings.motion_controls_scalar_x = std::stof(get("video", "motion_controls_scalar_x", "1.2"));
@@ -190,6 +209,52 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.keyboard_layout = std::stoi(get("video", "keyboard_layout", "0"));
     settings.render_mode = std::stoi(get("video", "render_mode", "0"));
     settings.pixel_format_mode = std::stoi(get("video", "pixel_format_mode", "0"));
+    auto readMargin = [this](const std::string& key, int fallback) -> int {
+        std::string value = get("rear_touch", key, "");
+        if (value.empty())
+            return fallback;
+        try {
+            return std::stoi(value);
+        } catch (...) {
+            return fallback;
+        }
+    };
+
+    settings.rear_touch.enabled = get("rear_touch", "enabled", "true") == "true";
+    settings.rear_touch.top = readMargin("top", settings.rear_touch.top);
+    settings.rear_touch.right = readMargin("right", settings.rear_touch.right);
+    settings.rear_touch.bottom = readMargin("bottom", settings.rear_touch.bottom);
+    settings.rear_touch.left = readMargin("left", settings.rear_touch.left);
+
+    settings.rear_touch.top = std::max(0, settings.rear_touch.top);
+    settings.rear_touch.right = std::max(0, settings.rear_touch.right);
+    settings.rear_touch.bottom = std::max(0, settings.rear_touch.bottom);
+    settings.rear_touch.left = std::max(0, settings.rear_touch.left);
+
+    int rearTouchSchema = 1;
+    try {
+        rearTouchSchema = std::stoi(get("rear_touch", "schema_version", "1"));
+    } catch (...) {
+        rearTouchSchema = 1;
+    }
+
+    constexpr int OLD_MARGIN_DEFAULT = 80;
+    if (rearTouchSchema < 2) {
+        if (settings.rear_touch.top == OLD_MARGIN_DEFAULT &&
+            settings.rear_touch.right == OLD_MARGIN_DEFAULT &&
+            settings.rear_touch.bottom == OLD_MARGIN_DEFAULT &&
+            settings.rear_touch.left == OLD_MARGIN_DEFAULT) {
+            settings.rear_touch.top = 0;
+            settings.rear_touch.right = 0;
+            settings.rear_touch.bottom = 0;
+            settings.rear_touch.left = 0;
+        }
+        const_cast<ConfigManager*>(this)->set("rear_touch", "schema_version", "2");
+    }
+    settings.rear_touch.actionNorthWest = readUint("rear_touch", "action_nw", settings.rear_touch.actionNorthWest);
+    settings.rear_touch.actionNorthEast = readUint("rear_touch", "action_ne", settings.rear_touch.actionNorthEast);
+    settings.rear_touch.actionSouthWest = readUint("rear_touch", "action_sw", settings.rear_touch.actionSouthWest);
+    settings.rear_touch.actionSouthEast = readUint("rear_touch", "action_se", settings.rear_touch.actionSouthEast);
     return settings;
 }
 
@@ -206,7 +271,7 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "enable_motion_controls", settings.enable_motion_controls ? "true" : "false");
     set("video", "enable_double_tap_sprint", settings.enable_double_tap_sprint ? "true" : "false");
     set("video", "absolute_mouse", settings.absolute_mouse ? "true" : "false");
-    set("video", "touchscreen_mode", settings.touchscreen_mode ? "true" : "false");
+    set("video", "touchscreen_mode", std::to_string(settings.touchscreen_mode));
     set("video", "enable_network_optimizations", settings.enable_network_optimizations ? "true" : "false");
     set("video", "double_tap_sprint_step_time", std::to_string(settings.double_tap_sprint_step_time));
     set("video", "motion_controls_scalar_x", std::to_string(settings.motion_controls_scalar_x));
@@ -215,4 +280,14 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "keyboard_layout", std::to_string(settings.keyboard_layout));
     set("video", "render_mode", std::to_string(settings.render_mode));
     set("video", "pixel_format_mode", std::to_string(settings.pixel_format_mode));
+    set("rear_touch", "enabled", settings.rear_touch.enabled ? "true" : "false");
+    set("rear_touch", "top", std::to_string(settings.rear_touch.top));
+    set("rear_touch", "right", std::to_string(settings.rear_touch.right));
+    set("rear_touch", "bottom", std::to_string(settings.rear_touch.bottom));
+    set("rear_touch", "left", std::to_string(settings.rear_touch.left));
+    set("rear_touch", "action_nw", std::to_string(settings.rear_touch.actionNorthWest));
+    set("rear_touch", "action_ne", std::to_string(settings.rear_touch.actionNorthEast));
+    set("rear_touch", "action_sw", std::to_string(settings.rear_touch.actionSouthWest));
+    set("rear_touch", "action_se", std::to_string(settings.rear_touch.actionSouthEast));
+    set("rear_touch", "schema_version", "2");
 }

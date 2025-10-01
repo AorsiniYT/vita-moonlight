@@ -14,8 +14,12 @@
     limitations under the License.
 */
 #pragma once
+#include <cstdint>
 #include <string>
 #include <unordered_map>
+
+#include "controller/input_types.hpp"
+#include "controller/special_inputs.hpp"
 
 // Estructura de configuración de streaming (similar al legacy)
 struct StreamConfiguration {
@@ -42,6 +46,18 @@ struct StreamConfiguration {
     }
 };
 
+struct RearTouchSettings {
+    bool enabled = true;
+    int top = 0;
+    int right = 0;
+    int bottom = 0;
+    int left = 0;
+    std::uint32_t actionNorthWest = controller::INPUT_TYPE_ANALOG | controller::ANALOG_LEFT_TRIGGER;
+    std::uint32_t actionNorthEast = controller::INPUT_TYPE_ANALOG | controller::ANALOG_RIGHT_TRIGGER;
+    std::uint32_t actionSouthWest = controller::INPUT_TYPE_GAMEPAD | controller::GAMEPAD_FLAG_LS;
+    std::uint32_t actionSouthEast = controller::INPUT_TYPE_GAMEPAD | controller::GAMEPAD_FLAG_RS;
+};
+
 struct VideoSettings {
     bool sops = true; // Stream Optimization
     bool localaudio = false;
@@ -55,8 +71,8 @@ struct VideoSettings {
     bool enable_motion_controls = false;
     bool enable_double_tap_sprint = false;
     bool absolute_mouse = false;
-    bool touchscreen_mode = false;
     bool enable_network_optimizations = true; // Optimizaciones de red (IDR smart, pacing, etc.)
+    int touchscreen_mode = 0; // 0=Off, 1=DS4 Touchpad, 2=Mouse Absoluto, 3=Tableta Multitouch
     int double_tap_sprint_step_time = 200;
     float motion_controls_scalar_x = 1.2f;
     float motion_controls_scalar_y = 0.8f;
@@ -66,6 +82,8 @@ struct VideoSettings {
     // Nueva opción: modo de renderizado
     int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
     int pixel_format_mode = 0; // 0=RGBA directo, 1=YUV420 (pruebas)
+
+    RearTouchSettings rear_touch;
 };
 
 class ConfigManager {
