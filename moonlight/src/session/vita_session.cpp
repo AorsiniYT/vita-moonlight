@@ -3,8 +3,8 @@
 #include <borealis/core/logger.hpp>
 #include <borealis/core/application.hpp>
 #include "video/VitaVideoRenderer.hpp"
-#include "video/legacy/modules/vita_globals.h"
-#include "video/legacy/vita.h" // vitavideo_get_stats, decoder callbacks
+#include "video/legacy/modules/vita_globals.hpp"
+#include "video/legacy/vita.hpp" // vitavideo_get_stats, decoder callbacks
 #include "GameStreamClient.hpp"
 #include "controller/audio.hpp"
 #include <cstring>

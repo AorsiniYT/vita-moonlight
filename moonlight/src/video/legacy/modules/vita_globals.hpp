@@ -56,7 +56,7 @@ extern gs::SpsContext* g_sps_ctx; // contexto SPS (puntero crudo)
 #endif
 
 // Local headers
-#include "../vita.h"
+#include "../vita.hpp"
 
 // Defines
 #define VITA_DEBUG_LOG(...) vita_debug_log(__VA_ARGS__)

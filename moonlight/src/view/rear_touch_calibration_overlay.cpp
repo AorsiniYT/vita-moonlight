@@ -9,13 +9,23 @@
 #include <string>
 #include <utility>
 
+#include <fmt/format.h>
+
 namespace {
 constexpr float PANEL_WIDTH = 960.0f;
 constexpr float PANEL_HEIGHT = 544.0f;
 constexpr float MAX_TOUCH_X = 1919.0f;
 constexpr float MAX_TOUCH_Y = 1087.0f;
 
-constexpr std::array<const char*, 4> EDGE_LABELS = {"Superior", "Derecha", "Inferior", "Izquierda"};
+std::string getEdgeLabel(int index) {
+    switch (index) {
+        case 0: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/0");
+        case 1: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/1");
+        case 2: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/2");
+        case 3: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/3");
+        default: return "";
+    }
+}
 
 inline float clamp01(float value) {
     return std::max(0.0f, std::min(1.0f, value));
@@ -89,7 +99,7 @@ void RearTouchCalibrationCanvas::resetToDefaults() {
 }
 
 std::string RearTouchCalibrationCanvas::currentEdgeLabel() const {
-    return EDGE_LABELS[selectedEdge];
+    return getEdgeLabel(selectedEdge);
 }
 
 std::uint32_t RearTouchCalibrationCanvas::getEdgeAssignment(int edgeIndex) const {
@@ -221,7 +231,7 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
     nvgFillColor(vg, nvgRGBA(15, 18, 26, 240));
     nvgFill(vg);
 
-    const float topMargin = 70.0f;
+    const float topMargin = 40.0f;
     float panelWidth = width * 0.7f;
     float panelHeight = panelWidth * (PANEL_HEIGHT / PANEL_WIDTH);
     if (panelHeight > height * 0.6f) {
@@ -238,37 +248,45 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
     drawPanel(vg, panelX, panelY, panelWidth, panelHeight, backData);
 
     nvgFontFaceId(vg, 0);
-    nvgFontSize(vg, 22.0f);
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 230));
-    std::string title = "Calibrar Touch Trasero";
-    nvgText(vg, x + 30.0f, y + 36.0f, title.c_str(), nullptr);
-
     nvgFontSize(vg, 18.0f);
-    std::string status = current.enabled ? "Estado: Activado" : "Estado: Desactivado";
+    nvgFillColor(vg, nvgRGBA(255, 255, 255, 230));
+    std::string status = current.enabled ? brls::getStr("moonlight/rear_touch/calibration/status_enabled") : brls::getStr("moonlight/rear_touch/calibration/status_disabled");
     nvgText(vg, x + 30.0f, panelY - 24.0f, status.c_str(), nullptr);
 
-    std::string selected = "Lado seleccionado: " + currentEdgeLabel();
+    std::string selected = brls::getStr("moonlight/rear_touch/calibration/selected_edge") + currentEdgeLabel();
     nvgText(vg, x + 30.0f, panelY + panelHeight + 30.0f, selected.c_str(), nullptr);
 
-    std::string assignment = "Acción actual: " + currentAssignmentLabel();
+    std::string assignment = brls::getStr("moonlight/rear_touch/calibration/current_action") + currentAssignmentLabel();
     nvgText(vg, x + 30.0f, panelY + panelHeight + 55.0f, assignment.c_str(), nullptr);
 
-    std::string values = "Margenes (px) - Sup:" + std::to_string(current.top) +
-                         " Der:" + std::to_string(current.right) +
-                         " Inf:" + std::to_string(current.bottom) +
-                         " Izq:" + std::to_string(current.left);
+    // Construir la línea de márgenes manualmente para evitar problemas de formato
+    std::string marginsLabel = brls::getStr("moonlight/rear_touch/calibration/margins");
+    std::string topLabel = brls::getStr("moonlight/rear_touch/detail_top");
+    std::string rightLabel = brls::getStr("moonlight/rear_touch/detail_right");
+    std::string bottomLabel = brls::getStr("moonlight/rear_touch/detail_bottom");
+    std::string leftLabel = brls::getStr("moonlight/rear_touch/detail_left");
+    std::string values = marginsLabel + " - " + topLabel + ": " + std::to_string(current.top) +
+                         " | " + rightLabel + ": " + std::to_string(current.right) +
+                         " | " + bottomLabel + ": " + std::to_string(current.bottom) +
+                         " | " + leftLabel + ": " + std::to_string(current.left);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 80.0f, values.c_str(), nullptr);
 
-    std::string mappingTop = "Asignaciones - NW:" + controller::getDisplayNameForCode(current.actionNorthWest) +
-                             " | NE:" + controller::getDisplayNameForCode(current.actionNorthEast);
-    std::string mappingBottom = "SW:" + controller::getDisplayNameForCode(current.actionSouthWest) +
-                                " | SE:" + controller::getDisplayNameForCode(current.actionSouthEast);
+    // Construir asignaciones manualmente
+    std::string assignPrefix = brls::getStr("moonlight/rear_touch/calibration/assignments_prefix");
+    std::string nwLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/nw");
+    std::string neLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/ne");
+    std::string swLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/sw");
+    std::string seLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/se");
+    std::string mappingTop = assignPrefix + " - " + nwLabel + ": " + controller::getDisplayNameForCode(current.actionNorthWest) +
+                             " | " + neLabel + ": " + controller::getDisplayNameForCode(current.actionNorthEast);
+    std::string mappingBottom = swLabel + ": " + controller::getDisplayNameForCode(current.actionSouthWest) +
+                                " | " + seLabel + ": " + controller::getDisplayNameForCode(current.actionSouthEast);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 105.0f, mappingTop.c_str(), nullptr);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 130.0f, mappingBottom.c_str(), nullptr);
 
     nvgFontSize(vg, 16.0f);
     nvgFillColor(vg, nvgRGBA(200, 200, 200, 220));
-    std::string instructions = "\u25b2/\u25bc cambiar lado | \u25c0/\u25b6 ajustar | L/R cambiar acción | \u25b3 activar/desactivar | \u25b2 Y restablecer";
+    std::string instructions = brls::getStr("moonlight/rear_touch/calibration/instructions");
     nvgText(vg, x + 30.0f, panelY + panelHeight + 165.0f, instructions.c_str(), nullptr);
 
     nvgRestore(vg);
@@ -288,10 +306,11 @@ RearTouchCalibrationOverlay::RearTouchCalibrationOverlay(const RearTouchSettings
         sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
     }
 #endif
-    this->setTitle("Ajuste Touch Trasero");
+    this->setTitle(brls::getStr("moonlight/rear_touch/calibration/overlay_title"));
     auto* root = new brls::Box(brls::Axis::COLUMN);
     root->setGrow(1.0f);
     canvas = new RearTouchCalibrationCanvas(initialSettings);
+    canvas->getAppletFrameItem()->title = brls::getStr("moonlight/rear_touch/calibration/title");
     canvas->setGrow(1.0f);
     root->addView(canvas);
     this->setContentView(root);
@@ -310,46 +329,46 @@ RearTouchCalibrationOverlay::~RearTouchCalibrationOverlay() {
 }
 
 void RearTouchCalibrationOverlay::configureActions() {
-    this->registerAction("Guardar", brls::BUTTON_A, [this](brls::View*) {
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/save"), brls::BUTTON_A, [this](brls::View*) {
         confirm();
         return true;
     });
-    this->registerAction("Cancelar", brls::BUTTON_B, [this](brls::View*) {
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/cancel"), brls::BUTTON_B, [this](brls::View*) {
         cancel();
         return true;
     });
-    this->registerAction("Lado siguiente", brls::BUTTON_DOWN, [this](brls::View*) {
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_edge"), brls::BUTTON_DOWN, [this](brls::View*) {
         selectNext();
         return true;
-    }, false, true);
-    this->registerAction("Lado anterior", brls::BUTTON_UP, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_edge"), brls::BUTTON_UP, [this](brls::View*) {
         selectPrevious();
         return true;
-    }, false, true);
-    this->registerAction("Aumentar margen", brls::BUTTON_RIGHT, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/increase_margin"), brls::BUTTON_RIGHT, [this](brls::View*) {
         increase();
         return true;
-    }, false, true);
-    this->registerAction("Reducir margen", brls::BUTTON_LEFT, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/decrease_margin"), brls::BUTTON_LEFT, [this](brls::View*) {
         decrease();
         return true;
-    }, false, true);
-    this->registerAction("Acción siguiente", brls::BUTTON_RB, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_action"), brls::BUTTON_RB, [this](brls::View*) {
         cycleAssignmentForward();
         return true;
-    }, false, true);
-    this->registerAction("Acción anterior", brls::BUTTON_LB, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_action"), brls::BUTTON_LB, [this](brls::View*) {
         cycleAssignmentBackward();
         return true;
-    }, false, true);
-    this->registerAction("Activar/Desactivar", brls::BUTTON_X, [this](brls::View*) {
+    }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/toggle_enabled"), brls::BUTTON_X, [this](brls::View*) {
         toggleEnabled();
         return true;
-    });
-    this->registerAction("Restablecer", brls::BUTTON_Y, [this](brls::View*) {
+    }, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/reset"), brls::BUTTON_Y, [this](brls::View*) {
         resetDefaults();
         return true;
-    });
+    }, true);
 }
 
 void RearTouchCalibrationOverlay::confirm() {

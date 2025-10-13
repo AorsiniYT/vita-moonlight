@@ -1,6 +1,6 @@
 // VitaVideoRenderer.cpp - Versión mínima sin zero-copy ni VideoPlane
 #include "VitaVideoRenderer.hpp"
-#include "legacy/modules/vita_globals.h"
+#include "legacy/modules/vita_globals.hpp"
 #include <vita2d.h>
 #include <borealis/extern/nanovg/nanovg.h>
 #include <borealis/extern/nanovg/nanovg_gxm.h>

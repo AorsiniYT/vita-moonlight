@@ -1,4 +1,4 @@
-#include "vita_globals.h"
+#include "vita_globals.hpp"
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>

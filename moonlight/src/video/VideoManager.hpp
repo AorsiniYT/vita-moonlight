@@ -4,8 +4,8 @@
 #include <memory>
 #include "Limelight.h"
 #include "ConfigManager.hpp"
-#include "legacy/vita.h"
-#include "ffmpeg/ffmpeg.h"
+#include "legacy/vita.hpp"
+#include "ffmpeg/ffmpeg.hpp"
 
 // VideoManager - Gestiona la selección y configuración del sistema de video
 class VideoManager {

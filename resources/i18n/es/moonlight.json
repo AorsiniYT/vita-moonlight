@@ -61,11 +61,105 @@
         "add_host_lan": "LAN (local)",
         "add_host_online": "Online (externo)",
         "hosts_list_title": "PCs guardados",
-    "hosts_list_empty": "No hay PCs guardados",
-    "rear_touch_detail": "Configura el panel trasero y sus acciones",
+        "hosts_list_empty": "No hay PCs guardados",
+        "rear_touch_detail": "Configura el panel trasero y sus acciones",
         "add_host_connect_question_dialog": "¿Conectar con $(name) en $(ip)?",
         "add_host_connect": "Conectar",
         "add_host_cancel": "Cancelar"
+    },
+    "settings_tab": {
+        "render_mode": {
+            "title": "Modo de renderizado",
+            "legacy_option": "Legacy (SceVideodec)",
+            "modern_option": "Moderno (FFmpeg)",
+            "legacy_name": "Legacy",
+            "modern_name": "Moderno",
+            "unknown_name": "Desconocido",
+            "notify": "Modo de renderizado: {}"
+        },
+        "pixel_format": {
+            "title": "Formato de píxel",
+            "rgba": "RGBA directo",
+            "yuv": "YUV420 (experimental)",
+            "notify": "Formato de píxel: {}"
+        },
+        "resolution": {
+            "title": "Resolución",
+            "options": {
+                "0": "960x540 (16:9 QHD)",
+                "1": "960x544 (Vita nativa)",
+                "2": "1024x576 (16:9)",
+                "3": "1152x648 (16:9)",
+                "4": "1280x540 (21:9)",
+                "5": "1280x720 (720p HD)",
+                "6": "1366x768 (WXGA)",
+                "7": "1600x900 (900p HD+)",
+                "8": "1920x1080 (FHD)"
+            },
+            "saved": "Resolución guardada"
+        },
+        "fps": {
+            "title": "FPS",
+            "options": {
+                "0": "24 FPS (Cine)",
+                "1": "30 FPS (Estándar)",
+                "2": "40 FPS",
+                "3": "50 FPS (PAL)",
+                "4": "60 FPS (NTSC)"
+            },
+            "saved": "FPS guardado"
+        },
+        "bitrate": {
+            "title": "Bitrate (Kbps)",
+            "options": {
+                "0": "Auto (Recomendado)",
+                "1": "2000 Kbps (Bajo)",
+                "2": "5000 Kbps (Estándar)",
+                "3": "8000 Kbps (HD)",
+                "4": "10000 Kbps (HD+)",
+                "5": "15000 Kbps (Full HD)",
+                "6": "20000 Kbps (Full HD+)",
+                "7": "30000 Kbps (Ultra HD)",
+                "8": "50000 Kbps (Máximo)"
+            },
+            "saved": "Bitrate guardado"
+        },
+        "sops_title": "Optimización de stream",
+        "network_opt_title": "Optimizaciones de red",
+        "network_opt_enabled": "Optimizaciones de red activadas",
+        "network_opt_disabled": "Optimizaciones de red desactivadas",
+        "local_audio_title": "Audio local",
+        "fullscreen_title": "Pantalla completa",
+        "frame_pacer_title": "Frame pacer",
+        "center_region_title": "Solo región central",
+        "show_fps_title": "Mostrar FPS",
+        "save_debug_log_title": "Guardar log de depuración",
+        "ref_frame_title": "Invalidación de frame de referencia",
+        "vblank_wait_title": "Esperar VBlank Vita",
+        "motion_controls_title": "Controles de movimiento",
+        "double_tap_sprint_title": "Doble tap para correr",
+        "touchscreen_mode": {
+            "title": "Modo touchscreen",
+            "options": {
+                "0": "Desactivado",
+                "1": "Touchpad DS4",
+                "2": "Mouse absoluto",
+                "3": "Tableta multitouch"
+            },
+            "saved": "Modo touchscreen guardado"
+        },
+        "mouse_accel": {
+            "title": "Aceleración del mouse"
+        },
+        "keyboard_layout": {
+            "title": "Distribución del teclado",
+            "saved": "Distribución de teclado guardada"
+        },
+        "languages": {
+            "es": "Español",
+            "en": "English"
+        },
+        "language_changed": "Idioma cambiado correctamente"
     },
     "rear_touch": {
         "title": "Touch trasero",
@@ -85,7 +179,40 @@
         "detail_top": "Sup",
         "detail_bottom": "Inf",
         "detail_left": "Izq",
-        "detail_right": "Der"
+        "detail_right": "Der",
+        "calibration": {
+            "title": "Calibrar Touch Trasero",
+            "overlay_title": "Ajuste Touch Trasero",
+            "status_enabled": "Estado: Activado",
+            "status_disabled": "Estado: Desactivado",
+            "selected_edge": "Lado seleccionado: ",
+            "current_action": "Acción actual: ",
+            "margins": "Márgenes (px)",
+            "margins_format": "{0} - {1}: {2} | {3}: {4} | {5}: {6} | {7}: {8}",
+            "assignments_prefix": "Asignaciones",
+            "assignments_top_format": "{0} - {1}: {2} | {3}: {4}",
+            "assignments_bottom_format": "{0}: {1} | {2}: {3}",
+            "instructions": "▲/▼ cambia lado • ◀/▶ ajusta margen • L/R cambia acción • △ activa/desactiva • □ restablece",
+            "zone_labels": {
+                "nw": "NO",
+                "ne": "NE",
+                "sw": "SO",
+                "se": "SE"
+            },
+            "edge_labels": ["Superior", "Derecha", "Inferior", "Izquierda"],
+            "actions": {
+                "save": "Guardar",
+                "cancel": "Cancelar",
+                "next_edge": "Lado siguiente",
+                "prev_edge": "Lado anterior",
+                "increase_margin": "Aumentar margen",
+                "decrease_margin": "Reducir margen",
+                "next_action": "Acción siguiente",
+                "prev_action": "Acción anterior",
+                "toggle_enabled": "Activar/Desactivar",
+                "reset": "Restablecer"
+            }
+        }
     },
     "hints": {
         "cancel": "Cancelar"

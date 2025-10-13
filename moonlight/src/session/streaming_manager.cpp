@@ -115,6 +115,13 @@ StreamingManager::StreamingManager() {
     if (_videoManager->isInitialized()) {
         _video_callbacks = _videoManager->getDecoderCallbacks();
         brls::Logger::info("[StreamingManager] Usando callbacks del VideoManager");
+        // Debug: log pointer addresses assigned to callbacks so they show in device dumps
+        brls::Logger::info("[StreamingManager] Video callbacks ptrs - setup: {:#x}, start: {:#x}, stop: {:#x}, cleanup: {:#x}, submit: {:#x}",
+                          reinterpret_cast<uintptr_t>(_video_callbacks.setup),
+                          reinterpret_cast<uintptr_t>(_video_callbacks.start),
+                          reinterpret_cast<uintptr_t>(_video_callbacks.stop),
+                          reinterpret_cast<uintptr_t>(_video_callbacks.cleanup),
+                          reinterpret_cast<uintptr_t>(_video_callbacks.submitDecodeUnit));
         brls::Logger::info("[StreamingManager] Callbacks configurados - setup: {}, start: {}, stop: {}, cleanup: {}, submit: {}",
                           (_video_callbacks.setup != nullptr ? "OK" : "NULL"),
                           (_video_callbacks.start != nullptr ? "OK" : "NULL"),

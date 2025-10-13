@@ -1,6 +1,6 @@
 #pragma once
 #include <borealis.hpp>
-#include "video/legacy/vita.h"
+#include "video/legacy/vita.hpp"
 
 // Vista simple de overlay para mostrar estadísticas de video en Vita.
 // En el futuro se puede expandir con controles (pausa, bitrate, etc.).

@@ -6,7 +6,7 @@
 #endif
 
 // Incluir para acceder a g_debug_log_enabled
-#include "video/legacy/modules/vita_globals.h"
+#include "video/legacy/modules/vita_globals.hpp"
 
 // Implementación para redirigir logs de libgamestream en Vita
 extern "C" void vita_debug_log(const char* fmt, ...) {

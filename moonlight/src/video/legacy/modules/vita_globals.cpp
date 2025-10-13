@@ -1,4 +1,4 @@
-#include "vita_globals.h"
+#include "vita_globals.hpp"
 // Zero-copy eliminado: métricas mínimas
 
 #include "libgamestream/sps.h"
@@ -91,22 +91,57 @@ VideoStatusInfo g_video_status_info = {VITA_VIDEO_NOT_INIT};
 
 // Funciones
 void vitavideo_update_scaling_settings(int width, int height) {
-    // Mantener la textura con el tamaño ORIGINAL del stream para evitar overflow en decoder.
-    image_scaling.texture_width = width;
-    image_scaling.texture_height = height;
+    // Port del comportamiento legacy: calcular tamaño de textura / región recortada
+    // y dimensiones de presentación. Soporta la opción "center_region_only".
+    image_scaling.texture_width = SCREEN_WIDTH;
+    image_scaling.texture_height = SCREEN_HEIGHT;
+    image_scaling.origin_x = 0;
+    image_scaling.origin_y = 0;
+    image_scaling.region_x1 = 0.0f;
+    image_scaling.region_y1 = 0.0f;
+    image_scaling.region_x2 = (float)image_scaling.texture_width;
+    image_scaling.region_y2 = (float)image_scaling.texture_height;
 
-    // Calcular dimensiones de presentación (letterbox o fullscreen) independientemente.
+    double scaled_width = (double) SCREEN_HEIGHT * width / height;
+    double scaled_height = (double) SCREEN_WIDTH * height / width;
+
+    // Igual ratio: no cambios
+    if (SCREEN_WIDTH * height == SCREEN_HEIGHT * width) {
+        // nothing to do
+    } else if (SCREEN_WIDTH * height > SCREEN_HEIGHT * width) {
+        // Host más "alto" (ej. 4:3) -> scaled_height > SCREEN_HEIGHT
+        if (g_video_settings_snapshot.center_region_only) {
+            image_scaling.texture_height = VITA_DECODER_RESOLUTION((int)vita_round(scaled_height));
+            image_scaling.region_y1 = (float)VITA_DECODER_RESOLUTION((int)vita_round((scaled_height - SCREEN_HEIGHT) / 2));
+            image_scaling.region_y2 = (float)VITA_DECODER_RESOLUTION((int)vita_round((scaled_height + SCREEN_HEIGHT) / 2));
+        } else {
+            image_scaling.texture_width = VITA_DECODER_RESOLUTION((int)vita_round(scaled_width));
+            image_scaling.region_x2 = (float)VITA_DECODER_RESOLUTION((int)vita_round(scaled_width));
+            image_scaling.origin_x = (int)vita_round((double) (SCREEN_WIDTH - image_scaling.texture_width) / 2);
+        }
+    } else {
+        // Host más "ancho" (ej. 16:9)
+        if (g_video_settings_snapshot.center_region_only) {
+            image_scaling.texture_width = VITA_DECODER_RESOLUTION((int)vita_round(scaled_width));
+            image_scaling.region_x1 = (float)VITA_DECODER_RESOLUTION((int)vita_round((scaled_width - SCREEN_WIDTH) / 2));
+            image_scaling.region_x2 = (float)VITA_DECODER_RESOLUTION((int)vita_round((scaled_width + SCREEN_WIDTH) / 2));
+        } else {
+            image_scaling.texture_height = VITA_DECODER_RESOLUTION((int)vita_round(scaled_height));
+            image_scaling.region_y2 = (float)VITA_DECODER_RESOLUTION((int)vita_round(scaled_height));
+            image_scaling.origin_y = (int)vita_round((double) (SCREEN_HEIGHT - image_scaling.texture_height) / 2);
+        }
+    }
+
+    // Calcular display size / offsets (letterbox centered)
+    int dispW, dispH, offX, offY;
     float screen_aspect = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
     float video_aspect = (float)width / (float)height;
-    int dispW, dispH, offX, offY;
     if (video_aspect > screen_aspect) {
-        // Limita por ancho de pantalla
         dispW = SCREEN_WIDTH;
         dispH = (int)((float)SCREEN_WIDTH / video_aspect);
         offX = 0;
         offY = (SCREEN_HEIGHT - dispH) / 2;
     } else {
-        // Limita por alto de pantalla
         dispH = SCREEN_HEIGHT;
         dispW = (int)((float)SCREEN_HEIGHT * video_aspect);
         offY = 0;
@@ -116,13 +151,6 @@ void vitavideo_update_scaling_settings(int width, int height) {
     image_scaling.display_height = dispH;
     image_scaling.offset_x = offX;
     image_scaling.offset_y = offY;
-    image_scaling.origin_x = offX; // mantener compatibilidad con código que use origin
-    image_scaling.origin_y = offY;
-
-    image_scaling.region_x1 = 0.0f;
-    image_scaling.region_y1 = 0.0f;
-    image_scaling.region_x2 = (float)width;  // igual al tamaño de la textura
-    image_scaling.region_y2 = (float)height;
     image_scaling.enabled = true;
 }
 
