@@ -1,4 +1,4 @@
-#include "vita_globals.h"
+#include "vita_globals.hpp"
 // Ruta GLS/OpenGL stub: por ahora solo placeholders para evitar mezclar con implementación GXM.
 // Esta unidad se activaría si en el futuro se compila con un backend OpenGL (no en PS Vita real).
 

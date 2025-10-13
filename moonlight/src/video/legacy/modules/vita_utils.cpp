@@ -1,4 +1,4 @@
-#include "vita_globals.h"
+#include "vita_globals.hpp"
 #ifdef BOREALIS_USE_GXM
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/processmgr.h>

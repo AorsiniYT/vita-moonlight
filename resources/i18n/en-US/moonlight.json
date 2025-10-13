@@ -68,6 +68,100 @@
         "add_host_connect": "Connect",
         "add_host_cancel": "Cancel"
     },
+    "settings_tab": {
+        "render_mode": {
+            "title": "Render mode",
+            "legacy_option": "Legacy (SceVideodec)",
+            "modern_option": "Modern (FFmpeg)",
+            "legacy_name": "Legacy",
+            "modern_name": "Modern",
+            "unknown_name": "Unknown",
+            "notify": "Render mode: {}"
+        },
+        "pixel_format": {
+            "title": "Pixel format",
+            "rgba": "Direct RGBA",
+            "yuv": "YUV420 (experimental)",
+            "notify": "Pixel format: {}"
+        },
+        "resolution": {
+            "title": "Resolution",
+            "options": {
+                "0": "960x540 (16:9 QHD)",
+                "1": "960x544 (Vita native)",
+                "2": "1024x576 (16:9)",
+                "3": "1152x648 (16:9)",
+                "4": "1280x540 (21:9)",
+                "5": "1280x720 (720p HD)",
+                "6": "1366x768 (WXGA)",
+                "7": "1600x900 (900p HD+)",
+                "8": "1920x1080 (FHD)"
+            },
+            "saved": "Resolution saved"
+        },
+        "fps": {
+            "title": "FPS",
+            "options": {
+                "0": "24 FPS (Cinema)",
+                "1": "30 FPS (Standard)",
+                "2": "40 FPS",
+                "3": "50 FPS (PAL)",
+                "4": "60 FPS (NTSC)"
+            },
+            "saved": "FPS saved"
+        },
+        "bitrate": {
+            "title": "Bitrate (Kbps)",
+            "options": {
+                "0": "Auto (Recommended)",
+                "1": "2000 Kbps (Low)",
+                "2": "5000 Kbps (Standard)",
+                "3": "8000 Kbps (HD)",
+                "4": "10000 Kbps (HD+)",
+                "5": "15000 Kbps (Full HD)",
+                "6": "20000 Kbps (Full HD+)",
+                "7": "30000 Kbps (Ultra HD)",
+                "8": "50000 Kbps (Maximum)"
+            },
+            "saved": "Bitrate saved"
+        },
+        "sops_title": "Stream optimization",
+        "network_opt_title": "Network optimizations",
+        "network_opt_enabled": "Network optimizations enabled",
+        "network_opt_disabled": "Network optimizations disabled",
+        "local_audio_title": "Local audio",
+        "fullscreen_title": "Fullscreen",
+        "frame_pacer_title": "Frame pacer",
+        "center_region_title": "Center region only",
+        "show_fps_title": "Show FPS",
+        "save_debug_log_title": "Save debug log",
+        "ref_frame_title": "Reference frame invalidation",
+        "vblank_wait_title": "Wait for Vita VBlank",
+        "motion_controls_title": "Motion controls",
+        "double_tap_sprint_title": "Double tap to sprint",
+        "touchscreen_mode": {
+            "title": "Touchscreen mode",
+            "options": {
+                "0": "Disabled",
+                "1": "DS4 touchpad",
+                "2": "Absolute mouse",
+                "3": "Multitouch tablet"
+            },
+            "saved": "Touchscreen mode saved"
+        },
+        "mouse_accel": {
+            "title": "Mouse acceleration"
+        },
+        "keyboard_layout": {
+            "title": "Keyboard layout",
+            "saved": "Keyboard layout saved"
+        },
+        "languages": {
+            "es": "Spanish",
+            "en": "English"
+        },
+        "language_changed": "Language changed successfully"
+    },
     "rear_touch": {
         "title": "Rear touch",
         "toggle": "Rear touch",
@@ -86,7 +180,40 @@
         "detail_top": "Top",
         "detail_bottom": "Bottom",
         "detail_left": "Left",
-        "detail_right": "Right"
+        "detail_right": "Right",
+        "calibration": {
+            "title": "Calibrate Rear Touch",
+            "overlay_title": "Rear Touch Adjustment",
+            "status_enabled": "Status: Enabled",
+            "status_disabled": "Status: Disabled",
+            "selected_edge": "Selected edge: ",
+            "current_action": "Current action: ",
+            "margins": "Margins (px)",
+            "margins_format": "{0} - {1}: {2} | {3}: {4} | {5}: {6} | {7}: {8}",
+            "assignments_prefix": "Assignments",
+            "assignments_top_format": "{0} - {1}: {2} | {3}: {4}",
+            "assignments_bottom_format": "{0}: {1} | {2}: {3}",
+            "instructions": "▲/▼ change edge • ◀/▶ adjust margin • L/R change action • △ toggle touch • □ reset defaults",
+            "zone_labels": {
+                "nw": "NW",
+                "ne": "NE",
+                "sw": "SW",
+                "se": "SE"
+            },
+            "edge_labels": ["Top", "Right", "Bottom", "Left"],
+            "actions": {
+                "save": "Save",
+                "cancel": "Cancel",
+                "next_edge": "Next edge",
+                "prev_edge": "Previous edge",
+                "increase_margin": "Increase margin",
+                "decrease_margin": "Decrease margin",
+                "next_action": "Next action",
+                "prev_action": "Previous action",
+                "toggle_enabled": "Toggle Enabled",
+                "reset": "Reset"
+            }
+        }
     },
     "hints": {
         "cancel": "Cancel"

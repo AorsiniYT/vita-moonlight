@@ -1,8 +1,8 @@
 #include "VideoManager.hpp"
-#include "legacy/vita.h"
-#include "ffmpeg/ffmpeg.h"
+#include "legacy/vita.hpp"
+#include "ffmpeg/ffmpeg.hpp"
 #include <borealis/core/logger.hpp>
-#include "legacy/modules/vita_globals.h"
+#include "legacy/modules/vita_globals.hpp"
 #include "video/render_mode_cache.hpp"
 
 // Snapshot global consumido por vita.cpp
@@ -138,6 +138,13 @@ DECODER_RENDERER_CALLBACKS VideoManager::getDecoderCallbacks() {
     callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
 
     brls::Logger::info("[VideoManager] Callbacks configurados para modo {}", _currentMode);
+    // Debug: log the function pointer addresses so device memory/stack dumps can be correlated
+    brls::Logger::info("[VideoManager] Decoder callback ptrs - setup: {:#x}, start: {:#x}, stop: {:#x}, cleanup: {:#x}, submit: {:#x}",
+                      reinterpret_cast<uintptr_t>(callbacks.setup),
+                      reinterpret_cast<uintptr_t>(callbacks.start),
+                      reinterpret_cast<uintptr_t>(callbacks.stop),
+                      reinterpret_cast<uintptr_t>(callbacks.cleanup),
+                      reinterpret_cast<uintptr_t>(callbacks.submitDecodeUnit));
     return callbacks;
 }
 

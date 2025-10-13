@@ -1,4 +1,4 @@
-#include "vita_globals.h"
+#include "vita_globals.hpp"
 #include <psp2/videodec.h>
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
@@ -24,7 +24,7 @@ extern gs::SpsContext* g_sps_ctx;
 #include "video/render_mode_cache.hpp"
 // (SPS context omitido en este TU para simplificar: no aplicamos fixups SPS aquí)
 
-// Externs ya están en vita_globals.h
+// Externs ya están en vita_globals.hpp
 
 #ifndef SCE_AVCDEC_PIXELFORMAT_YUV420_PLANAR
 #define SCE_AVCDEC_PIXELFORMAT_YUV420_PLANAR 0x4

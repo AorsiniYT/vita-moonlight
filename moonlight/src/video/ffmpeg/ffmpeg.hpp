@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string>
+#include <stddef.h>
 #include <Limelight.h>
 
 // Forward declarations para evitar incluir libgamestream directamente
@@ -30,11 +30,13 @@ typedef struct {
     FFmpegVideoFrame current_frame;
     int frame_rate;
     bool is_legacy_mode;
-    std::string render_mode;
+    const char *render_mode;
 } FFmpegVideoContext;
 
 // Funciones del sistema de video FFmpeg
+#ifdef __cplusplus
 extern "C" {
+#endif
 
 // Inicialización y cleanup
 int ffmpeg_video_init(FFmpegVideoContext *context, int width, int height, int frame_rate);
@@ -55,4 +57,6 @@ DECODER_RENDERER_CALLBACKS get_ffmpeg_video_callbacks(void);
 void ffmpeg_video_set_render_mode(FFmpegVideoContext *context, const char *mode);
 const char* ffmpeg_video_get_render_mode(FFmpegVideoContext *context);
 
+#ifdef __cplusplus
 }
+#endif

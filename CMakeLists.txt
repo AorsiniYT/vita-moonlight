@@ -52,7 +52,24 @@ if (USE_LIBROMFS)
 endif ()
 
 
+
 add_subdirectory(third_party)
+
+# On PSV, force fmt to avoid using flockfile/funlockfile by enabling the
+# fallback FILE implementation at compile time. This prevents linking
+# against unavailable stdio locking symbols on the Vita toolchain.
+if(PLATFORM_PSV)
+    if(TARGET fmt)
+        message(STATUS "Applying PSV patch to fmt: forcing fallback file handling (no flockfile)")
+        target_compile_definitions(fmt PRIVATE FMT_USE_FALLBACK_FILE=1)
+    endif()
+endif()
+
+# Build ffmpeg module as an independent target and link it into the exe.
+# Exclude its sources from the global MAIN_SRC glob below so we don't compile
+# the same files twice into the executable.
+# Note: ffmpeg sources are built as part of the global source tree now
+# (we avoid internal CMakeLists under moonlight/src/video to simplify maintenance)
 
 find_package(Threads REQUIRED)
 list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
@@ -61,12 +78,42 @@ list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
 
 list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/moonlight/include)
 list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/video)
-file(GLOB_RECURSE MAIN_SRC moonlight/*.cpp)
+
+# Option to enable/disable building the bundled FFmpeg integration
+option(BUILD_FFMPEG "Build FFmpeg integration" OFF)
+
+# Collect main sources, optionally excluding the FFmpeg subtree for faster iteration
+if(BUILD_FFMPEG)
+    file(GLOB_RECURSE MAIN_SRC moonlight/*.cpp)
+else()
+    # Exclude sources under moonlight/src/video/ffmpeg to prevent compiling FFmpeg code
+    file(GLOB_RECURSE _ALL_SRC moonlight/*.cpp)
+    set(MAIN_SRC)
+    foreach(_f IN LISTS _ALL_SRC)
+        string(FIND "${_f}" "/moonlight/src/video/ffmpeg/" _is_ffmpeg)
+        if(_is_ffmpeg EQUAL -1)
+            list(APPEND MAIN_SRC "${_f}")
+        endif()
+    endforeach()
+endif()
 # Nota: NetworkOptimizations.cpp añadido en moonlight/src/network/ queda incluido por el GLOB anterior.
 # Si se desea desactivar en runtime se expone vita_netopt_set_enabled().
 add_definitions(-DVITA_NETOPT_ENABLED)
 # vita.cpp se movió a video/legacy/vita.cpp y ya entra en el glob
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/legacy)
+if(BUILD_FFMPEG)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/ffmpeg)
+endif()
+
+# If building for PSV, generate a small compat source at configure time
+# that provides flockfile/funlockfile no-op implementations and append it
+# to MAIN_SRC. This avoids keeping such a file in the repository while
+# satisfying linker requirements for static builds.
+if (PLATFORM_PSV AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(PSV_COMPAT_SRC ${CMAKE_BINARY_DIR}/psv_compat_stdio.c)
+    file(WRITE ${PSV_COMPAT_SRC} "/* Auto-generated stub for PSV: flockfile/funlockfile (Debug only) */\n#include <stdio.h>\nvoid flockfile(FILE* f) { (void)f; }\nvoid funlockfile(FILE* f) { (void)f; }\n")
+    list(APPEND MAIN_SRC ${PSV_COMPAT_SRC})
+endif()
 
 
 
@@ -80,6 +127,9 @@ if (WIN32)
 elseif (PLATFORM_PSV)
     add_definitions(-DUSE_OPENSSL_CRYPTO)
     add_definitions(-D__vita__ -D__PSV__)
+    # On PSV we set platform defs above. Avoid adding ad-hoc stubs here;
+    # fmt will be compiled with the fallback FILE handling via the
+    # target_compile_definitions hook above.
 endif ()
 
 
@@ -188,7 +238,6 @@ if(PLATFORM_PSV)
         -lpng
         -ljpeg
         -lz
-        -lm
         -lc
         inih
         mdnsniff
@@ -208,6 +257,42 @@ if(PLATFORM_PSV)
     third_party/inih/
     third_party/mdnsniff/
 )
+    # Si FFmpeg-vita está instalado en el sysroot, enlazar sus bibliotecas para
+    # resolver símbolos usados por los sources FFmpeg que ahora se compilan
+    # dentro del árbol global de fuentes. Solo hacerlo si BUILD_FFMPEG está activo.
+    if(BUILD_FFMPEG)
+        if (EXISTS "$ENV{VITASDK}/arm-vita-eabi/lib/libavcodec.a")
+            message(STATUS "Linking FFmpeg libs from VITASDK sysroot (absolute paths)")
+            set(FFMPEG_LIB_DIR "$ENV{VITASDK}/arm-vita-eabi/lib")
+            # Prefer absolute static archives to ensure proper linkage order
+            set(FFMPEG_LIBS
+                "${FFMPEG_LIB_DIR}/libavcodec.a"
+                "${FFMPEG_LIB_DIR}/libavformat.a"
+                "${FFMPEG_LIB_DIR}/libavutil.a"
+                "${FFMPEG_LIB_DIR}/libswscale.a"
+                "${FFMPEG_LIB_DIR}/libswresample.a"
+            )
+            if (EXISTS "${FFMPEG_LIB_DIR}/libz.a")
+                list(APPEND FFMPEG_LIBS "${FFMPEG_LIB_DIR}/libz.a")
+            else()
+                list(APPEND FFMPEG_LIBS z)
+            endif()
+            if (EXISTS "${FFMPEG_LIB_DIR}/liblzma.a")
+                list(APPEND FFMPEG_LIBS "${FFMPEG_LIB_DIR}/liblzma.a")
+            else()
+                list(APPEND FFMPEG_LIBS lzma)
+            endif()
+            list(APPEND FFMPEG_LIBS pthread)
+            list(APPEND FFMPEG_LIBS
+                SceAvcodec_stub
+                SceAudiodec_stub
+                SceCodecEngine_stub
+                SceVideodec_stub
+            )
+
+            target_link_libraries(${PROJECT_NAME} PRIVATE ${FFMPEG_LIBS})
+        endif()
+    endif()
 endif()
 
 

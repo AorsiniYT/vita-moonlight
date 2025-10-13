@@ -14,7 +14,7 @@
     limitations under the License.
 */
 
-#include "vita.h"
+#include "vita.hpp"
 #include "ConfigManager.hpp"
 #include "debug.hpp"
 #include "libgamestream/sps.h" // clase SpsContext + flags
@@ -30,7 +30,7 @@
 #include <memory>
 
 // Módulos refactorizados
-#include "modules/vita_globals.h"
+#include "modules/vita_globals.hpp"
 // The .cpp files are compiled separately via CMake
 
 // Callbacks para Limelight
