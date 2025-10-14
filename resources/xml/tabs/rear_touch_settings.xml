@@ -20,7 +20,11 @@
             paddingBottom="@style/brls/sidebar/padding_bottom"
             paddingLeft="@style/brls/sidebar/padding_left">
 
-            <brls:Header title="@i18n/moonlight/rear_touch/title"/>
+            <brls:Header
+                width="auto"
+                height="auto"
+                title="@i18n/moonlight/rear_touch/title"
+                marginBottom="0px"/>
 
             <brls:BooleanCell
                 id="rearTouchToggle"
@@ -46,7 +50,11 @@
                 marginBottom="12"
                 fontSize="18"/>
 
-            <brls:Header title="@i18n/moonlight/rear_touch/actions_header"/>
+            <brls:Header
+                width="auto"
+                height="auto"
+                title="@i18n/moonlight/rear_touch/actions_header"
+                marginBottom="0px"/>
 
             <brls:SelectorCell
                 id="rearTouchNWSelector"

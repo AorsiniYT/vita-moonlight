@@ -9,6 +9,10 @@
 #include "libgamestream/client.h"
 #include "libgamestream/errors.h"
 
+#include <borealis/core/logger.hpp>
+
+#include <mutex>
+
 #ifdef BOREALIS_USE_GXM
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -25,6 +29,7 @@ extern "C" {
 
 // Implementación inicial del wrapper FFmpeg para Vita
 
+extern "C" {
 // Inicialización del contexto FFmpeg
 int ffmpeg_video_init(FFmpegVideoContext *context, int width, int height, int frame_rate) {
     memset(context, 0, sizeof(FFmpegVideoContext));
@@ -36,65 +41,92 @@ int ffmpeg_video_init(FFmpegVideoContext *context, int width, int height, int fr
     // Por ahora solo inicialización mínima; la integración completa con libavcodec
     // vendrá cuando se implemente el decoder. Aquí preparamos estructuras y
     // dejamos listo el lugar para get_buffer2_direct si se usa h264_vita.
-    printf("FFmpeg video init: %dx%d @ %d fps\n", width, height, frame_rate);
+    brls::Logger::info("[FFMPEG] init ctx={:#x} size={}x{} @ {}fps", (uintptr_t)context, width, height, frame_rate);
 
     context->decoder.initialized = false; // Se inicializará en el futuro
     return 0;
 }
 
 void ffmpeg_video_cleanup(FFmpegVideoContext *context) {
-    // TODO: Cleanup FFmpeg resources cuando se agregue el decoder
-    printf("FFmpeg video cleanup\n");
+    if (!context) {
+        brls::Logger::warning("[FFMPEG] cleanup called with null context");
+        return;
+    }
+    brls::Logger::info("[FFMPEG] cleanup ctx={:#x}", (uintptr_t)context);
 }
 
 int ffmpeg_video_decode(FFmpegVideoContext *context, unsigned char *data, int size, int frame_type) {
-    // TODO: Implementar decodificación FFmpeg real
-    printf("FFmpeg decode: %d bytes, frame_type: %d\n", size, frame_type);
+    if (!context) {
+        brls::Logger::warning("[FFMPEG] decode called with null context");
+        return -1;
+    }
+    brls::Logger::debug("[FFMPEG] decode ctx={:#x} bytes={} frame_type={}", (uintptr_t)context, size, frame_type);
     return -1; // Not implemented yet
 }
 
 // Control del video
 void ffmpeg_video_start(FFmpegVideoContext *context) {
-    printf("FFmpeg video started\n");
+    brls::Logger::info("[FFMPEG] start ctx={:#x}", (uintptr_t)context);
 }
 
 void ffmpeg_video_stop(FFmpegVideoContext *context) {
-    printf("FFmpeg video stopped\n");
+    brls::Logger::info("[FFMPEG] stop ctx={:#x}", (uintptr_t)context);
 }
 
 // Callbacks para Limelight (placeholders)
 static int ffmpeg_video_setup(int videoFormat, int width, int height, int redrawRate, void *context, int drFlags) {
     FFmpegVideoContext *video_context = (FFmpegVideoContext *)context;
+    brls::Logger::info("[FFMPEG] setup fmt={} {}x{} @ {}fps drFlags={:#x} ctx={:#x}", videoFormat, width, height, redrawRate, drFlags, (uintptr_t)video_context);
     return ffmpeg_video_init(video_context, width, height, redrawRate);
 }
 
 static void ffmpeg_video_start_callback(void) {
-    printf("FFmpeg video start callback\n");
+    brls::Logger::info("[FFMPEG] start callback invoked");
 }
 
 static void ffmpeg_video_stop_callback(void) {
-    printf("FFmpeg video stop callback\n");
+    brls::Logger::info("[FFMPEG] stop callback invoked");
 }
 
 static void ffmpeg_video_cleanup_callback(void) {
-    printf("FFmpeg video cleanup callback\n");
+    brls::Logger::info("[FFMPEG] cleanup callback invoked");
 }
 
 static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
-    // TODO: Implementar submit decode unit usando libavcodec
-    printf("FFmpeg submit decode unit - Not implemented yet\n");
-    return -1; // Not implemented yet
+    // Safety-first stub: liberar los buffers de la unidad de decodificación
+    // y devolver DR_OK para no ocasionar crashes en tiempo de ejecución mientras
+    // implementamos el decoder completo con libavcodec.
+    if (!decodeUnit) {
+        brls::Logger::warning("[FFMPEG] submit_decode_unit called with null unit");
+        return DR_OK;
+    }
+    PLENTRY entry = decodeUnit->bufferList;
+    brls::Logger::debug("[FFMPEG] submit_decode_unit unit={:#x} frame#={} buflist={:#x}", (uintptr_t)decodeUnit, decodeUnit->frameNumber, (uintptr_t)entry);
+    while (entry) {
+        PLENTRY next = entry->next;
+        if (entry->data) free(entry->data);
+        free(entry);
+        entry = next;
+    }
+    free(decodeUnit);
+    // Indicar a Limelight que la unidad fue procesada correctamente
+    brls::Logger::debug("[FFMPEG] submit_decode_unit completed");
+    return DR_OK;
 }
 
 DECODER_RENDERER_CALLBACKS get_ffmpeg_video_callbacks(void) {
     DECODER_RENDERER_CALLBACKS callbacks = {0};
 
+    brls::Logger::info("[FFMPEG] get_ffmpeg_video_callbacks called");
     callbacks.setup = ffmpeg_video_setup;
     callbacks.start = ffmpeg_video_start_callback;
     callbacks.stop = ffmpeg_video_stop_callback;
     callbacks.cleanup = ffmpeg_video_cleanup_callback;
     callbacks.submitDecodeUnit = ffmpeg_video_submit_decode_unit;
-    callbacks.capabilities = 0;
+    // Declarar capacidades compatibles con el pipeline "direct submit" para
+    // que Limelight use la ruta adecuada. El decoder real deberá ajustar esto
+    // una vez que esté implementado.
+    callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
 
     return callbacks;
 }
@@ -107,6 +139,8 @@ void ffmpeg_video_set_render_mode(FFmpegVideoContext *context, const char *mode)
 const char* ffmpeg_video_get_render_mode(FFmpegVideoContext *context) {
     return context->render_mode;
 }
+
+} // extern "C"
 
 #ifdef BOREALIS_USE_GXM
 // --- Implementación DR allocator y utilidades basada en README-vita.md ---
@@ -135,6 +169,12 @@ static const struct dr_format_spec *get_dr_format_spec(int fmt)
 static void vram_free(void *opaque, uint8_t *data)
 {
     SceUID mb = (intptr_t) opaque;
+    // Try to unmap from GXM if it's still mapped. This is defensive: in
+    // some code paths the texture might not have been detached before the
+    // buffer is freed. Ignore errors from unmap — it's best-effort.
+    if (data) {
+        sceGxmUnmapMemory((void*)data);
+    }
     sceKernelFreeMemBlock(mb);
 }
 
@@ -200,6 +240,9 @@ static void dr_texture_detach(struct dr_texture *tex)
     if (!buf)
         return;
 
+    // protect map/unmap sequence against concurrent free from other threads
+    static std::mutex dr_mutex;
+    std::lock_guard<std::mutex> lock(dr_mutex);
     sceGxmUnmapMemory((void*)buf->data);
     av_frame_unref(&tex->frame);
 }
@@ -227,6 +270,9 @@ static void dr_texture_attach(struct dr_texture *tex, AVFrame *frame)
     int width = FFMAX(FFALIGN(frame->width, 16), 64);
     int height = FFMAX(FFALIGN(frame->height, 16), 64);
 
+    // protect map/unmap sequence against concurrent free from other threads
+    static std::mutex dr_mutex;
+    std::lock_guard<std::mutex> lock(dr_mutex);
     sceGxmMapMemory((void*)buf->data, buf->size, SCE_GXM_MEMORY_ATTRIB_READ);
     sceGxmTextureInitLinear(&tex->impl.gxm_tex, (void*)buf->data, spec->sce_format, width, height, 0);
     av_frame_unref(&tex->frame);

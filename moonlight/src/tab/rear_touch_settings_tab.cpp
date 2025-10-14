@@ -136,7 +136,11 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
                 updateRearTouchDetail(vs.rear_touch);
             }
         );
-        brls::Application::pushActivity(new brls::Activity(overlay));
+        // Wrap the overlay in an AppletFrame so the standard header/footer
+        // are displayed (keeps title and hints consistent with other screens).
+        auto* frame = new brls::AppletFrame(overlay);
+        frame->setTitle(brls::getStr("moonlight/rear_touch/calibration/overlay_title"));
+        brls::Application::pushActivity(new brls::Activity(frame));
         return true;
     });
 

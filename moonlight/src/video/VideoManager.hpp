@@ -5,7 +5,12 @@
 #include "Limelight.h"
 #include "ConfigManager.hpp"
 #include "legacy/vita.hpp"
+#ifdef BUILD_FFMPEG
 #include "ffmpeg/ffmpeg.hpp"
+#else
+// Forward-declare minimal type to avoid pulling ffmpeg symbols when BUILD_FFMPEG=OFF
+typedef struct FFmpegVideoContext FFmpegVideoContext;
+#endif
 
 // VideoManager - Gestiona la selección y configuración del sistema de video
 class VideoManager {
@@ -22,6 +27,9 @@ public:
 
     // Callbacks para Limelight
     DECODER_RENDERER_CALLBACKS getDecoderCallbacks();
+
+    // If the selected renderer needs a render context (FFmpeg wrapper), expose it here
+    void* getRenderContext();
 
     // Control del video
     void startVideo();

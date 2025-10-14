@@ -72,10 +72,11 @@ SettingsTab::SettingsTab()
     vita_netopt_set_enabled(videoSettings.enable_network_optimizations ? 1 : 0);
 
     // Selector de modo de render (Direct GXM eliminado): 0=Legacy, 1=FFmpeg (futuro)
-    std::vector<std::string> renderModes = {
-        brls::getStr("moonlight/settings_tab/render_mode/legacy_option"),
-        brls::getStr("moonlight/settings_tab/render_mode/modern_option")
-    };
+    std::vector<std::string> renderModes;
+    renderModes.push_back(brls::getStr("moonlight/settings_tab/render_mode/legacy_option"));
+#ifdef BUILD_FFMPEG
+    renderModes.push_back(brls::getStr("moonlight/settings_tab/render_mode/modern_option"));
+#endif
     auto updatePixelSelectorVisibility = [this](int renderMode, bool persistReset) {
         bool legacyMode = (renderMode == 0);
         if (pixelFormatSelector) {
@@ -102,20 +103,32 @@ SettingsTab::SettingsTab()
         ConfigManager config;
         config.load();
         VideoSettings settings = config.getVideoSettings();
-        settings.render_mode = selected; // 0=legacy,1=ffmpeg
-        if (selected != 0 && settings.pixel_format_mode != 0) {
+        // If BUILD_FFMPEG is not available, force legacy selection
+#ifndef BUILD_FFMPEG
+        int chosen = (selected == 0) ? 0 : 0; // normalize to legacy
+#else
+        int chosen = selected; // allow modern/ffmpeg
+#endif
+        settings.render_mode = chosen; // 0=legacy,1=ffmpeg
+        if (chosen != 0 && settings.pixel_format_mode != 0) {
             settings.pixel_format_mode = 0;
         }
         config.setVideoSettings(settings);
         config.save();
         // Actualizar cache atómico sin relectura posterior
-        set_render_mode_cached(selected);
-        updatePixelSelectorVisibility(selected, true);
+        set_render_mode_cached(chosen);
+        updatePixelSelectorVisibility(chosen, true);
         const char* modeNameKey = nullptr;
-        switch (selected) {
-            case 0: modeNameKey = "moonlight/settings_tab/render_mode/legacy_name"; break;
-            case 1: modeNameKey = "moonlight/settings_tab/render_mode/modern_name"; break;
-            default: modeNameKey = "moonlight/settings_tab/render_mode/unknown_name"; break;
+        if (chosen == 0) {
+            modeNameKey = "moonlight/settings_tab/render_mode/legacy_name";
+        }
+#ifdef BUILD_FFMPEG
+        else if (chosen == 1) {
+            modeNameKey = "moonlight/settings_tab/render_mode/modern_name";
+        }
+#endif
+        else {
+            modeNameKey = "moonlight/settings_tab/render_mode/unknown_name";
         }
         brls::Application::notify(fmt::format(
             brls::getStr("moonlight/settings_tab/render_mode/notify"),
@@ -390,7 +403,13 @@ SettingsTab::SettingsTab()
         rearTouchSettingsEntry->setDetailText(brls::getStr("moonlight/settings/rear_touch_detail"));
         rearTouchSettingsEntry->registerClickAction([](brls::View*) {
             auto* rearTouchView = new RearTouchSettingsTab();
-            brls::Application::pushActivity(new brls::Activity(rearTouchView));
+            // Prefer wrapping the settings view in an AppletFrame so the
+            // standard header / footer are displayed (like in main.xml).
+            // Set the title on the frame so the top header is visible.
+            auto* frame = new brls::AppletFrame(rearTouchView);
+            frame->setTitle(brls::getStr("moonlight/rear_touch/title"));
+            auto* act = new brls::Activity(frame);
+            brls::Application::pushActivity(act);
             return true;
         });
     }
