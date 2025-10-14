@@ -1,6 +1,8 @@
 #include "VideoManager.hpp"
 #include "legacy/vita.hpp"
+#ifdef BUILD_FFMPEG
 #include "ffmpeg/ffmpeg.hpp"
+#endif
 #include <borealis/core/logger.hpp>
 #include "legacy/modules/vita_globals.hpp"
 #include "video/render_mode_cache.hpp"
@@ -73,6 +75,16 @@ bool VideoManager::initialize() {
 
     brls::Logger::info("[VideoManager] Modo de renderizado configurado: {}", _currentMode);
 
+    // Si el modo por defecto es ffmpeg, preparar el contexto
+#ifdef BUILD_FFMPEG
+    if (_currentMode == "ffmpeg") {
+        if (!_ffmpegContext) {
+            _ffmpegContext = new FFmpegVideoContext();
+            memset(_ffmpegContext, 0, sizeof(FFmpegVideoContext));
+            ffmpeg_video_set_render_mode(_ffmpegContext, "ffmpeg");
+        }
+    }
+#endif
     // Inicializar contexto según el modo
     // No necesitamos contextos manuales ya que el sistema legacy maneja su propio estado
     // a través de los callbacks de Limelight
@@ -95,12 +107,29 @@ void VideoManager::setRenderMode(const std::string& mode) {
     }
 
     // Limpiar contexto anterior
-    // No necesitamos cleanup manual ya que el sistema legacy maneja su propio estado
-    // a través de los callbacks de Limelight
+#ifdef BUILD_FFMPEG
+    if (_currentMode == "ffmpeg" && _ffmpegContext) {
+        // Cleanup del contexto FFmpeg si existe
+        ffmpeg_video_cleanup(_ffmpegContext);
+        delete _ffmpegContext;
+        _ffmpegContext = nullptr;
+    }
+#endif
 
     // Establecer nuevo modo
     _currentMode = mode;
     _currentModeInt = (mode == "legacy") ? 0 : 1;
+
+    // Si el nuevo modo es ffmpeg, reservar contexto
+#ifdef BUILD_FFMPEG
+    if (_currentMode == "ffmpeg") {
+        if (!_ffmpegContext) {
+            _ffmpegContext = new FFmpegVideoContext();
+            memset(_ffmpegContext, 0, sizeof(FFmpegVideoContext));
+            ffmpeg_video_set_render_mode(_ffmpegContext, "ffmpeg");
+        }
+    }
+#endif
 
     // Guardar en configuración
     _config.load();
@@ -122,6 +151,16 @@ void VideoManager::setRenderMode(const std::string& mode) {
     brls::Logger::info("[VideoManager] Modo de renderizado cambiado exitosamente");
 }
 
+// Callbacks estáticos que delegan según el modo actual
+// Provide access to the internal render context for LiStartConnection
+void* VideoManager::getRenderContext() {
+#ifdef BUILD_FFMPEG
+    return static_cast<void*>(_ffmpegContext);
+#else
+    return nullptr;
+#endif
+}
+
 std::string VideoManager::getRenderMode() const {
     return _currentMode;
 }
@@ -129,13 +168,28 @@ std::string VideoManager::getRenderMode() const {
 DECODER_RENDERER_CALLBACKS VideoManager::getDecoderCallbacks() {
     DECODER_RENDERER_CALLBACKS callbacks = {0};
 
-    // Asignar callbacks directamente a las funciones extern "C" de vita.cpp
-    callbacks.setup = vitavideo_setup;
-    callbacks.start = vitavideo_start;
-    callbacks.stop = vitavideo_stop;
-    callbacks.cleanup = vita_cleanup;
-    callbacks.submitDecodeUnit = vitavideo_submit_decode_unit;
-    callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
+    if (_currentMode == "legacy") {
+        // Asignar callbacks directamente a las funciones extern "C" de vita.cpp
+        callbacks.setup = vitavideo_setup;
+        callbacks.start = vitavideo_start;
+        callbacks.stop = vitavideo_stop;
+        callbacks.cleanup = vita_cleanup;
+        callbacks.submitDecodeUnit = vitavideo_submit_decode_unit;
+        callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
+    } else {
+#ifdef BUILD_FFMPEG
+        // Obtener callbacks desde el wrapper FFmpeg
+        callbacks = get_ffmpeg_video_callbacks();
+#else
+        // FFmpeg no está compilado: fallback a legacy callbacks to avoid undefined refs
+        callbacks.setup = vitavideo_setup;
+        callbacks.start = vitavideo_start;
+        callbacks.stop = vitavideo_stop;
+        callbacks.cleanup = vita_cleanup;
+        callbacks.submitDecodeUnit = vitavideo_submit_decode_unit;
+        callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
+#endif
+    }
 
     brls::Logger::info("[VideoManager] Callbacks configurados para modo {}", _currentMode);
     // Debug: log the function pointer addresses so device memory/stack dumps can be correlated

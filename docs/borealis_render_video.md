@@ -1,301 +1,96 @@
-# Render de Video con Borealis (Plan Zero-Copy)
+# Render de Video con Borealis (estado actual)
 
-Este documento describe la arquitectura de renderizado de video en PlayStation Vita para Moonlight, cubriendo:
-- Estado actual (fallback memcpy)
-- Objetivo zero-copy integrado con Borealis/NanoVG
-- Estructuras y flujo de doble buffer
-- Estrategia de fallback y detección de pitch
-- Métricas e instrumentación previstas
+Este documento fue actualizado para reflejar la implementación actual en el árbol `moonlight` (octubre 2025).
 
----
-## 1. Objetivos
-
-| Objetivo | Descripción | Métrica de Éxito |
-|----------|-------------|------------------|
-| Reducir latencia | Eliminar copia CPU RGBA intermedia | -0.4 ms (≥720p) |
-| Simplificar pipeline | Unificar bajo NanoVG/Borealis | Un solo path draw |
-| Robustez | Fallback automático si falla zero-copy | 0 crashes / 1000 frames |
-| Extensibilidad | Base para futuro YUV + shader | Código modular con `VideoPlane` |
+Resumen corto:
+- El objetivo original de "zero-copy" (decoder -> phycont -> GXM directo sin memcpy) se ha dejado como diseño/objetivo, pero en la implementación actual se eligió una ruta simplificada y estable: decodificación -> texturas `vita2d` y dibujo por `vita2d` o NanoVG via `nvgxmCreateImageFromHandle`.
+- La implementación actual se basa en doble buffer de `vita2d_texture` (`frame_textures[2]`, macros `FRAME_FRONT()` / `FRAME_BACK()`) y un mecanismo sencillo de entrega de frames (`VideoFrameHolder`).
+- El componente `VideoManager` mantiene por defecto el modo `legacy` (ruta probada). `ffmpeg` existe como opción/placeholder pero no está activado por defecto.
 
 ---
-## 2. Componentes Principales
 
-| Componente | Rol |
-|------------|-----|
-| Decoder (sceAvcdec) | Produce frames decodificados (RGBA/NV12 futuro) |
-| VideoPlane | Encapsula buffer phycont + textura GXM + imageId NanoVG |
-| Doble Buffer (front/back) | Evita que GPU lea mientras se escribe próximo frame |
-| NanoVG (backend GXM) | Composición final dentro de Borealis |
-| Fallback memcpy | Ruta segura actual (copy → textura vita2d) |
-| Instrumentación | Logs, tiempos, contadores de errores |
+## Estado actual (implementación real)
 
----
-## 3. Estado Actual (Fallback Memcpy)
+- Pipeline: decoder (sceAvcdec / Limelight callbacks) produce frames RGBA (o YUV experimental). Los frames se ponen en `vita2d_texture` (o en un buffer físico que luego se copia) y el renderer consume la textura para presentarla.
+- No hay una implementación completa y estable de "VideoPlane" zero-copy en el repo actual; el código contiene marcadores y documentación que describen la meta, pero la ruta activa es la basada en `vita2d`.
+- El render soporta dos rutas de dibujado:
+   1. `vita2d_draw_texture_tint_part_scale(...)` — ruta legacy que dibuja la textura con `vita2d`.
+   2. `NanoVG (nvgxmCreateImageFromHandle)` — crea un `nvg image` a partir del `SceGxmTexture` (obtenido desde la `vita2d_texture`) y dibuja con `nvgImagePattern`. Esto permite integrar el frame en la composición de Borealis.
 
-```
-+-----------+      +----------------------+      +------------------+      +-----------+
-| Decoder   | ---> | Buffer Físico Linear | ---> | memcpy (CPU RGBA) | ---> | Textura   |
-| (Avcdec)  |      | (phycont intermedio) |      |                  |      | vita2d    |
-+-----------+      +----------------------+      +------------------+      +-----------+
-                                                              |
-                                                              v
-                                                      +----------------+
-                                                      | GPU Present    |
-                                                      +----------------+
-```
-Características:
-- 1 copia CPU por frame (intermedio → textura vita2d)
-- Doble buffer implementado solo en destino final (FRONT/BACK de textura)
-- Render fuera de Borealis (composición separada)
+Elementos clave en el código actual:
+- `moonlight/src/video/legacy/modules/vita_globals.hpp`: define `frame_textures[2]`, `frame_front_idx`, `frame_back_idx`, macros `FRAME_FRONT()` y `FRAME_BACK()` y flags de configuración (p. ej. `single_frame_buffer`, `video_fullscreen_stretch`).
+- `VitaVideoRenderer` (`VitaVideoRenderer.cpp`): implementa `draw(...)` (vita2d) y `drawNVG(...)` (NanoVG). En `drawNVG` se crea / reutiliza un `nvg image` con `nvgxmCreateImageFromHandle(vg, gxmTex)` y se pinta mediante `nvgImagePattern`.
+- `VideoManager` (`VideoManager.cpp`): administra el modo de render (`legacy` por defecto; `ffmpeg` es una opción condicional) y expone callbacks para Limelight. Controla la inicialización y el inicio/parada del subsistema de video.
+- `VideoFrameHolder` (`VideoFrameHolder.cpp`): fachada thread-safe mínima que recibe `vita2d_texture*` (y el `SceGxmTexture*`) mediante `pushTexture()` y lo entrega con `popLatest()` para que el renderer lo consuma.
 
 ---
-## 4. Objetivo Zero-Copy (Arquitectura Meta)
 
-```
-          (sin copia CPU)
-+-----------+        +------------------+        +-----------------------+        +----------------+
-| Decoder   |  --->  | VideoPlane[BACK] |  swap  | VideoPlane[FRONT]     |  --->  | NanoVG/Borealis|
-| (Avcdec)  |        | (phycont + GXM)  | <----> | (solo lectura GPU)    |        | (draw pattern) |
-+-----------+        +------------------+        +-----------------------+        +----------------+
-```
-Notas:
-- Decoder escribe directamente en la memoria que GPU ya puede texturizar.
-- NanoVG usa `nvgImagePattern` sobre `imageId` asociado al plano FRONT.
-- Eliminada la textura vita2d intermedia.
+## Flujo actual (detalle)
 
----
-## 5. Flujo de Doble Buffer (Zero-Copy)
+1. El decoder (a través de los callbacks configurados por `VideoManager::getDecoderCallbacks()`) decodifica frames a RGBA o produce buffers YUV en modo experimental.
+2. El código crea/actualiza la `vita2d_texture` correspondiente y actualiza los índices `frame_front_idx` / `frame_back_idx` (doble buffer). En algunos casos se usa una etapa física intermedia (`decoder_output_phys_ptr`) seguida de `memcpy` hacia la textura si el decoder no puede escribir directamente en la memoria de textura.
+3. `VideoFrameHolder::pushTexture()` es llamado con la textura lista; el renderer (desde `VitaVideoRenderer`) consulta `FRAME_FRONT()` o consume el `VideoFrameHolder` según la integración concreta y dibuja:
+    - Ruta vita2d: `vita2d_draw_texture_tint_part_scale(tex, ox, oy, sx, sy, ex, ey, scaleX, scaleY, tint)`
+    - Ruta NanoVG: si hay un `NVGcontext* vg` activo, se llama a `nvgxmCreateImageFromHandle(vg, &gxmTex)` para obtener `nvgImageId` y se pinta con `nvgImagePattern`.
+4. Estadísticas de presentación (frames_presented, fps, session_ms) se actualizan por el `VitaVideoRenderer` usando `update_present_stats()`.
 
-```
-Inicial: front = 0, back = 1
-
-Frame N:
-  Decoder -> planes[back]
-  swap(front, back)
-  Render usa planes[front]
-
-Secuencia temporal:
-
-   Tiempo --->
-
-   Write:   [----N----]        [----N+1--]        [----N+2--]
-             to back(1)         to back(0)          to back(1)
-
-   Read :        front(0)            front(1)            front(0)
-```
-Garantía: No se escribe en el buffer que el GPU está leyendo (salvo frame pacing patológico). Posible extensión: triple buffer.
+Observaciones operativas:
+- `nvgxmCreateImageFromHandle` se usa de forma defensiva: se recrea la imagen si cambia la textura o las dimensiones. Si `nvgxmCreateImageFromHandle` falla, la ruta NVG se abandona para ese frame.
+- `FRAME_FRONT()` puede ser `nullptr` si aún no hay frame decodificado; `VitaVideoRenderer` lo comprueba y evita dibujar en ese caso.
 
 ---
-## 6. Diagrama de Estados Simplificado
 
-```
-              +------------------+
-              |  ZeroCopy Ready? |
-              +---------+--------+
-                        | yes
-                        v
-                +---------------+
-                |  Decode OK?   |
-                +---+-------+---+
-                    |       |
-                 yes|       |no (error / pitch / mem)
-                    v       v
-        +----------------+  +---------------------------+
-        | Swap & Present |  | Increment fail counter    |
-        +-------+--------+  | If >= threshold ->        |
-                |           |  Activate Fallback        |
-                v           +---------------------------+
-        (Loop next frame)
-```
+## Buffering y pitch
+
+- Se usa doble buffering básico (`frame_textures[2]`), y hay una flag `single_frame_buffer` cuando se quiere forzar un único buffer (FRONT == BACK).
+- Importante: el pitch que pasa el código a `sceAvcdecDecode` y que se usa históricamente en `moonlight-legacy` es expresado en píxeles (no en bytes). El código actual conserva esta convención: `framePitch = image_scaling.texture_width`.
+- En la práctica, si el decoder no puede escribir directamente en la textura, el sistema emplea un fallback que escribe en un buffer físico y luego realiza `memcpy` hacia la textura; esto es la ruta más estable hoy.
 
 ---
-## 7. Estructura `VideoPlane` (Propuesta)
 
-```c++
-struct VideoPlane {
-    uint32_t width;        // visible width
-    uint32_t height;       // visible height
-    uint32_t pitchBytes;   // bytes por fila (alineado)
-    void*    cpuPtr;       // base phycont
-    SceUID   memBlock;     // handle del bloque
-    SceGxmTexture gxmTex;  // textura GXM inicializada linear
-    int      nvgImageId;   // id en NanoVG (>=0 válido, -1 no creado)
-    bool     inUse;        // marca activa
-    uint64_t lastWriteFrame; // frameId para debug
-    uint32_t debugSignature; // sentinel
-    void invalidate();
-    void clear(uint32_t rgba); // debug
-};
-```
+## Modo FFmpeg vs Legacy
+
+- `VideoManager` tiene soporte para dos modos conceptuales:
+   - `legacy` (0): la ruta probada que usa las APIs de Vita (sceAvcdec, vita2d) y las callbacks de Limelight.
+   - `ffmpeg` (1): opción experimental / placeholder pensada para integrar FFmpeg; en el código actual está preparada condicionalmente (`#ifdef BUILD_FFMPEG`) pero no es la ruta por defecto ni está completamente implementada.
+- `VideoManager::setRenderMode()` y `ensure_render_mode_cached()` mantienen y persisten el modo en `ConfigManager`.
 
 ---
-## 8. Pitch Auto-Detector
 
-Algoritmo previsto (primer fallo):
-1. Intentar decode con `pitch = width` (asumiendo unidad = pixels) → éxito => modo PIXELS.
-2. Si error 0x80620005 → reintentar con `pitch = width * 4` → éxito => modo BYTES fijado.
-3. Persistir elección (evitar reintentos por frame).
-4. Si ambos fallan consecutivamente → activar fallback memcpy.
+## Instrumentación y telemetría
 
-Pseudocódigo:
-```c++
-if (!pitchModeKnown) {
-   if (tryDecode(width /*as pixels*/)) pitchMode = PIXELS;
-   else if (tryDecode(width*4))        pitchMode = BYTES;
-   else activateFallback();
-}
-```
+- `VitaVideoRenderer` mantiene estadísticas simples: frames decoded/presented, fps (ventana 1s), session_ms. La función `update_present_stats()` calcula `current_fps` y actualiza `g_stats`.
+- Los logs del renderer escriben eventos importantes: creación de `nvg image`, errores en `nvgxmCreateImageFromHandle`, stride/texture pointers y cambios de modo.
 
 ---
-## 9. Fallback Dinámico
 
-Condiciones de activación:
-- N fallos consecutivos de decode direct buffer.
-- Error crítico de memoria (alloc phycont).
-- Cambio de resolución donde reinit falla.
+## Limitaciones y estado de desarrollo
 
-Log controlado (throttling):
-- Primer activación: `[VIDEO][FALLBACK] enabled reason=decode_errors`
-- Luego cada 300 frames: `[VIDEO][FALLBACK] still active`.
+- Zero-copy (decoder -> phycont -> GXM directo) está documentado como objetivo pero actualmente no está activado: la base de código contiene ideas, tipos y comentarios relacionados, pero la implementación estable escogida fue la vía con `vita2d` + posible `memcpy` fallback.
+- El camino zero-copy sigue siendo una posible mejora futura (ver `docs/` histórico y comentarios), pero su implementación requiere manejo cuidadoso de:
+   - asignación de memoria física contigua (phycont), coherencia cache/invalidate, y sincronización GPU/CPU (double/triple buffering), además de detector de pitch robusto.
 
 ---
-## 10. Integración con Borealis/NanoVG
 
-Llamadas objetivo (aprox.):
-```c++
-int id = nvgxmCreateImageFromHandle(vg, &plane.gxmTex, flags);
-NVGpaint paint = nvgImagePattern(vg, dstX, dstY, drawW, drawH, 0.0f, id, 1.0f);
-nvgBeginPath(vg);
-nvgRect(vg, dstX, dstY, drawW, drawH);
-nvgFillPaint(vg, paint);
-nvgFill(vg);
-```
-Consideraciones:
-- Resolución fuente != resolución destino (letterbox calculado antes).
-- Posible selección de filtro (nearest/linear) según modo latencia.
+## Recomendaciones y próximos pasos prácticos
+
+- Si buscas reducir latencia: estudiar la opción zero-copy con un prototipo mínimo que:
+   1. Reserve `phycont` y cree `SceGxmTexture` apuntando a ese buffer.
+   2. Haga decode directo a ese buffer y pruebe `nvgxmCreateImageFromHandle` para dibujar sin `memcpy`.
+   3. Implementar doble buffer en `VideoPlane` (back/front) y un detector sencillo de pitch en píxeles.
+- Mientras tanto, conservar y endurecer la ruta actual (memcpy -> `vita2d_texture`) es razonable para estabilidad.
+- Añadir métricas adicionales (decode_ms, present_latency) y generar logs con counters para validar mejoras de rendimiento cuando se experimente con zero-copy.
 
 ---
-## 11. Instrumentación (Resumen)
 
-| Métrica | Método | Frecuencia |
-|---------|--------|------------|
-| decode_ms | timestamp alrededor de `sceAvcdecDecode` | por frame |
-| present_delay_ms | decode->swap->draw diff | por frame |
-| fps_decode / fps_present | contadores acumulados | cada 2 s |
-| pitch_mode | una vez tras fijar | on change |
-| fallback_count | contador global | on event |
-| dump_head | hexdump 16 bytes primer frame | start |
+## Puntos de referencia en el código (para revisar cambios)
 
-Formato sugerido de log:
-```
-[VIDEO] frame=123 decode=1.05ms present=1.42ms pitch=2048B mode=BYTES zc=1 fb=0
-```
+- `moonlight/src/video/legacy/modules/vita_globals.hpp` — macros, flags y buffers globales.
+- `moonlight/src/video/VitaVideoRenderer.cpp` — dibujo con `vita2d` y `drawNVG` con NanoVG.
+- `moonlight/src/video/VideoManager.cpp` — modos de render, control de inicialización y callbacks.
+- `moonlight/src/video/VideoFrameHolder.cpp` — entrega thread-safe de `vita2d_texture*` para el renderer.
+- `moonlight/src/video/render_mode_cache.cpp` — cache atómico del modo de render.
 
 ---
-## 12. Cambio de Resolución
 
-Secuencia:
-1. Detectar en header de frame nuevo (width/height difieren).
-2. Pausar ingest (bloque corto).
-3. Destruir planos existentes.
-4. Alloc + init nuevos planos.
-5. Reset pitchModeKnown.
-6. Log: `[VIDEO] reinit planes 1280x720 -> 1920x1080`.
-
----
-## 13. Flujos Comparativos
-
-### 13.1 Fallback Actual
-```
-Decode -> BufferPhy -> memcpy -> Textura -> Draw -> Present
-```
-### 13.2 Zero-Copy Plan
-```
-Decode -> VideoPlane(back) -> swap -> Draw(NanoVG front) -> Present
-```
-
----
-## 14. Roadmap (Sprints)
-
-| Sprint | Entrega | Estado |
-|--------|---------|--------|
-| 1 | Infra `VideoPlane`, alloc doble buffer, docs | (en progreso) |
-| 2 | Integrar createImage NanoVG + logs básicos | pending |
-| 3 | Pitch detector + decode direct binding | pending |
-| 4 | Swap + render NanoVG (feature flag) | pending |
-| 5 | Fallback dinámico + métricas FPS | pending |
-| 6 | Limpieza resolución dinámica + doc final | pending |
-
----
-## 15. Riesgos y Mitigaciones (Resumen)
-
-| Riesgo | Mitigación |
-|--------|------------|
-| Pitch incorrecto | Auto-detector dual-pass + persistencia |
-| Race GPU/Decoder | Doble buffer + opción triple si hiciera falta |
-| Corrupción memoria | Sentinel + memset debug + asserts en swap |
-| Falta coherencia cache | Verificar si Avcdec y GXM requieren invalidate/flush; añadir hooks condicionales |
-| Leaks en reinit | Función centralizada destroyVideoPlane | 
-
----
-## 16. Extensiones Futuras
-- Texturas YUV (NV12) + shader conversión.
-- Triple buffer configurado por flag.
-- Ajuste dinámico de filtro según latencia.
-- Frame pacing adaptativo.
-
----
-## 17. Glosario Breve
-| Término | Definición |
-|---------|------------|
-| phycont | Memoria física contigua (requerida para GXM/decoder) |
-| GXM | GPU API de PS Vita |
-| NanoVG | Librería de vector graphics usada por Borealis |
-| VideoPlane | Abstracción de un buffer de video listo para texturizar |
-
----
-## 18. Checklist de Validación Inicial
-- [ ] Ambos `VideoPlane` alloc OK
-- [ ] pitchBytes alineado a 8
-- [ ] gxmTex inicializado sin error
-- [ ] nvgImageId (stub -1) aceptado sin crash
-- [ ] Logs de creación visibles
-- [ ] Sin modificación aún del camino de decode actual
-
----
-## 19. Notas
-Este documento evoluciona junto con la implementación. Cualquier cambio estructural debe reflejarse aquí para mantener alineación entre código y diseño.
-
-## 20. Lecciones del pipeline legacy (moonlight-legacy)
-
-Del análisis directo de `reference/moonlight-legacy/src/video/vita.c` se desprenden datos concretos que debemos respetar al migrar el flujo a Borealis:
-
-| Aspecto | Legacy | Implicación para la ruta nueva |
-|---------|--------|---------------------------------
-| Formato de pixel (`picture.frame.pixelType`) | Valor `0` → `SCE_AVCDEC_PIXELFORMAT_RGBA8888` | El decoder ya soporta RGBA directo; no requiere conversión YUV si entregamos los parámetros correctos. |
-| Pitch reportado | `picture.frame.framePitch = image_scaling.texture_width;` (unidad: pixeles) | El pitch que recibe `sceAvcdecDecode` es en **pixeles**, no en bytes. Debe coincidir con el ancho real de la textura utilizada. |
-| Dimensiones declaradas | `frameWidth/frameHeight = image_scaling.texture_*` | Las dimensiones que se pasan al decoder coinciden exactamente con la textura (sin padding ni crop). Cualquier padding debe reflejarse en ambos lados. |
-| Textura destino | Una única `vita2d_texture` de tamaño `image_scaling.texture_width × image_scaling.texture_height` | El decoder escribe directo a la textura; no hay staging intermedio. Nuestra implementación debe garantizar que la memoria proporcionada a `pPicture[0]` sea la misma que usará el renderer. |
-| Flujo de render | Tras cada `sceAvcdecDecode` con output, se llama a `vita2d_start_drawing()`, se pinta el frame y se hace `vita2d_swap_buffers()` | La textura recién escrita se consume inmediatamente en el mismo hilo. Esto asegura que no quede un buffer “sin presentar” que pueda ser reescrito, y evita estados inconsistentes del doble buffer. |
-| SPS fix | `gs_sps_fix(...)` sobrescribe la NAL SPS dentro de `decoder_buffer` antes del decode | Nuestra ruta ya replica esta lógica con `gs::SpsContext::fix`, por lo que debemos mantenerla activa siempre que tratemos SPS NALs. |
-| Alineación | `image_scaling.texture_*` se calcula mediante `VITA_DECODER_RESOLUTION()` (múltiplo de 16, mínimo 64) | Cualquier resolución arbitraria se normaliza antes de llegar al decoder. Debemos seguir usando los mismos macros para evitar tamaños no soportados. |
-
-Resumen operativo: la configuración válida y probada en legacy es “textura = superficie exacta = 960×544”, pitch en pixeles (=960) y RGBA directo sin staging. Cuando adaptemos a Borealis, cualquier optimización (padding extra, crop, staging) debe hacerse garantizando que `frameWidth/frameHeight/framePitch` sigan el mismo contrato que espera `sceAvcdecDecode`.
-
-## 21. Lecciones del pipeline Moonlight-Switch
-
-Aunque la Vita no usa FFmpeg en la ruta actual, el port para Switch demuestra cómo implementar Zero-Copy con un renderer moderno (deko3d) y sirve como referencia para arquitecturas modulares:
-
-| Área | En Switch | Implicación para Vita |
-|------|-----------|-----------------------|
-| Decoder | `FFmpegVideoDecoder` con FFmpeg; en Switch usa HW decoding NVTEGRA (`AV_PIX_FMT_NVTEGRA`) + `av_hwdevice_ctx_create` | Si en Vita se evaluara FFmpeg en el futuro, habría que replicar la configuración HW correspondiente. El concepto clave es disponer de un decoder que entregue buffers amigables para GPU. |
-| Cola de frames | `AVFrameHolder` (cola thread-safe) | Puede inspirar una cola similar si queremos desacoplar decode/render cuando reactivemos doble buffer o threads separados. |
-| Renderer | `DKVideoRenderer` (deko3d) crea imágenes que apuntan directamente al buffer de decode (`av_nvtegra_frame_get_fbuf_map`) y actualiza descriptores; luego dibuja un quad con shaders YUV→RGB | Equivalente al objetivo Vita: crear objetos GXM/NanoVG que referencien el buffer del decoder sin copiar. Si usamos YUV en Vita, necesitaremos matrices y offsets similares a los que maneja Switch para BT.601/709/2020. |
-| Color Space | Matrices precargadas (`gl_color_matrix`) y offsets según metadata (`frame->colorspace`, `frame->color_range`) | Aporta la tabla exacta para convertir YUV a RGB en los shaders si trasladamos el enfoque. |
-| Sincronización | Tras cada frame: `queue.submitCommands(cmdlist); queue.waitIdle();` | Confirmación de que el renderer bloquea hasta presentar. En Vita, debemos tratar cuidadosamente el pacing para no pisar la textura mientras la GPU la usa. |
-| Estadísticas | Renderer guarda tiempos (`total_render_time`, `rendered_frames`) y calcula FPS | Podemos reutilizar ideas para la telemetría en Vita (frames renderizados, tiempos medios). |
-
-Resumen operativo: Switch demuestra un pipeline Zero-Copy completo (decoder → GPU) soportado por una cola de frames, un renderer modular y shaders dedicados. Aunque el stack Vita difiere (sceAvcdec + GXM), la estructura por capas y los puntos de instrumentación son directamente aplicables a nuestro trabajo con Borealis.
-
----
-Fin del documento.
+Fin del documento (actualizado).

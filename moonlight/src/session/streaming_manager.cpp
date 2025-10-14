@@ -163,7 +163,8 @@ bool StreamingManager::start(SERVER_DATA& server, STREAM_CONFIGURATION& streamCo
 
     // Iniciar video si VideoManager está disponible
     if (_videoManager && _videoManager->isInitialized()) {
-        _videoManager->startVideo();
+            // Iniciar video según la configuración que haya seleccionado el usuario
+            _videoManager->startVideo();
     }
 
     // La llamada a LiStartConnection es bloqueante, por lo que la ejecutamos en un hilo
@@ -185,13 +186,18 @@ bool StreamingManager::start(SERVER_DATA& server, STREAM_CONFIGURATION& streamCo
         brls::Logger::info("[STREAM] - ServerInfo address: {}", srv_addr);
         brls::Logger::info("[STREAM] - ServerInfo rtspSessionUrl: {}", srv_url);
 
+        void* renderContext = nullptr;
+        if (_videoManager) {
+            renderContext = _videoManager->getRenderContext();
+        }
+
         int result = LiStartConnection(
             &server.serverInfo,
             &streamConfig,
             &_conn_callbacks,
             &_video_callbacks,
             &_audio_callbacks,
-            nullptr, // renderContext
+            renderContext, // renderContext (may be FFmpeg context or NULL)
             0,       // drFlags
             nullptr, // audioContext
             0        // arFlags

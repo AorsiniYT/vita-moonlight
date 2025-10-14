@@ -69,20 +69,23 @@
         "add_host_cancel": "Cancel"
     },
     "settings_tab": {
-        "render_mode": {
+            "header": "Streaming settings",
+            "controls_header": "Controls",
+            "system_header": "System",
+            "render_mode": {
             "title": "Render mode",
             "legacy_option": "Legacy (SceVideodec)",
             "modern_option": "Modern (FFmpeg)",
             "legacy_name": "Legacy",
             "modern_name": "Modern",
             "unknown_name": "Unknown",
-            "notify": "Render mode: {}"
+            "notify": "Render mode: {0}"
         },
         "pixel_format": {
             "title": "Pixel format",
             "rgba": "Direct RGBA",
             "yuv": "YUV420 (experimental)",
-            "notify": "Pixel format: {}"
+            "notify": "Pixel format: {0}"
         },
         "resolution": {
             "title": "Resolution",

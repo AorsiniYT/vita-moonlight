@@ -77,25 +77,24 @@ list(APPEND APP_PLATFORM_LIB ${CMAKE_THREAD_LIBS_INIT})
 # setting src and include
 
 list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/moonlight/include)
-list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/video)
+list(APPEND APP_PLATFORM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video)
 
 # Option to enable/disable building the bundled FFmpeg integration
+# It is deactivated due to sudden crashes, until it is solved it will not be activated
 option(BUILD_FFMPEG "Build FFmpeg integration" OFF)
 
-# Collect main sources, optionally excluding the FFmpeg subtree for faster iteration
-if(BUILD_FFMPEG)
-    file(GLOB_RECURSE MAIN_SRC moonlight/*.cpp)
-else()
-    # Exclude sources under moonlight/src/video/ffmpeg to prevent compiling FFmpeg code
-    file(GLOB_RECURSE _ALL_SRC moonlight/*.cpp)
-    set(MAIN_SRC)
-    foreach(_f IN LISTS _ALL_SRC)
-        string(FIND "${_f}" "/moonlight/src/video/ffmpeg/" _is_ffmpeg)
-        if(_is_ffmpeg EQUAL -1)
-            list(APPEND MAIN_SRC "${_f}")
-        endif()
-    endforeach()
+# Collect main sources: glob all and exclude ffmpeg subtree if BUILD_FFMPEG is OFF.
+file(GLOB_RECURSE _ALL_SRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} moonlight/*.cpp)
+set(MAIN_SRC)
+
+if(NOT BUILD_FFMPEG)
+    # Remove ffmpeg subtree entries (paths relative to source dir)
+    list(FILTER _ALL_SRC EXCLUDE REGEX "^moonlight/src/video/ffmpeg/")
 endif()
+
+foreach(_f IN LISTS _ALL_SRC)
+    list(APPEND MAIN_SRC "${CMAKE_CURRENT_SOURCE_DIR}/${_f}")
+endforeach()
 # Nota: NetworkOptimizations.cpp añadido en moonlight/src/network/ queda incluido por el GLOB anterior.
 # Si se desea desactivar en runtime se expone vita_netopt_set_enabled().
 add_definitions(-DVITA_NETOPT_ENABLED)
@@ -103,6 +102,7 @@ add_definitions(-DVITA_NETOPT_ENABLED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/legacy)
 if(BUILD_FFMPEG)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/ffmpeg)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/ffmpeg/modules)
 endif()
 
 # If building for PSV, generate a small compat source at configure time
@@ -150,6 +150,11 @@ endif()
 # building target
 program_target(${PROJECT_NAME} "${MAIN_SRC}")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
+# Expose BUILD_FFMPEG macro to sources so we can guard FFmpeg-specific code
+if(BUILD_FFMPEG)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_FFMPEG=1)
+endif()
 
 # Envolver LiRequestIdrFrame para redirigir a optimizaciones de red
 if (PLATFORM_PSV)

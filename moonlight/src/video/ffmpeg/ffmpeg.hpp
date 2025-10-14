@@ -25,7 +25,7 @@ typedef struct {
     bool has_frame;
 } FFmpegVideoFrame;
 
-typedef struct {
+typedef struct FFmpegVideoContext {
     FFmpegVideoDecoder decoder;
     FFmpegVideoFrame current_frame;
     int frame_rate;
