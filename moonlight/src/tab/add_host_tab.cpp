@@ -160,19 +160,29 @@ AddHostTab::AddHostTab() {
             this->pairingContext = std::make_shared<PairingContext>();
             auto context = this->pairingContext;
             // Lógica de pairing: delegar la UI del diálogo a pairing.cpp
+            // Bloquear inputs y ocultar temporalmente el highlight del botón
+            // para que no quede la marca azul activa mientras se procesa el emparejamiento.
             brls::Application::blockInputs();
+            if (this->addButton) {
+                // Ocultar el highlight visual del botón
+                this->addButton->setHideHighlight(true);
+            }
             auto weakSelf = this->weak_from_this();
             HostInfo h; h.ip = ipInput; h.name = name; h.safeId = makeSafeHostId(name.empty()? ipInput : name);
             GameStreamClient::instance().beginPairing(h, [this](bool ok){
-                if (ok) {
-                    brls::Application::notify("Emparejado");
-                    if (this->ipField) this->ipField->setValue("");
-                    if (this->nameField) this->nameField->setValue("");
-                    if (this->preferExternalSelector) this->preferExternalSelector->setSelection(0);
-                    this->refreshHostsList();
-                } else {
-                    brls::Application::notify("Fallo emparejar");
-                }
+                // Restaurar el highlight del botón en el hilo de UI
+                brls::sync([this, ok]() {
+                    if (this->addButton) this->addButton->setHideHighlight(false);
+                    if (ok) {
+                        brls::Application::notify("Emparejado");
+                        if (this->ipField) this->ipField->setValue("");
+                        if (this->nameField) this->nameField->setValue("");
+                        if (this->preferExternalSelector) this->preferExternalSelector->setSelection(0);
+                        this->refreshHostsList();
+                    } else {
+                        brls::Application::notify("Fallo emparejar");
+                    }
+                });
             });
             return true;
         });
