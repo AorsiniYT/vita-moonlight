@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <borealis/core/application.hpp>
 #include <borealis/extern/nanovg/nanovg.h>
-#include "../../../network/NetworkOptimizations.h"
+#include "network/NetworkOptimizations.hpp"
 
 // Definir constantes que pueden faltar
 #ifndef SCE_VIDEODEC_TYPE_HW_AVCDEC

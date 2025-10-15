@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
-#include "NetworkOptimizations.h"
+#include "network/NetworkOptimizations.hpp"
 
 extern "C" uint64_t LiGetMillis();
 // Función original envuelta por el linker con --wrap
