@@ -136,11 +136,10 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
                 updateRearTouchDetail(vs.rear_touch);
             }
         );
-        // Wrap the overlay in an AppletFrame so the standard header/footer
-        // are displayed (keeps title and hints consistent with other screens).
-        auto* frame = new brls::AppletFrame(overlay);
-        frame->setTitle(brls::getStr("moonlight/rear_touch/calibration/overlay_title"));
-        brls::Application::pushActivity(new brls::Activity(frame));
+    // Push the overlay directly as the activity content. The overlay
+    // itself is an AppletFrame and sets its title internally, so we can
+    // use it directly to ensure the header is displayed correctly.
+    brls::Application::pushActivity(new brls::Activity(overlay));
         return true;
     });
 

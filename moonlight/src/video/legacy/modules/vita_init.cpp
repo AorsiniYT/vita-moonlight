@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <string.h>
 #include <stdio.h>
-#include "../../../network/NetworkOptimizations.h"
+#include "network/NetworkOptimizations.hpp"
 // #include "libgamestream/sps.h" // deshabilitado (SPS context temporalmente fuera)
 
 static inline size_t align_up_size(size_t value, size_t alignment) {

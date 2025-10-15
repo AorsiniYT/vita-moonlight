@@ -17,7 +17,7 @@ extern gs::SpsContext* g_sps_ctx;
 #include "session/vita_session.hpp"
 #include "debug.hpp"
 #include "Limelight.h"
-#include "../../../network/NetworkOptimizations.h"
+#include "network/NetworkOptimizations.hpp"
 // Zero-copy y DirectGxm eliminados; flujo simplificado estilo Moonlight-Switch
 // (VideoPlane.hpp ya no es necesario)
 // DirectGxmVideoRenderer eliminado (modo directo depurado)

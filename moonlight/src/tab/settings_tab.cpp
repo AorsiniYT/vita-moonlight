@@ -30,7 +30,7 @@
 #endif
 #include "settings.hpp"
 #include "video/render_mode_cache.hpp"
-#include "network/NetworkOptimizations.h"
+#include "network/NetworkOptimizations.hpp"
 
 using namespace brls::literals;  // for _i18n
 
