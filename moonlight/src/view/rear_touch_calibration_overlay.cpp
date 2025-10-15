@@ -1,5 +1,7 @@
 #include "view/rear_touch_calibration_overlay.hpp"
 #include "controller/special_inputs.hpp"
+// For vita_debug_log
+#include "debug.hpp"
 
 #include <algorithm>
 #include <array>
@@ -306,8 +308,17 @@ RearTouchCalibrationOverlay::RearTouchCalibrationOverlay(const RearTouchSettings
         sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
     }
 #endif
-    this->setTitle(brls::getStr("moonlight/rear_touch/calibration/overlay_title"));
-    auto* root = new brls::Box(brls::Axis::COLUMN);
+        // Ensure the header shows the overlay title: set it on the root AppletFrameItem
+        std::string overlayTitle = brls::getStr("moonlight/rear_touch/calibration/overlay_title");
+        auto* root = new brls::Box(brls::Axis::COLUMN);
+        root->getAppletFrameItem()->title = overlayTitle;
+        // Also call setTitle after setContentView to override any update from children
+        this->setTitle(overlayTitle);
+        // Ensure the overlay's own AppletFrameItem carries the same title (helps logs and consistency)
+        this->getAppletFrameItem()->title = overlayTitle;
+        // Debug: log the overlay title that was just set
+    // Use vita_debug_log so the log can be toggled on Vita via g_debug_log_enabled
+    vita_debug_log("[RearTouchCalibrationOverlay] constructor set title='%s'", overlayTitle.c_str());
     root->setGrow(1.0f);
     canvas = new RearTouchCalibrationCanvas(initialSettings);
     canvas->getAppletFrameItem()->title = brls::getStr("moonlight/rear_touch/calibration/title");

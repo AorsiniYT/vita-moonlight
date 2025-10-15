@@ -4,6 +4,8 @@
 #include "controller/ControllerInput.hpp"
 #include "controller/special_inputs.hpp"
 #include "view/rear_touch_calibration_overlay.hpp"
+// For vita_debug_log
+#include "debug.hpp"
 
 #include <string>
 #include <vector>
@@ -139,6 +141,9 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
     // Push the overlay directly as the activity content. The overlay
     // itself is an AppletFrame and sets its title internally, so we can
     // use it directly to ensure the header is displayed correctly.
+    // Debug: log that we are about to push the overlay and the title it carries
+    // Use vita_debug_log for togglable Vita logging
+    vita_debug_log("[RearTouchSettingsTab] pushing RearTouchCalibrationOverlay - itemTitle='%s'", overlay->getAppletFrameItem()->title.c_str());
     brls::Application::pushActivity(new brls::Activity(overlay));
         return true;
     });
