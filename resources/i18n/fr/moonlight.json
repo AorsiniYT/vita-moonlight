@@ -14,6 +14,8 @@
   ,
     "app_select": {
       "subtitle": "Sélectionnez une application à lancer",
+      "connecting": "Connexion...",
+      "starting": "Démarrage...",
       "error_no_host": "Erreur: information de l'hôte introuvable.",
       "no_apps": "Aucune application trouvée sur cet hôte.",
       "running_session": "Session en cours",

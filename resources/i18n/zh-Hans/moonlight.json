@@ -15,6 +15,8 @@
     ,
     "app_select": {
       "subtitle": "选择要启动的应用",
+      "connecting": "正在连接...",
+      "starting": "正在启动...",
       "error_no_host": "错误：未找到主机信息。",
       "no_apps": "该主机上未找到应用。",
       "running_session": "正在运行的会话",

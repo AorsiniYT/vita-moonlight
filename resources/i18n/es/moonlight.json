@@ -236,6 +236,8 @@
     ,
         "app_select": {
             "subtitle": "Selecciona una aplicación para iniciar",
+            "connecting": "Conectando...",
+            "starting": "Iniciando...",
             "error_no_host": "Error: No se encontró la información del host.",
             "no_apps": "No se encontraron aplicaciones en este host.",
             "running_session": "Sesión en curso",
