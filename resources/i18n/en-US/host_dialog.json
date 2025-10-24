@@ -33,4 +33,8 @@
   "change_ip_same": "That IP is already set",
   "change_ip_success": "Host IP updated",
   "change_ip_failure": "Couldn't update the host IP"
+  ,
+  "actions": {
+    "refresh": "Refresh hosts"
+  }
 }

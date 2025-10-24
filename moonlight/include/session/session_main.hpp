@@ -15,6 +15,7 @@ public:
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
 private:
     void openSessionMenu();
+    bool isPauseOverlayOpen() const { return pauseOverlayOpen; }
     HostInfo host;
     RemoteAppInfo app;
     std::unique_ptr<VitaStreamOverlayView> overlayStatsView;
@@ -22,6 +23,7 @@ private:
     BRLS_BIND(brls::Label, appLabel, "appLabel");
     BRLS_BIND(brls::Label, info, "info");
     BRLS_BIND(brls::Button, endBtn, "endBtn");
+    static inline bool pauseOverlayOpen = false;
 };
 
 // Función para lanzar la pantalla principal de sesión

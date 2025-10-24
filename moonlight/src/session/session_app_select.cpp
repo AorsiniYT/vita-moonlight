@@ -41,7 +41,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
 
     // Configurar títulos
     app_select_title->setText(hostName);
-    app_select_subtitle->setText("Selecciona una aplicación para iniciar");
+    app_select_subtitle->setText(brls::getStr("session/app_select/subtitle"));
 
     // Crear y configurar el GridView dinámicamente
     gridView = new GridView();
@@ -62,7 +62,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
         brls::Logger::info("[SessionAppSelect] Stream activo detectado para {} -> saltando a SessionMainView", this->host.ip);
         RemoteAppInfo running = GameStreamClient::instance().activeAppInfo(this->host.ip);
         if (running.name.empty()) {
-            running.name = "Sesión en curso";
+            running.name = brls::getStr("session/app_select/running_session");
             running.id = "0";
         }
         auto* sessionView = new SessionMainView(this->host, running);
@@ -95,7 +95,7 @@ void SessionAppSelect::populateAppList() {
     if (host.name.empty() || host.ip.empty()) {
         if (spinner) spinner->setVisibility(brls::Visibility::GONE);
         if (app_select_empty) {
-            app_select_empty->setText("Error: No se encontró la información del host.");
+            app_select_empty->setText(brls::getStr("session/app_select/error_no_host"));
             app_select_empty->setVisibility(brls::Visibility::VISIBLE);
         }
         return;
@@ -113,7 +113,7 @@ void SessionAppSelect::populateAppList() {
             if (apps.empty()) {
                 brls::Logger::info("[SessionAppSelect] No se encontraron aplicaciones en este host.");
                 if (app_select_empty) {
-                    app_select_empty->setText("No se encontraron aplicaciones en este host.");
+                    app_select_empty->setText(brls::getStr("session/app_select/no_apps"));
                     app_select_empty->setVisibility(brls::Visibility::VISIBLE);
                 }
                 return;
@@ -225,7 +225,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
 
     if (!GameStreamClient::instance().connect(this->host)) {
         brls::Logger::error("[SessionAppSelect] Error al conectar con el servidor");
-        brls::Application::notify("Error al conectar con el servidor");
+        brls::Application::notify(brls::getStr("session/app_select/error_connect"));
         return;
     }
 
@@ -258,11 +258,11 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
         if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
     GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
             if (ok) {
-                brls::Application::notify("Emparejado");
+                brls::Application::notify(brls::getStr("session/app_select/paired"));
                 // Reintentar lanzamiento
                 this->AppSelected(app);
             } else {
-                brls::Application::notify("Pairing cancelado/falló");
+                brls::Application::notify(brls::getStr("session/app_select/pairing_failed"));
             }
         });
         return; // esperar callback
@@ -283,7 +283,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
     int appId = std::stoi(app.id);
     if (!GameStreamClient::instance().startApp(this->host.ip, streamConfig, appId)) {
         brls::Logger::error("[SessionAppSelect] Error al iniciar aplicación");
-        brls::Application::notify("Error al iniciar la aplicación");
+        brls::Application::notify(brls::getStr("session/app_select/error_start_app"));
         return;
     }
 
@@ -306,7 +306,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
     auto* vitaSession = new VitaSession(this->host.ip, appId, isSunshine);
     if (!vitaSession->start()) {
         brls::Logger::error("[SessionAppSelect] VitaSession start() falló");
-        brls::Application::notify("Error al iniciar streaming (session)");
+        brls::Application::notify(brls::getStr("session/app_select/error_start_stream"));
         delete vitaSession;
         return;
     }

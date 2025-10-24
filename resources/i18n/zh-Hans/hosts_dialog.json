@@ -19,4 +19,9 @@
     "change_ip_same": "该 IP 已经设置",
     "change_ip_success": "主机 IP 已更新",
     "change_ip_failure": "无法更新主机 IP"
+
+    ,
+    "actions": {
+        "refresh": "刷新主机"
+    }
 }

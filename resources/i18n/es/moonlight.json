@@ -220,5 +220,30 @@
     "hints": {
         "cancel": "Cancelar"
     },
-    "host_dialog/connecting": "Generando certificados..."
+    "host_dialog/connecting": "Generando certificados...",
+    "main": {
+        "cancel": "Cancelar"
+    },
+    "session": {
+        "pause": {
+            "title": "Menú de pausa",
+            "resume": "Reanudar",
+            "disconnect": "Desconectar",
+            "close_app": "Cerrar app",
+            "notify_disconnected": "Desconectado del host",
+            "notify_app_closed": "Aplicación cerrada en el host"
+        }
+    ,
+        "app_select": {
+            "subtitle": "Selecciona una aplicación para iniciar",
+            "error_no_host": "Error: No se encontró la información del host.",
+            "no_apps": "No se encontraron aplicaciones en este host.",
+            "running_session": "Sesión en curso",
+            "error_connect": "Error al conectar con el servidor",
+            "paired": "Emparejado",
+            "pairing_failed": "Empareado cancelado/falló",
+            "error_start_app": "Error al iniciar la aplicación",
+            "error_start_stream": "Error al iniciar streaming"
+        }
+    }
 }

@@ -19,4 +19,9 @@
     "change_ip_same": "Этот IP уже установлен",
     "change_ip_success": "IP-адрес хоста обновлён",
     "change_ip_failure": "Не удалось обновить IP-адрес хоста"
+
+    ,
+    "actions": {
+        "refresh": "Обновить хосты"
+    }
 }
