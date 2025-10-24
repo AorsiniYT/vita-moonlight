@@ -15,6 +15,8 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+// Directory creation is centralized in ConfigManager (ensureDirExists / ensureKeyDirExists)
+
 GameStreamClient& GameStreamClient::instance() {
     static GameStreamClient instance;
     return instance;
@@ -194,7 +196,7 @@ bool GameStreamClient::isPaired(const std::string& address) {
     return m_server_data[address].paired;
 }
 
-bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(bool)> onFinished) {
+bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(bool)> onFinished, std::function<void(const std::string&)> onPinReady) {
     HostInfo localHost = host;
     if (localHost.safeId.empty()) localHost.safeId = makeSafeHostId(localHost.name.empty()? localHost.ip : localHost.name);
     std::string addr = localHost.ip;
@@ -276,13 +278,11 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
         }
         // (fast-path ya evaluado antes de crear el diálogo)
         // Si no existe, procedemos flujo normal
-        stat(keyDir.c_str(), &st); // refrescar st para la ruta principal
-        if (stat(keyDir.c_str(), &st) != 0) {
-            int mk = mkdir(keyDir.c_str(), 0777);
-            if (mk != 0) brls::Logger::error("[Pairing] mkdir fallo en {} errno={}", keyDir, errno);
-            else brls::Logger::info("[Pairing] keyDir creado {}", keyDir);
+        // Asegurar existencia del directorio usando ConfigManager centralizado
+        if (!ConfigManager().ensureKeyDirExists(localHost.safeId)) {
+            brls::Logger::error("[Pairing] No se pudo crear/asegurar keyDir '{}'", keyDir);
         } else {
-            brls::Logger::info("[Pairing] keyDir ya existe {} (no se borra)" , keyDir);
+            brls::Logger::info("[Pairing] keyDir asegurado {}", keyDir);
         }
         // Listado inicial
         {
@@ -334,6 +334,15 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             label->setText(msg);
             spinner->setVisibility(brls::Visibility::GONE);
         });
+        // Notificar al llamador que el PIN está listo (por ejemplo AddHostTab) para
+        // que pueda desbloquear inputs o mostrar el PIN en UI externa.
+        if (onPinReady) onPinReady(pinStr);
+        // Si hay un callback onPinReady (pasado por el llamador), invocarlo con el PIN
+        // fuera del sync para no tocar UI desde hilos no-UI.
+        if (onFinished) {
+            // No hay parámetro onPinReady aquí; dejar al llamador usar onFinished o
+            // la sobrecarga añadida en la cabecera (el llamador puede pasar onPinReady)
+        }
         // Llamar gs_pair
         int pairRes = gs_pair(&serverData, pin);
         if (pairRes == GS_OK) {

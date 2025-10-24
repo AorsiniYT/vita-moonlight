@@ -52,6 +52,9 @@ public:
     std::atomic<bool> discoveryRunning {false};
     std::thread discoveryThread;
     BRLS_BIND(brls::Box, loader, "loader");
+    std::atomic<bool> pairingInProgress {false};
+    // Marca si los inputs ya fueron desbloqueados cuando apareció el PIN
+    std::atomic<bool> inputsUnblockedByPin {false};
 
     // --- Pairing seguro y asincrónico ---
     std::shared_ptr<PairingContext> pairingContext;

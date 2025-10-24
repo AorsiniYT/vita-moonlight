@@ -15,6 +15,7 @@
 */
 #include "model/HostStorage.hpp"
 #include "ConfigManager.hpp"
+#include "crypto/CryptoManager.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -97,6 +98,11 @@ std::vector<HostInfo> HostStorage::loadHosts() {
     std::vector<HostInfo> hosts;
     ConfigManager config;
     std::string baseDir = config.getKeysDir();
+    // Asegurar que el directorio base existe antes de intentar abrirlo
+    if (!config.ensureKeysDirExists()) {
+        std::cout << "[DEBUG][HostStorage] No se pudo asegurar baseDir: '" << baseDir << "'\n";
+        return hosts;
+    }
     std::cout << "[DEBUG][HostStorage] baseDir usado para hosts: '" << baseDir << "'\n";
     DIR* dir = opendir(baseDir.c_str());
     if (!dir) {
@@ -104,6 +110,24 @@ std::vector<HostInfo> HostStorage::loadHosts() {
         return hosts;
     }
     struct dirent* entry;
+    // Helper para sanitizar cadenas que provienen del filesystem (nombres de carpeta, valores)
+    auto sanitize_display = [](const std::string& s) {
+        std::string out;
+        out.reserve(s.size());
+        for (unsigned char c : s) {
+            // Permitimos caracteres imprimibles ASCII y, para evitar problemas con
+            // bytes de control o secuencias corruptas, reemplazamos otros por '?'
+            if (c >= 32 && c != 127) out.push_back(c);
+            else out.push_back('?');
+        }
+        // Trim básico
+        size_t b = 0;
+        while (b < out.size() && std::isspace((unsigned char)out[b])) ++b;
+        size_t e = out.size();
+        while (e > b && std::isspace((unsigned char)out[e - 1])) --e;
+        return out.substr(b, e - b);
+    };
+
     while ((entry = readdir(dir)) != nullptr) {
         std::string folder = entry->d_name;
         std::cout << "[DEBUG][HostStorage] Carpeta encontrada: '" << folder << "'\n";
@@ -120,16 +144,20 @@ std::vector<HostInfo> HostStorage::loadHosts() {
             continue;
         }
     HostInfo host;
-    host.name = folder; // Por retrocompatibilidad: la carpeta era el nombre
-    host.safeId = folder;
+    // Mostrar un nombre seguro al usuario evitando caracteres de control
+    host.name = sanitize_display(folder); // Por retrocompatibilidad: la carpeta era el nombre
+    host.safeId = makeSafeHostId(folder);
         std::cout << "[DEBUG][HostStorage] Leyendo device.ini para host: '" << folder << "'\n";
         std::string line;
         while (std::getline(ini, line)) {
             std::cout << "[DEBUG][HostStorage] device.ini: " << line << "\n";
             if (line.find("internal=") == 0) {
-                host.ip = line.substr(strlen("internal="));
+                std::string v = line.substr(strlen("internal="));
+                host.ip = sanitize_display(v);
             } else if (line.find("port=") == 0) {
-                host.port = std::stoi(line.substr(strlen("port=")));
+                try {
+                    host.port = std::stoi(line.substr(strlen("port=")));
+                } catch (...) { host.port = 0; }
             } else if (line.find("paired=") == 0) {
                 std::string val = line.substr(strlen("paired="));
                 host.paired = (val == "true");
@@ -150,11 +178,14 @@ bool HostStorage::saveHosts(const std::vector<HostInfo>&) { return false; }
 bool HostStorage::addHost(const HostInfo& host) {
     ConfigManager config;
     std::string baseDir = config.getKeysDir();
+    // Asegurar directorio base
+    if (!config.ensureKeysDirExists()) return false;
     std::string safe = host.safeId.empty() ? makeSafeHostId(host.name.empty()? host.ip : host.name) : host.safeId;
     std::string keyDirStr = baseDir + "/" + safe;
     std::string deviceIniPath = keyDirStr + "/device.ini";
     if (fs::exists(deviceIniPath)) return false;
-    fs::create_directories(keyDirStr);
+    // Crear directorio por-host (si no existe)
+    if (!config.ensureKeyDirExists(safe)) return false;
     return HostStorage::writeDeviceIni(keyDirStr, safe, host.ip.c_str(), host.port, host.paired);
 }
 
@@ -177,6 +208,15 @@ bool HostStorage::removeHost(const std::string& name) {
         if (fs::exists(alt)) keyDirStr = alt;
     }
     if (!fs::exists(keyDirStr)) return false;
+    // Limpiar cualquier certificado/clave cargada en memoria para este directorio
+    try {
+        std::cout << "[DEBUG][HostStorage] Llamando a CryptoManager::remove_cert_key_pair para: '" << keyDirStr << "'\n";
+        CryptoManager::remove_cert_key_pair(keyDirStr);
+    } catch (...) {
+        std::cout << "[DEBUG][HostStorage] CryptoManager::remove_cert_key_pair lanzo excepcion (ignorada)\n";
+    }
+
+    // Luego eliminar la carpeta completa del host
     return fs::remove_all(keyDirStr) > 0;
 }
 
