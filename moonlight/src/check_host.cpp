@@ -178,15 +178,9 @@ void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const
                 brls::View* spinnerRow = AddHostTab::vitaInstance->getView("spinner_row");
                 if (spinnerRow)
                     spinnerRow->setVisibility(brls::Visibility::GONE);
+                // Limpiar la instancia de AddHostTab
+                AddHostTab::vitaInstance = nullptr;
             }
-            if (HostsTab::vitaInstance) {
-                brls::View* spinnerRow2 = HostsTab::vitaInstance->getView("spinner_row");
-                if (spinnerRow2)
-                    spinnerRow2->setVisibility(brls::Visibility::GONE);
-                HostsTab::vitaInstance = nullptr;
-            }
-            // También limpiar la instancia de AddHostTab
-            if (AddHostTab::vitaInstance) AddHostTab::vitaInstance = nullptr;
         });
         return 0;
     }, 0x10000100, 0x10000, 0, 0, NULL);
