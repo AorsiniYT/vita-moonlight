@@ -37,10 +37,7 @@
 #include "debug.hpp"
 #include "activity/main_activity.hpp"
 
-// Definición de la bandera estática
-std::atomic<bool> HostsTab::s_isRefreshing{false};
-// Definición de la instancia estática para discovery
-HostsTab* HostsTab::vitaInstance = nullptr;
+// (Se eliminó s_isRefreshing y vitaInstance; no eran usados)
 
 namespace {
 std::string trim_copy(const std::string& value) {
@@ -276,14 +273,6 @@ void HostsTab::refreshHostsList() {
     }
 }
 
-void HostsTab::updateHostsGrid()
-{
-    // Deprecated: the old in-place refresher caused intermittent coredumps on PSVita.
-    // Delegate to a safe full reload of the main activity instead.
-    VITALOG("[HostsTab::updateHostsGrid] deprecated, delegating to requestGlobalRefresh()\n");
-    HostsTab::requestGlobalRefresh();
-}
-
 void HostsTab::requestGlobalRefresh()
 {
     // Safer approach: clear the activities stack and push a fresh MainActivity.
@@ -300,96 +289,3 @@ void HostsTab::requestGlobalRefresh()
     });
 }
 
-void HostsTab::startDeviceDiscovery()
-{
-    VITALOG("[HostsTab::startDeviceDiscovery] start\n");
-    brls::Application::notify("[DEBUG] startDeviceDiscovery entered");
-    brls::Logger::info("[HostsTab::startDeviceDiscovery] (logger) invoked on %p", (void*)this);
-#if defined(__PSV__)
-    VITALOG("[HostsTab] isVitaDiscoveryActive() = %d\n", (int)check_host::isVitaDiscoveryActive());
-    brls::Logger::info("[HostsTab] startDeviceDiscovery invoked; isVitaDiscoveryActive={}", check_host::isVitaDiscoveryActive());
-#endif
-    brls::sync([this]() {
-        brls::View* spinnerRow = this->getView("spinner_row");
-        if (!this->hostsList) return;
-        auto children = this->hostsList->getChildren();
-        for (auto* child : children) {
-            if (!spinnerRow || child != spinnerRow)
-                this->hostsList->removeView(child);
-        }
-        if (spinnerRow) spinnerRow->setVisibility(brls::Visibility::VISIBLE);
-    });
-
-#if defined(__PSV__)
-    static std::vector<std::pair<std::string, std::string>> discoveredHosts; // name, ip
-    discoveredHosts.clear();
-    HostsTab::vitaInstance = this;
-    brls::Logger::info("[HostsTab] startDeviceDiscovery: vitaInstance set to %p", (void*)HostsTab::vitaInstance);
-    vita_debug_log("[HostsTab] About to call check_host::startVitaDiscovery()\n");
-    check_host::startVitaDiscovery([](int idx, const char* host, const char* pcname, const char* ip, int port) {
-        brls::Logger::info("[HostsTab] discovery callback VITA invoked: idx={} pcname={} ip={} port={} host={}", idx, pcname?pcname:"(null)", ip?ip:"(null)", port, host?host:"(null)");
-        VITALOG("[HostsTab] discovery callback VITA invoked: idx=%d pcname=%s ip=%s port=%d host=%s\n", idx, pcname?pcname:"(null)", ip?ip:"(null)", port, host?host:"(null)");
-        std::string name(pcname ? pcname : "");
-        std::string ipStr(ip ? ip : "");
-        std::string displayName = name.empty() ? ipStr : name;
-        for (const auto& h : discoveredHosts) {
-            if (h.first == displayName && h.second == ipStr) return;
-        }
-        discoveredHosts.push_back({displayName, ipStr});
-
-        brls::sync([displayName, ipStr]() {
-            auto activities = brls::Application::getActivitiesStack();
-            for (auto it = activities.rbegin(); it != activities.rend(); ++it) {
-                brls::Activity* act = *it;
-                if (!act) continue;
-                brls::View* content = act->getContentView();
-                HostsTab* hostsTab = dynamic_cast<HostsTab*>(content);
-                if (!hostsTab || !hostsTab->hostsList) continue;
-
-                brls::View* spinnerRow = hostsTab->getView("spinner_row");
-                auto children = hostsTab->hostsList->getChildren();
-                for (auto* child : children) {
-                    if (!spinnerRow || child != spinnerRow)
-                        hostsTab->hostsList->removeView(child);
-                }
-
-                const int cardsPerRow = 3;
-                int count = 0;
-                brls::Box* currentRow = nullptr;
-                for (const auto& h : discoveredHosts) {
-                    if (count % cardsPerRow == 0) {
-                        currentRow = new brls::Box(brls::Axis::ROW);
-                        currentRow->setMarginBottom(16);
-                        hostsTab->hostsList->addView(currentRow);
-                    }
-                    auto* card = new PCCard(h.first.c_str(), "img/moonlight/pc.png");
-                    card->setFocusable(true);
-                    card->setMarginRight(16);
-                    card->setMarginBottom(0);
-                    std::string ipCopy = h.second;
-                    std::string nameCopy = h.first;
-                    card->setClickAction([hostsTab, ipCopy, nameCopy]() {
-                        std::string msg = brls::getStr("moonlight/settings/add_host_connect_question_dialog");
-                        size_t pos_ip = msg.find("$(ip)");
-                        if (pos_ip != std::string::npos) msg.replace(pos_ip, 5, ipCopy);
-                        size_t pos_name = msg.find("$(name)");
-                        if (pos_name != std::string::npos) msg.replace(pos_name, 7, nameCopy);
-                        auto* dialog = new brls::Dialog(msg);
-                        dialog->addButton(brls::getStr("moonlight/settings/add_host_connect"), [hostsTab, nameCopy]() {
-                            brls::sync([hostsTab, nameCopy]() { hostsTab->present(new SessionAppSelect(nameCopy)); });
-                        });
-                        dialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), []() {});
-                        dialog->open();
-                    });
-                    if (currentRow) currentRow->addView(card);
-                    count++;
-                }
-
-                if (spinnerRow) spinnerRow->setVisibility(brls::Visibility::VISIBLE);
-                break;
-            }
-        });
-    });
-#endif
-
-}
