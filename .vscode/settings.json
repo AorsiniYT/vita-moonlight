@@ -1,4 +1,8 @@
 {
+    "cmake.configureArgs": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/cmake-build-psv/compile_commands.json",
+    "clangd.path": "clangd",
+    "clangd.arguments": ["--compile-commands-dir=${workspaceFolder}/cmake-build-psv"],
     "files.associations": {
         "*.py": "python",
         "resources/xml/activity/main.xml": "xml",

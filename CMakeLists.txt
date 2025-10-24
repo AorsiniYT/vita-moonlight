@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.10)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Generate compile_commands.json for LSPs" )
 set(BOREALIS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/borealis/library)
 
 # build options
@@ -354,3 +354,13 @@ if(WIN32)
             $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
 endif()
+
+
+# Habilitar por defecto la generación de compile_commands.json para editores/LSP.
+# Esto evita tener que pasar -DCMAKE_EXPORT_COMPILE_COMMANDS=ON manualmente en la
+# línea de comandos cada vez. Si el usuario lo desea, puede sobrescribirlo al
+# reconfigurar con -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF.
+if(NOT DEFINED CMAKE_EXPORT_COMPILE_COMMANDS)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Generate compile_commands.json for LSPs" )
+endif()
+

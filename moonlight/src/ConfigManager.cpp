@@ -20,6 +20,10 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <string.h>
 
 // Definición fuera de clase para static std::string ConfigManager::getConfigPath();
 #ifdef _WIN32
@@ -42,6 +46,60 @@ std::string ConfigManager::getConfigPath() {
 #else
     return "moonlight-vita.conf";
 #endif
+}
+
+// Helper privado: crear directorio recursivamente (mkdir -p)
+static bool config_mkdir_recursive(const std::string& path, mode_t mode = 0777)
+{
+    if (path.empty()) return false;
+    std::string cur;
+    size_t i = 0;
+    if (path[0] == '/') { cur = "/"; i = 1; }
+    while (i <= path.size()) {
+        if (i == path.size() || path[i] == '/') {
+            std::string sub = path.substr(0, i);
+            if (sub.empty()) { i++; continue; }
+            struct stat st{};
+            if (stat(sub.c_str(), &st) != 0) {
+                if (mkdir(sub.c_str(), mode) != 0) {
+                    if (errno == EEXIST) { /* ok */ }
+                    else return false;
+                }
+            } else if (!S_ISDIR(st.st_mode)) {
+                return false;
+            }
+        }
+        i++;
+    }
+    struct stat st{}; if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) return true;
+    if (mkdir(path.c_str(), mode) == 0) return true;
+    if (errno == EEXIST) return true;
+    return false;
+}
+
+bool ConfigManager::ensureDirExists(const std::string& path) const {
+    if (path.empty()) return false;
+    struct stat st{};
+    if (stat(path.c_str(), &st) == 0) {
+        return S_ISDIR(st.st_mode);
+    }
+    bool ok = config_mkdir_recursive(path);
+    if (!ok) {
+        std::cerr << "[ConfigManager] ensureDirExists fallo en '" << path << "' errno=" << errno << " (" << strerror(errno) << ")\n";
+    }
+    return ok;
+}
+
+bool ConfigManager::ensureKeysDirExists() const {
+    std::string dir = getKeysDir();
+    return ensureDirExists(dir);
+}
+
+bool ConfigManager::ensureKeyDirExists(const std::string& safeId) const {
+    if (safeId.empty()) return ensureKeysDirExists();
+    std::string base = getKeysDir();
+    std::string path = base + "/" + safeId;
+    return ensureDirExists(path);
 }
 
 static int iniHandler(void* user, const char* section, const char* name, const char* value) {

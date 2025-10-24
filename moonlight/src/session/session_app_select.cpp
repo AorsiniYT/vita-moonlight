@@ -256,7 +256,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
         brls::Logger::info("[SessionAppSelect] Host no emparejado - iniciando beginPairing desde gating");
         HostInfo h = this->host;
         if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
-        GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
+    GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
             if (ok) {
                 brls::Application::notify("Emparejado");
                 // Reintentar lanzamiento

@@ -21,6 +21,13 @@
 // Función helper para medir ancho de texto
 float measureTextWidth(int font, float fontSize, const std::string& text) {
     NVGcontext* vg = brls::Application::getNVGContext();
+    if (!vg) {
+        // Fallback seguro: si no hay contexto NVG disponible (puede ocurrir en etapas
+        // tempranas de inicialización en Vita), approximamos el ancho con una regla simple.
+        // Esto evita crashes y devuelve un valor razonable para la lógica de truncado.
+        float approxCharWidth = fontSize * 0.6f;
+        return approxCharWidth * static_cast<float>(text.size());
+    }
     nvgFontSize(vg, fontSize);
     nvgFontFaceId(vg, font);
     float bounds[4];
@@ -47,8 +54,12 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     box->setAlignItems(brls::AlignItems::CENTER);
     box->setFocusable(false);
 
+    // Make the card focusable so navigation selects the card (restore selection UX)
+    this->setFocusable(true);
+
     image = new brls::Image();
     std::string fixedPath = (imagePath == "resources/img/moonlight/pc.png") ? "img/moonlight/pc.png" : imagePath;
+    // Cargar la imagen inmediatamente (ruta fija ya calculada arriba)
     image->setImageFromRes(fixedPath);
     image->setWidth(48);
     image->setHeight(48);
@@ -90,7 +101,18 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
 void PCCard::setPCName(const std::string& name) {
     if (label) {
         label->setText(name);
+        if (name.empty()) {
+            // Si no hay nombre, ocultamos imagen para evitar que quede una tarjeta con solo foto
+            if (image) {
+                image->setVisibility(brls::Visibility::GONE);
+            }
+            // Desactivar animación si no hay texto
+            label->setAnimated(false);
+            label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+            return;
+        }
         // Recalcular animación y alineación si cambia el nombre usando la nueva API pública
+        if (image) image->setVisibility(brls::Visibility::VISIBLE);
         float textWidth = measureTextWidth(label->getFont(), label->getFontSize(), name);
         if (textWidth > 160) {
             label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
@@ -105,8 +127,13 @@ void PCCard::setPCName(const std::string& name) {
 
 void PCCard::setPCImage(const std::string& imagePath) {
     if (image) {
+        if (imagePath.empty()) {
+            image->setVisibility(brls::Visibility::GONE);
+            return;
+        }
         std::string fixedPath = (imagePath == "resources/img/moonlight/pc.png") ? "img/moonlight/pc.png" : imagePath;
         image->setImageFromRes(fixedPath);
+        image->setVisibility(brls::Visibility::VISIBLE);
     }
 }
 

@@ -160,29 +160,58 @@ AddHostTab::AddHostTab() {
             this->pairingContext = std::make_shared<PairingContext>();
             auto context = this->pairingContext;
             // Lógica de pairing: delegar la UI del diálogo a pairing.cpp
-            // Bloquear inputs y ocultar temporalmente el highlight del botón
-            // para que no quede la marca azul activa mientras se procesa el emparejamiento.
+            // Marcar que el pairing está en progreso para evitar que la ventana se cierre
+            // y deshabilitar el botón Add para prevenir múltiples inicios simultáneos.
+            this->pairingInProgress = true;
+            // Reiniciar la marca de desbloqueo por PIN
+            this->inputsUnblockedByPin.store(false);
             brls::Application::blockInputs();
             if (this->addButton) {
-                // Ocultar el highlight visual del botón
+                this->addButton->setState(brls::ButtonState::DISABLED);
+                this->addButton->setFocusable(false);
                 this->addButton->setHideHighlight(true);
             }
             auto weakSelf = this->weak_from_this();
             HostInfo h; h.ip = ipInput; h.name = name; h.safeId = makeSafeHostId(name.empty()? ipInput : name);
-            GameStreamClient::instance().beginPairing(h, [this](bool ok){
-                // Restaurar el highlight del botón en el hilo de UI
-                brls::sync([this, ok]() {
-                    if (this->addButton) this->addButton->setHideHighlight(false);
+            // onPinReady desbloquea inputs cuando el PIN aparece para que el usuario pueda
+            // introducirlo en la máquina host. `inputsUnblockedByPin` evita desbloqueos duplicados.
+            GameStreamClient::instance().beginPairing(h, [this, name](bool ok){
+                // Restaurar el estado UI y desbloquear inputs en el hilo de UI
+                brls::sync([this, ok, name]() {
+                    this->pairingInProgress = false;
+                    if (this->addButton) {
+                        this->addButton->setHideHighlight(false);
+                        this->addButton->setState(brls::ButtonState::ENABLED);
+                        this->addButton->setFocusable(true);
+                    }
+                    // Desbloquear inputs para permitir cerrar la ventana u otras acciones
+                    // Si los inputs ya fueron desbloqueados por onPinReady, no llamamos de nuevo
+                    if (!this->inputsUnblockedByPin.load()) {
+                        brls::Application::unblockInputs();
+                    }
                     if (ok) {
-                        brls::Application::notify("Emparejado");
+                        // Mostrar notificación localizada con el nombre del host
+                        std::string msg = brls::getStr("host_dialog/add_host_paired_success");
+                        size_t pos = msg.find("$(name)"); if (pos != std::string::npos) msg.replace(pos, 7, name);
+                        brls::Application::notify(msg);
                         if (this->ipField) this->ipField->setValue("");
                         if (this->nameField) this->nameField->setValue("");
                         if (this->preferExternalSelector) this->preferExternalSelector->setSelection(0);
                         this->refreshHostsList();
                     } else {
-                        brls::Application::notify("Fallo emparejar");
+                        brls::Application::notify(brls::getStr("host_dialog/add_host_paired_error_failed"));
                     }
                 });
+            }, [this](const std::string& pin){
+                // Callback cuando el PIN ya está listo y mostrado en el diálogo de emparejado.
+                // Desbloqueamos inputs en el hilo de UI para que el usuario pueda cambiar a la
+                // máquina host y escribir el PIN.
+                if (!this->inputsUnblockedByPin.exchange(true)) {
+                    brls::sync([this]() {
+                        brls::Application::unblockInputs();
+                        // Opcional: podríamos mover el foco a un control si es necesario
+                    });
+                }
             });
             return true;
         });
@@ -425,6 +454,11 @@ AddHostTab::~AddHostTab() {
     // Cancelar pairing seguro
     if (this->pairingContext) this->pairingContext->cancelled = true;
     if (this->pairingThread.joinable()) this->pairingThread.join();
+    // Si por alguna razón el pairing estaba en progreso, desbloquear inputs para no dejar la UI bloqueada
+    if (this->pairingInProgress) {
+        brls::Application::unblockInputs();
+        this->pairingInProgress = false;
+    }
 }
 
 #if defined(_WIN32)

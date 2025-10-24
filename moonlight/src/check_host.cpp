@@ -22,11 +22,13 @@
 #include <borealis/core/logger.hpp>
 #include <thread>
 #include <atomic>
+#include "debug.hpp"
 #if defined(__PSV__) || defined(_WIN32)
 #include <borealis/core/thread.hpp>
 #include <borealis/core/view.hpp>
 #include <borealis/core/logger.hpp>
 #include "tab/add_host_tab.hpp"
+#include "tab/hosts_tab.hpp"
 #endif
 // --- No se requiere inicialización manual de red Vita, udp_sniffer_vita lo gestiona ---
 
@@ -80,6 +82,9 @@ namespace {
 void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int)) {
     // Inicialización robusta de red al estilo legacy
     brls::Logger::info("[check_host] startVitaDiscovery: INICIO (estilo legacy)");
+#if defined(__PSV__)
+    vita_debug_log("[check_host] startVitaDiscovery: INICIO (VITALOG)\n");
+#endif
     stopVitaDiscovery();
     brls::Logger::info("[check_host] startVitaDiscovery: después de stopVitaDiscovery");
     // --- Inicialización manual de red Vita (como legacy) ---
@@ -123,15 +128,30 @@ void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const
     vitaDiscoveryStatus = 1;
     udp_sniffer_vita_init();
     brls::Logger::info("[check_host] startVitaDiscovery: después de udp_sniffer_vita_init");
+#if defined(__PSV__)
+    vita_debug_log("[check_host] startVitaDiscovery: udp_sniffer_vita_init called\n");
+#endif
     vitaHostFoundCb = hostFoundCb;
     brls::Logger::info("[check_host] startVitaDiscovery: después de asignar vitaHostFoundCb");
+#if defined(__PSV__)
+    vita_debug_log("[check_host] startVitaDiscovery: vitaHostFoundCb set to %p\n", (void*)vitaHostFoundCb);
+#endif
     udp_sniffer_vita_set_callback(vitaHostFoundCbLogger);
     brls::Logger::info("[check_host] startVitaDiscovery: después de udp_sniffer_vita_set_callback");
+#if defined(__PSV__)
+    vita_debug_log("[check_host] startVitaDiscovery: udp_sniffer_vita_set_callback called\n");
+#endif
     vitaThreadActive = true;
     brls::Logger::info("[check_host] startVitaDiscovery: antes de crear hilo");
+#if defined(__PSV__)
+    vita_debug_log("[check_host] startVitaDiscovery: about to create discovery thread\n");
+#endif
     vitaDiscoveryThread = sceKernelCreateThread("mdns_discovery", [](SceSize, void* argp) -> int {
-        MDNS_LOG("[mdns_log] Hilo de descubrimiento mDNS iniciado (máximo 100 iteraciones o hasta cerrar pestaña)\n");
-        brls::Logger::info("[check_host] Hilo de descubrimiento mDNS iniciado (máximo 100 iteraciones o hasta cerrar pestaña)");
+    MDNS_LOG("[mdns_log] Hilo de descubrimiento mDNS iniciado (máximo 100 iteraciones o hasta cerrar pestaña)\n");
+    brls::Logger::info("[check_host] Hilo de descubrimiento mDNS iniciado (máximo 100 iteraciones o hasta cerrar pestaña)");
+#if defined(__PSV__)
+    vita_debug_log("[mdns_log] Hilo de descubrimiento mDNS (VITA) iniciado\n");
+#endif
         int iter = 0;
         while (vitaDiscoveryStatus == 1 && iter < 100) {
             iter++;
@@ -147,6 +167,9 @@ void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const
         udp_sniffer_vita_deinit();
         MDNS_LOG("[mdns_log] Hilo de descubrimiento mDNS finalizado\n");
         brls::Logger::info("[check_host] Hilo de descubrimiento mDNS finalizado");
+#if defined(__PSV__)
+    vita_debug_log("[mdns_log] Hilo de descubrimiento mDNS finalizado (VITA)\n");
+#endif
         vitaDiscoveryStatus = 2;
         vitaThreadActive = false;
         // Notificar al hilo principal para ocultar el spinner
@@ -156,6 +179,14 @@ void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const
                 if (spinnerRow)
                     spinnerRow->setVisibility(brls::Visibility::GONE);
             }
+            if (HostsTab::vitaInstance) {
+                brls::View* spinnerRow2 = HostsTab::vitaInstance->getView("spinner_row");
+                if (spinnerRow2)
+                    spinnerRow2->setVisibility(brls::Visibility::GONE);
+                HostsTab::vitaInstance = nullptr;
+            }
+            // También limpiar la instancia de AddHostTab
+            if (AddHostTab::vitaInstance) AddHostTab::vitaInstance = nullptr;
         });
         return 0;
     }, 0x10000100, 0x10000, 0, 0, NULL);

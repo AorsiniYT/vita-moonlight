@@ -99,6 +99,13 @@ public:
     std::string getKeysDir() const;
     void setKeysDir(const std::string& dir);
 
+    // Helpers seguros para crear/asegurar directorios relacionados con keys
+    // Garantiza que la ruta exista (mkdir -p behaviour). Devuelve true si
+    // la ruta existe tras la llamada o false en error.
+    bool ensureDirExists(const std::string& path) const;
+    bool ensureKeysDirExists() const;
+    bool ensureKeyDirExists(const std::string& safeId) const;
+
     // --- Configuración de streaming (modo legacy) ---
     StreamConfiguration getStreamConfig() const;
     void setStreamConfig(const StreamConfiguration& config);

@@ -17,15 +17,31 @@
 #include <borealis.hpp>
 #include "utils/host_search.hpp"
 #include "model/HostStorage.hpp" // Para HostInfo
+#include <atomic>
 
 class HostsTab : public brls::Box {
 public:
     HostsTab();
     static brls::View* create();
     void refreshHostsList();
+    // Forzar actualización del grid (muestra spinner + refresh)
+    void updateHostsGrid();
+    // Solicita que se recargue completamente la actividad principal (reconstruye el home)
+    // Implementación segura: ejecuta la recreación del contenido de MainActivity en el hilo UI.
+    static void requestGlobalRefresh();
     // Muestra la selección de apps en el propio tab, reemplazando la lista
     void showAppSelectInTab(const HostInfo& host);
+    // Inicia descubrimiento de dispositivos y actualiza hostsList dinámicamente
+    void startDeviceDiscovery();
     BRLS_BIND(brls::Box, hostsList, "hosts_list");
+    // Evita refresh concurrentes
+    std::atomic<bool> isRefreshing{false};
+    // Bandera global para evitar refreshes concurrentes entre instancias
+    static std::atomic<bool> s_isRefreshing;
+    // Instancia global utilizada temporalmente por el callback de discovery (Vita)
+    static HostsTab* vitaInstance;
+    // Indica que el HostsTab ya terminó su construcción e inicialización
+    std::atomic<bool> initialized{false};
 };
 // check_host.hpp
 #pragma once

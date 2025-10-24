@@ -47,7 +47,7 @@ public:
     bool unpair(const std::string& address);
     bool isPaired(const std::string& address);
     // Flujo completo de pairing con popup (PIN auto-generado) replicando comportamiento original
-    bool beginPairing(const HostInfo& host, std::function<void(bool)> onFinished);
+    bool beginPairing(const HostInfo& host, std::function<void(bool)> onFinished, std::function<void(const std::string&)> onPinReady = nullptr);
 
     // Obtener lista de aplicaciones
     void getAppList(const std::string& address, AppListCallback callback);
