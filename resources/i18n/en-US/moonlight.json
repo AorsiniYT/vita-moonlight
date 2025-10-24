@@ -237,6 +237,8 @@
     ,
         "app_select": {
             "subtitle": "Select an app to launch",
+            "connecting": "Connecting...",
+            "starting": "Starting...",
             "error_no_host": "Error: Host information not found.",
             "no_apps": "No apps found on this host.",
             "running_session": "Running session",

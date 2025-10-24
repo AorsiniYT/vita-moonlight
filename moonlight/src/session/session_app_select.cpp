@@ -5,6 +5,7 @@
 #include "session/session_app_select.hpp"
 #include <sys/stat.h>
 #include "view/pccard.hpp"
+#include "utils/dialog_utils.h"
 #include "model/HostStorage.hpp"
 #include "connection_manager.hpp"
 #include "session/streaming_manager.hpp"
@@ -41,7 +42,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
 
     // Configurar títulos
     app_select_title->setText(hostName);
-    app_select_subtitle->setText(brls::getStr("session/app_select/subtitle"));
+    app_select_subtitle->setText(brls::getStr("moonlight/session/app_select/subtitle"));
 
     // Crear y configurar el GridView dinámicamente
     gridView = new GridView();
@@ -62,7 +63,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
         brls::Logger::info("[SessionAppSelect] Stream activo detectado para {} -> saltando a SessionMainView", this->host.ip);
         RemoteAppInfo running = GameStreamClient::instance().activeAppInfo(this->host.ip);
         if (running.name.empty()) {
-            running.name = brls::getStr("session/app_select/running_session");
+            running.name = brls::getStr("moonlight/session/app_select/running_session");
             running.id = "0";
         }
         auto* sessionView = new SessionMainView(this->host, running);
@@ -95,7 +96,7 @@ void SessionAppSelect::populateAppList() {
     if (host.name.empty() || host.ip.empty()) {
         if (spinner) spinner->setVisibility(brls::Visibility::GONE);
         if (app_select_empty) {
-            app_select_empty->setText(brls::getStr("session/app_select/error_no_host"));
+            app_select_empty->setText(brls::getStr("moonlight/session/app_select/error_no_host"));
             app_select_empty->setVisibility(brls::Visibility::VISIBLE);
         }
         return;
@@ -113,7 +114,7 @@ void SessionAppSelect::populateAppList() {
             if (apps.empty()) {
                 brls::Logger::info("[SessionAppSelect] No se encontraron aplicaciones en este host.");
                 if (app_select_empty) {
-                    app_select_empty->setText(brls::getStr("session/app_select/no_apps"));
+                    app_select_empty->setText(brls::getStr("moonlight/session/app_select/no_apps"));
                     app_select_empty->setVisibility(brls::Visibility::VISIBLE);
                 }
                 return;
@@ -220,14 +221,221 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
                       streamConfig.packetSize, streamConfig.streamingRemotely, streamConfig.supportedVideoFormats);
 
     // Inicializar servidor usando GameStreamClient (patrón Moonlight-Switch)
-    brls::Logger::info("[SessionAppSelect] Inicializando conexión con GameStreamClient");
-    brls::Logger::info("[SessionAppSelect] - host.ip: '{}'", this->host.ip.c_str());
 
-    if (!GameStreamClient::instance().connect(this->host)) {
-        brls::Logger::error("[SessionAppSelect] Error al conectar con el servidor");
-        brls::Application::notify(brls::getStr("session/app_select/error_connect"));
-        return;
+    // Bloquear inputs para que el usuario no pueda navegar mientras conectamos
+    brls::Application::blockInputs();
+    brls::Visibility prevGridVis = brls::Visibility::GONE;
+    if (this->gridView) {
+        // Ocultar el selector por completo (no solo quitar el foco)
+        prevGridVis = this->gridView->getVisibility();
+        this->gridView->setVisibility(brls::Visibility::GONE);
+        // También ocultar el highlight si por alguna razón queda visible
+        this->gridView->setHideHighlight(true);
+        this->gridView->setHideHighlightBackground(true);
+        this->gridView->setHideHighlightBorder(true);
+        // Evitar que cualquier hijo reciba foco o dibuje su highlight (quita el puntito azul)
+        this->gridView->setFocusable(false);
+        // Quitar foco globalmente para evitar que quede un elemento enfocado
+        brls::Application::giveFocus(nullptr);
+        // Ocultar highlight y foco de todos los descendientes (filas -> cards -> inner views)
+        std::function<void(brls::View*)> walkHide;
+        walkHide = [&walkHide](brls::View* v) {
+            if (!v) return;
+            v->setHideHighlight(true);
+            v->setHideHighlightBackground(true);
+            v->setHideHighlightBorder(true);
+            v->setFocusable(false);
+            // Solo Box (contenedores) exponen getChildren
+            brls::Box* box = dynamic_cast<brls::Box*>(v);
+            if (!box) return;
+            auto ch = box->getChildren();
+            for (auto* cc : ch) walkHide(cc);
+        };
+        auto rows = this->gridView->getChildren();
+        for (auto* row : rows) walkHide(row);
     }
+
+    // Mostrar diálogo modal con spinner indicando el progreso de conexión
+    std::string connectingMsg = brls::getStr("moonlight/session/app_select/connecting");
+    auto* loadingDialog = createLoadingDialog(connectingMsg);
+
+    // Ejecutar la secuencia de conexión e inicio en un hilo de fondo
+    // Capturamos por valor los datos necesarios para evitar uso de `this` en background
+    HostInfo hostCopy = this->host;
+    RemoteAppInfo appCopy = app;
+    STREAM_CONFIGURATION cfgCopy = streamConfig;
+    std::thread([hostCopy, appCopy, cfgCopy, loadingDialog, this, prevGridVis]() mutable {
+        brls::Logger::info("[SessionAppSelect][async] Iniciando conexión en hilo de fondo para {}", hostCopy.ip);
+        bool connected = GameStreamClient::instance().connect(hostCopy);
+        // Actualizar UI en hilo principal
+    brls::sync([connected, hostCopy, appCopy, cfgCopy, loadingDialog, prevGridVis, this]() mutable {
+            // Cerrar dialogo de conexión inicial
+            if (loadingDialog) {
+                loadingDialog->close();
+            }
+            if (!connected) {
+                // Restaurar inputs y estado antes de notificar
+                if (loadingDialog) loadingDialog->close();
+                brls::Application::unblockInputs();
+                if (this->gridView) {
+                    this->gridView->setHideHighlight(false);
+                    this->gridView->setHideHighlightBackground(false);
+                    this->gridView->setHideHighlightBorder(false);
+                    this->gridView->setFocusable(true);
+                    // Restaurar foco al grid si antes estaba visible
+                    if (prevGridVis == brls::Visibility::VISIBLE)
+                        brls::Application::giveFocus(this->gridView);
+                    this->gridView->setVisibility(prevGridVis);
+                    // Restaurar descendientes (filas -> cards -> inner views)
+                    std::function<void(brls::View*)> walkRestore;
+                    walkRestore = [&walkRestore](brls::View* v) {
+                        if (!v) return;
+                        v->setHideHighlight(false);
+                        v->setHideHighlightBackground(false);
+                        v->setHideHighlightBorder(false);
+                        v->setFocusable(true);
+                        brls::Box* box = dynamic_cast<brls::Box*>(v);
+                        if (!box) return;
+                        auto ch = box->getChildren();
+                        for (auto* cc : ch) walkRestore(cc);
+                    };
+                    auto rows2 = this->gridView->getChildren();
+                    for (auto* row : rows2) walkRestore(row);
+                }
+                brls::Logger::error("[SessionAppSelect] Error al conectar con el servidor");
+                brls::Application::notify(brls::getStr("moonlight/session/app_select/error_connect"));
+                return;
+            }
+
+            // Si no está emparejado y no hay device.ini, iniciar pairing (se muestra su propio popup si procede)
+            // Reusar el flujo existente: beginPairing maneja su propio diálogo/popup cuando se llama desde UI
+            bool pairedByFile = false;
+            {
+                ConfigManager cfg; cfg.load();
+                std::string base = cfg.getKeysDir();
+                HostInfo h = hostCopy;
+                if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
+                std::vector<std::string> cands;
+                cands.push_back(base + "/" + h.safeId);
+                if (!h.name.empty()) {
+                    auto pos = h.name.find('.');
+                    if (pos != std::string::npos) cands.push_back(base + "/" + makeSafeHostId(h.name.substr(0,pos)));
+                }
+                if (!h.ip.empty()) {
+                    cands.push_back(base + "/" + h.ip);
+                    cands.push_back(base + "/" + makeSafeHostId(h.ip));
+                }
+                struct stat st{};
+                for (auto& dir : cands) {
+                    std::string devIni = dir + "/device.ini";
+                    if (stat(devIni.c_str(), &st)==0) { pairedByFile = true; break; }
+                }
+            }
+
+            if (!pairedByFile && !GameStreamClient::instance().isPaired(hostCopy.ip)) {
+                // Mostrar el diálogo de pairing con spinner reutilizando la utilidad si se desea
+                brls::Application::notify(brls::getStr("moonlight/session/app_select/connecting"));
+                GameStreamClient::instance().beginPairing(hostCopy, [this, appCopy, prevGridVis](bool ok){
+                    brls::sync([this, ok, appCopy, prevGridVis]() {
+                        // Restaurar inputs independientemente del resultado
+                        brls::Application::unblockInputs();
+                        if (this->gridView) {
+                            this->gridView->setHideHighlight(false);
+                            this->gridView->setHideHighlightBackground(false);
+                            this->gridView->setHideHighlightBorder(false);
+                            this->gridView->setFocusable(true);
+                            if (prevGridVis == brls::Visibility::VISIBLE)
+                                brls::Application::giveFocus(this->gridView);
+                            this->gridView->setVisibility(prevGridVis);
+                            std::function<void(brls::View*)> walkRestore;
+                            walkRestore = [&walkRestore](brls::View* v) {
+                                if (!v) return;
+                                v->setHideHighlight(false);
+                                v->setHideHighlightBackground(false);
+                                v->setHideHighlightBorder(false);
+                                v->setFocusable(true);
+                                brls::Box* box = dynamic_cast<brls::Box*>(v);
+                                if (!box) return;
+                                auto ch = box->getChildren();
+                                for (auto* cc : ch) walkRestore(cc);
+                            };
+                            auto rows3 = this->gridView->getChildren();
+                            for (auto* row : rows3) walkRestore(row);
+                        }
+                        if (!ok) {
+                            brls::Application::notify(brls::getStr("moonlight/session/app_select/pairing_failed"));
+                            return;
+                        }
+                        brls::Application::notify(brls::getStr("moonlight/session/app_select/paired"));
+                        // Reintentar iniciar la app ahora que está emparejado
+                        this->AppSelected(appCopy);
+                    });
+                });
+                return;
+            }
+
+            // Mostrar diálogo de 'iniciando' mientras hacemos startApp + VitaSession
+            std::string startingMsg = brls::getStr("moonlight/session/app_select/starting");
+            auto* startDialog = createLoadingDialog(startingMsg);
+
+            // Ejecutar startApp y VitaSession en un hilo para no bloquear UI
+            std::thread([hostCopy, appCopy, cfgCopy, startDialog, this, prevGridVis]() mutable {
+                bool started = GameStreamClient::instance().startApp(hostCopy.ip, cfgCopy, std::stoi(appCopy.id));
+                brls::sync([started, hostCopy, appCopy, startDialog, this, prevGridVis]() {
+                    if (startDialog) startDialog->close();
+                    // Restaurar inputs antes de procesar resultado
+                    brls::Application::unblockInputs();
+                    if (this->gridView) {
+                        this->gridView->setHideHighlight(false);
+                        this->gridView->setHideHighlightBackground(false);
+                        this->gridView->setHideHighlightBorder(false);
+                            this->gridView->setFocusable(true);
+                            if (prevGridVis == brls::Visibility::VISIBLE)
+                                brls::Application::giveFocus(this->gridView);
+                        this->gridView->setVisibility(prevGridVis);
+                            auto children = this->gridView->getChildren();
+                            for (auto* c : children) {
+                                if (c) {
+                                    c->setHideHighlight(false);
+                                    c->setHideHighlightBackground(false);
+                                    c->setHideHighlightBorder(false);
+                                    c->setFocusable(true);
+                                }
+                            }
+                    }
+                    if (!started) {
+                        brls::Logger::error("[SessionAppSelect] Error al iniciar aplicación");
+                        brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_app"));
+                        return;
+                    }
+
+                    // Crear y arrancar VitaSession
+                    SERVER_DATA& serverData = GameStreamClient::instance().serverData(hostCopy.ip);
+                    int appId = std::stoi(appCopy.id);
+                    bool isSunshine = false;
+                    if (serverData.serverInfo.serverInfoAppVersion && std::string(serverData.serverInfo.serverInfoAppVersion).find("Sunshine") != std::string::npos)
+                        isSunshine = true;
+                    else if (serverData.serverInfo.serverCodecModeSupport != 0)
+                        isSunshine = true;
+
+                    auto* vitaSession = new VitaSession(hostCopy.ip, appId, isSunshine);
+                    if (!vitaSession->start()) {
+                        brls::Logger::error("[SessionAppSelect] VitaSession start() falló");
+                        brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_stream"));
+                        delete vitaSession;
+                        return;
+                    }
+
+                    GameStreamClient::instance().setActiveStream(hostCopy.ip, appId, appCopy.name);
+                    auto* sessionView = new SessionMainView(hostCopy, appCopy);
+                    brls::Application::pushActivity(new brls::Activity(sessionView), brls::TransitionAnimation::NONE);
+                });
+            }).detach();
+        });
+    }).detach();
+
+    // Salimos inmediatamente: el resto del flujo continúa en hilos de fondo
+    return;
 
     // Pairing gating: comprobar primero si existe device.ini en cualquier keyDir candidato (migración)
     bool pairedByFile = false;
@@ -258,11 +466,11 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
         if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
     GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
             if (ok) {
-                brls::Application::notify(brls::getStr("session/app_select/paired"));
+                brls::Application::notify(brls::getStr("moonlight/session/app_select/paired"));
                 // Reintentar lanzamiento
                 this->AppSelected(app);
             } else {
-                brls::Application::notify(brls::getStr("session/app_select/pairing_failed"));
+                brls::Application::notify(brls::getStr("moonlight/session/app_select/pairing_failed"));
             }
         });
         return; // esperar callback
@@ -283,7 +491,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
     int appId = std::stoi(app.id);
     if (!GameStreamClient::instance().startApp(this->host.ip, streamConfig, appId)) {
         brls::Logger::error("[SessionAppSelect] Error al iniciar aplicación");
-        brls::Application::notify(brls::getStr("session/app_select/error_start_app"));
+    brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_app"));
         return;
     }
 
@@ -306,7 +514,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
     auto* vitaSession = new VitaSession(this->host.ip, appId, isSunshine);
     if (!vitaSession->start()) {
         brls::Logger::error("[SessionAppSelect] VitaSession start() falló");
-        brls::Application::notify(brls::getStr("session/app_select/error_start_stream"));
+    brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_stream"));
         delete vitaSession;
         return;
     }
