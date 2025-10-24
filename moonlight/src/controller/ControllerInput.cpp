@@ -173,6 +173,18 @@ void ControllerInputManager::setPauseCallback(const std::function<void()>& cb) {
     set_pause_callback(cb);
 }
 
+// Public setter para habilitar/deshabilitar el procesamiento de input.
+// Cuando se deshabilita, se hace un dropInput() inmediato para enviar estado cero
+// al host y evitar que queden botones presionados en la transmisión.
+void ControllerInputManager::setInputEnabled(bool enabled) {
+    this->inputEnabled = enabled;
+    if (!enabled) {
+        // Enviar estado cero inmediato
+        this->dropInput();
+    }
+    vita_debug_log("[ControllerInput] setInputEnabled -> %d", enabled ? 1 : 0);
+}
+
 void ControllerInputManager::initMapping() {
     mapping.btnDpadUp = makeGamepadBinding(SCE_CTRL_UP);
     mapping.btnDpadDown = makeGamepadBinding(SCE_CTRL_DOWN);

@@ -30,6 +30,9 @@ public:
     // Resetear estados de input (al desconectar)
     void dropInput();
 
+    // Habilitar/deshabilitar procesamiento/envío de input (útil para overlays/menus)
+    void setInputEnabled(bool enabled);
+
     // Set touchscreen mode
     void setTouchscreenMode(int mode) { touchscreenMode = mode; }
 
