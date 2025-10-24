@@ -5,6 +5,7 @@
 #include "session/vita_session.hpp"
 #include "GameStreamClient.hpp"
 #include "debug.hpp"
+#include "tab/settings_tab.hpp"
 
 VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo& hostInfo)
     : onClose(std::move(onClose)), host(hostInfo) {
@@ -23,37 +24,63 @@ VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo
     auto* panel = new brls::Box(brls::Axis::COLUMN);
     // ancho aproximado: la mitad de la pantalla (544x960 en Vita -> usar 480px)
     panel->setSize(brls::Size(480, 544));
-    panel->setPadding(20);
+    panel->setPadding(28);
 
     headerLabel = new brls::Label();
     headerLabel->setText(brls::getStr("moonlight/session/pause/title"));
     headerLabel->setFontSize(28.0f);
+    headerLabel->setMarginBottom(16);
     panel->addView(headerLabel);
 
-    // Botones
-    auto* resumeBtn = new brls::Button();
-    resumeBtn->setText(brls::getStr("moonlight/session/pause/resume"));
-    resumeBtn->registerClickAction([this](brls::View*) {
+    // Botones: los organizamos en una columna con separaciones para evitar que queden pegados
+    auto* buttonsBox = new brls::Box(brls::Axis::COLUMN);
+    buttonsBox->setMarginTop(20);
+    buttonsBox->setAlignItems(brls::AlignItems::STRETCH);
+
+    auto makeBtn = [&](const std::string& key, std::function<bool(brls::View*)> cb) {
+        auto* b = new brls::Button();
+        b->setText(brls::getStr(key));
+        b->setHeight(56);
+        b->setMarginBottom(12);
+        b->setCornerRadius(10);
+        b->registerClickAction(cb);
+        return b;
+    };
+
+    auto* resumeBtn = makeBtn("moonlight/session/pause/resume", [this](brls::View*) {
         this->resume();
         return true;
     });
-    panel->addView(resumeBtn);
+    buttonsBox->addView(resumeBtn);
 
-    auto* disconnectBtn = new brls::Button();
-    disconnectBtn->setText(brls::getStr("moonlight/session/pause/disconnect"));
-    disconnectBtn->registerClickAction([this](brls::View*) {
+    // Settings button: abrir la vista de Settings como Activity completa
+    // Use the global tabs label for Settings so translations are consistent
+    auto* settingsBtn = makeBtn("moonlight/tabs/settings", [this](brls::View*) {
+        // Crear la vista de settings y envolverla en un AppletFrame para conservar
+        // el comportamiento estándar de BACK/CIRCLE (como en rearTouchSettingsEntry).
+        brls::View* settingsView = SettingsTab::create();
+        auto* frame = new brls::AppletFrame(settingsView);
+        frame->setTitle(brls::getStr("moonlight/tabs/settings"));
+        auto* activity = new brls::Activity(frame);
+        // Usar FADE para evitar la animación de slide en raw views
+        brls::Application::pushActivity(activity, brls::TransitionAnimation::FADE);
+        return true;
+    });
+    buttonsBox->addView(settingsBtn);
+
+    auto* disconnectBtn = makeBtn("moonlight/session/pause/disconnect", [this](brls::View*) {
         this->disconnect();
         return true;
     });
-    panel->addView(disconnectBtn);
+    buttonsBox->addView(disconnectBtn);
 
-    auto* closeBtn = new brls::Button();
-    closeBtn->setText(brls::getStr("moonlight/session/pause/close_app"));
-    closeBtn->registerClickAction([this](brls::View*) {
+    auto* closeBtn = makeBtn("moonlight/session/pause/close_app", [this](brls::View*) {
         this->closeApp();
         return true;
     });
-    panel->addView(closeBtn);
+    buttonsBox->addView(closeBtn);
+
+    panel->addView(buttonsBox);
 
     root->addView(panel);
 

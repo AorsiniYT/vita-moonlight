@@ -52,9 +52,13 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     g_controllerInput->setPauseCallback([this]() {
         if (SessionMainView::pauseOverlayOpen) return;
         SessionMainView::pauseOverlayOpen = true;
-        VitaPauseOverlay* overlay = new VitaPauseOverlay([]() {
-            // restablecer el flag cuando el overlay se cierre
+        // Deshabilitar envío de input mientras el overlay esté abierto para
+        // evitar que los botones interactúen con la transmisión.
+        if (g_controllerInput) g_controllerInput->setInputEnabled(false);
+        VitaPauseOverlay* overlay = new VitaPauseOverlay([this]() {
+            // restablecer el flag y reactivar el input cuando el overlay se cierre
             SessionMainView::pauseOverlayOpen = false;
+            if (g_controllerInput) g_controllerInput->setInputEnabled(true);
         }, this->host);
         brls::Application::pushActivity(new brls::Activity(overlay));
     });
@@ -73,8 +77,10 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     HotkeyManager::instance().setPauseCallback([this]() {
         if (SessionMainView::pauseOverlayOpen) return;
         SessionMainView::pauseOverlayOpen = true;
-        VitaPauseOverlay* overlay = new VitaPauseOverlay([]() {
+        if (g_controllerInput) g_controllerInput->setInputEnabled(false);
+        VitaPauseOverlay* overlay = new VitaPauseOverlay([this]() {
             SessionMainView::pauseOverlayOpen = false;
+            if (g_controllerInput) g_controllerInput->setInputEnabled(true);
         }, this->host);
         brls::Application::pushActivity(new brls::Activity(overlay));
     });
