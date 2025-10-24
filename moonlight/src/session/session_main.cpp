@@ -19,6 +19,7 @@
 #include "session/session_main.hpp"
 #include "session/hotkey_manager.hpp"
 #include "session/overlay/ingame_overlay_view.hpp"
+#include "session/overlay/vita_pause_overlay.hpp"
 #include "video/legacy/vita.hpp"
 #include "video/legacy/modules/vita_globals.hpp"
 #include "video/VitaVideoRenderer.hpp"
@@ -46,8 +47,17 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     // Inicializar input manager
     g_controllerInput = new ControllerInputManager();
 
-    // Registrar callback de pausa en ControllerInputManager (START+L1+R1)
-    g_controllerInput->setPauseCallback([this]() { openSessionMenu(); });
+    // Registrar callback de pausa en ControllerInputManager (START+L+R)
+    // Evitar abrir múltiples overlays si se mantiene la combinación pulsada.
+    g_controllerInput->setPauseCallback([this]() {
+        if (SessionMainView::pauseOverlayOpen) return;
+        SessionMainView::pauseOverlayOpen = true;
+        VitaPauseOverlay* overlay = new VitaPauseOverlay([]() {
+            // restablecer el flag cuando el overlay se cierre
+            SessionMainView::pauseOverlayOpen = false;
+        }, this->host);
+        brls::Application::pushActivity(new brls::Activity(overlay));
+    });
 
     // Resetear input para evitar estados residuales de la UI anterior
     if (g_controllerInput) g_controllerInput->dropInput();
@@ -59,7 +69,15 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     if (endBtn) endBtn->setVisibility(brls::Visibility::GONE);
 
     // Registrar callback de pausa en HotkeyManager (START+L+R)
-    HotkeyManager::instance().setPauseCallback([this]() { openSessionMenu(); });
+    // Reutilizar el mismo comportamiento (abrir overlay lateral) y respetar el flag
+    HotkeyManager::instance().setPauseCallback([this]() {
+        if (SessionMainView::pauseOverlayOpen) return;
+        SessionMainView::pauseOverlayOpen = true;
+        VitaPauseOverlay* overlay = new VitaPauseOverlay([]() {
+            SessionMainView::pauseOverlayOpen = false;
+        }, this->host);
+        brls::Application::pushActivity(new brls::Activity(overlay));
+    });
 
     // No hay acción para START solo
 

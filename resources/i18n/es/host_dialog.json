@@ -12,6 +12,9 @@
     "pair_online": "Emparejar online fuera de casa",
     "title": "Acciones para"
   },
+  "actions": {
+    "refresh": "Actualizar hosts"
+  },
   "connecting": "Generando certificados...",
   "host_list_empty": "No hay hosts guardados",
   "confirm_delete_msg": "¿Deseas eliminar el host?",

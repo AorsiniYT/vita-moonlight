@@ -221,5 +221,30 @@
     "hints": {
         "cancel": "Cancel"
     },
-    "host_dialog/connecting": "Generating certificates..."
+    "host_dialog/connecting": "Generating certificates...",
+    "main": {
+        "cancel": "Cancel"
+    },
+    "session": {
+        "pause": {
+            "title": "Pause Menu",
+            "resume": "Resume",
+            "disconnect": "Disconnect",
+            "close_app": "Close app",
+            "notify_disconnected": "Disconnected from host",
+            "notify_app_closed": "App closed on host"
+        }
+    ,
+        "app_select": {
+            "subtitle": "Select an app to launch",
+            "error_no_host": "Error: Host information not found.",
+            "no_apps": "No apps found on this host.",
+            "running_session": "Running session",
+            "error_connect": "Error connecting to server",
+            "paired": "Paired",
+            "pairing_failed": "Pairing canceled/failed",
+            "error_start_app": "Error starting the application",
+            "error_start_stream": "Error starting streaming"
+        }
+    }
 }

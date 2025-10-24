@@ -20,6 +20,21 @@ include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
 # project info
 project(moonlight_vita)
 
+# Asegurar que la exportación de compile_commands esté activada para LSPs
+# (esto fuerza la variable activa en la configuración actual, no solo en la cache).
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Copiar compile_commands.json al raíz del fuente para que editores/LSP lo
+# encuentren sin necesidad de configurar rutas a la carpeta de build.
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+    add_custom_target(export-compile-commands ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/compile_commands.json
+            ${CMAKE_SOURCE_DIR}/compile_commands.json
+        COMMENT "Copiando compile_commands.json a la raíz del repo"
+    )
+endif()
+
 ## Forzar rutas de OpenSSL para MinGW/Windows y PS Vita (antes de cualquier add_subdirectory o find_package)
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 if(WIN32)
@@ -356,11 +371,5 @@ if(WIN32)
 endif()
 
 
-# Habilitar por defecto la generación de compile_commands.json para editores/LSP.
-# Esto evita tener que pasar -DCMAKE_EXPORT_COMPILE_COMMANDS=ON manualmente en la
-# línea de comandos cada vez. Si el usuario lo desea, puede sobrescribirlo al
-# reconfigurar con -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF.
-if(NOT DEFINED CMAKE_EXPORT_COMPILE_COMMANDS)
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Generate compile_commands.json for LSPs" )
-endif()
+# (La exportación de compile_commands.json ya se fuerza más arriba)
 

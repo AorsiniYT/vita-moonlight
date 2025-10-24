@@ -19,4 +19,9 @@
     "change_ip_same": "Cette adresse IP est déjà utilisée",
     "change_ip_success": "Adresse IP de l'hôte mise à jour",
     "change_ip_failure": "Impossible de mettre à jour l'adresse IP de l'hôte"
+
+    ,
+    "actions": {
+        "refresh": "Actualiser les hôtes"
+    }
 }
