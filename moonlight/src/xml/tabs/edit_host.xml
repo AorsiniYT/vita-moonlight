@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<brls:View xml:lang="host_dialog/edit_host_title" xmlns:brls="http://schema.borealis.app">
+    <brls:ScrollingFrame axis="VERTICAL" grow="1.0">
+        <brls:Box axis="VERTICAL" grow="1.0">
+            <brls:InputCell id="ipField" title="@i18n/host_dialog/edit_host_ip_hint" />
+            <brls:InputCell id="nameField" title="@i18n/host_dialog/edit_host_name_hint" />
+            <brls:Button id="saveButton" text="@i18n/host_dialog/edit_host_save" />
+        </brls:Box>
+    </brls:ScrollingFrame>
+</brls:View>

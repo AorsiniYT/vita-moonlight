@@ -7,7 +7,7 @@
         "title": "Options de l'hôte"
     },
     "dropdown": {
-        "change_ip": "Modifier l'adresse IP",
+        "edit_host": "Modifier l'hôte",
         "delete": "Supprimer l'hôte",
         "pair_online": "Appairer en ligne (hors domicile)",
         "title": "Actions pour"
@@ -21,6 +21,14 @@
     "change_ip_failure": "Impossible de mettre à jour l'adresse IP de l'hôte"
 
     ,
+    "edit_host_title": "Modifier l'hôte",
+    "edit_host_name_hint": "Nom de l'hôte",
+    "edit_host_ip_hint": "IP de l'hôte ou IP:Port",
+    "edit_host_save": "Enregistrer les modifications",
+    "edit_host_name_empty_error": "Le nom de l'hôte ne peut pas être vide",
+    "edit_host_ip_empty_error": "L'adresse IP de l'hôte ne peut pas être vide",
+    "edit_host_success": "Hôte mis à jour avec succès",
+    "edit_host_failure": "Échec de la mise à jour de l'hôte",
     "actions": {
         "refresh": "Actualiser les hôtes"
     }

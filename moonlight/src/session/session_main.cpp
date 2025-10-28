@@ -13,7 +13,7 @@
 #include <borealis/core/style.hpp>
 #include <borealis/core/frame_context.hpp>
 #include <borealis/views/dialog.hpp>
-#include "connection_manager.hpp"
+#include "GameStreamClient.hpp"
 #include "model/HostStorage.hpp"
 #include "GameStreamClient.hpp"
 #include "session/session_main.hpp"

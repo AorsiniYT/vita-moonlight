@@ -38,7 +38,26 @@
 #define CHANNEL_MASK_STEREO 0x3
 #define CHANNEL_MASK_51_SURROUND 0xFC
 
-static std::string unique_id = "0123456789ABCDEF";
+#define UNIQUE_FILE_NAME "uniqueid.dat"
+#define UNIQUEID_CHARS 16
+static std::string unique_id;
+
+static int load_unique_id(const std::string& keyDirectory) {
+    std::string uniqueFilePath = keyDirectory + "/" + UNIQUE_FILE_NAME;
+    FILE *fd = fopen(uniqueFilePath.c_str(), "r");
+    if (fd == NULL || fread(unique_id.data(), UNIQUEID_CHARS, 1, fd) != UNIQUEID_CHARS) {
+        unique_id = "0123456789ABCDEF";
+        if (fd) fclose(fd);
+        fd = fopen(uniqueFilePath.c_str(), "w");
+        if (fd == NULL) return GS_FAILED;
+        fwrite(unique_id.c_str(), UNIQUEID_CHARS, 1, fd);
+        fclose(fd);
+    } else {
+        fclose(fd);
+        unique_id.resize(UNIQUEID_CHARS);
+    }
+    return GS_OK;
+}
 
 int extractVersionQuadFromString(const char* string, int* quad) {
     if (!string) {
@@ -728,6 +747,8 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
     }
 
     http_init(keyDir);
+
+    if (load_unique_id(keyDir) != GS_OK) return GS_FAILED;
 
     LiInitializeServerInformation(&server->serverInfo);
     server->address = seglist[0];

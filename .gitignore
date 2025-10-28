@@ -20,3 +20,5 @@ reference
 temp_sdl
 scripts/
 compile_commands.json
+dump-analysis/
+temp/

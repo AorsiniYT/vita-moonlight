@@ -7,7 +7,7 @@
         "title": "Опции хоста"
     },
     "dropdown": {
-        "change_ip": "Изменить IP-адрес",
+        "edit_host": "Редактировать хост",
         "delete": "Удалить хост",
         "pair_online": "Удалённое сопряжение (вне дома)",
         "title": "Действия для"
@@ -21,6 +21,14 @@
     "change_ip_failure": "Не удалось обновить IP-адрес хоста"
 
     ,
+    "edit_host_title": "Редактировать хост",
+    "edit_host_name_hint": "Имя хоста",
+    "edit_host_ip_hint": "IP хоста или IP:Порт",
+    "edit_host_save": "Сохранить изменения",
+    "edit_host_name_empty_error": "Имя хоста не может быть пустым",
+    "edit_host_ip_empty_error": "IP хоста не может быть пустым",
+    "edit_host_success": "Хост успешно обновлён",
+    "edit_host_failure": "Не удалось обновить хост",
     "actions": {
         "refresh": "Обновить хосты"
     }

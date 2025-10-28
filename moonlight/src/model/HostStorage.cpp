@@ -15,7 +15,6 @@
 */
 #include "model/HostStorage.hpp"
 #include "ConfigManager.hpp"
-#include "crypto/CryptoManager.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -50,19 +49,13 @@ bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& 
     if (!f) return false;
 
     fprintf(f, "[Device]\n");
-    // uuid: contenido de uniqueid.dat (hex, sin espacios ni saltos)
-    std::string uniqueidPath = hostDir + "/uniqueid.dat";
-    FILE* uf = fopen(uniqueidPath.c_str(), "rb");
-    if (uf) {
-        unsigned char buf[32];
-        size_t n = fread(buf, 1, sizeof(buf), uf);
-        fclose(uf);
-        fprintf(f, "uuid=");
-        for (size_t i = 0; i < n; ++i) fprintf(f, "%02x", buf[i]);
-        fprintf(f, "\n");
-    } else {
-        fprintf(f, "uuid=\n");
-    }
+    // Nota: no escribimos el campo `uuid` en device.ini.
+    // La referencia Moonlight-Switch no persiste este campo en device.ini; en
+    // su lugar el cliente usa `uniqueid` internamente al construir las URLs
+    // (por ejemplo: /serverinfo?uniqueid=...). Para mantener el mismo
+    // comportamiento y evitar inconsistencias, omitimos la escritura del
+    // uuid aquí. Esto evita que device.ini sea la fuente de verdad para el
+    // uniqueid y reduce riesgo de desincronización.
     // name: nombre del dispositivo (hostName local, o algo identificable)
     fprintf(f, "name=%s\n", safeHostName.c_str());
     // tipo de dispositivo
@@ -210,10 +203,17 @@ bool HostStorage::removeHost(const std::string& name) {
     if (!fs::exists(keyDirStr)) return false;
     // Limpiar cualquier certificado/clave cargada en memoria para este directorio
     try {
-        std::cout << "[DEBUG][HostStorage] Llamando a CryptoManager::remove_cert_key_pair para: '" << keyDirStr << "'\n";
-        CryptoManager::remove_cert_key_pair(keyDirStr);
+        std::cout << "[DEBUG][HostStorage] Eliminando archivos de certificados en: '" << keyDirStr << "'\n";
+        std::error_code ec;
+        fs::remove(keyDirStr + "/client.pem", ec);
+        fs::remove(keyDirStr + "/key.pem", ec);
+        fs::remove(keyDirStr + "/client.p12", ec);
+        fs::remove(keyDirStr + "/uniqueid.dat", ec);
+        // También eliminar archivos antiguos si existieran
+        fs::remove(keyDirStr + "/client.pem.bak", ec);
+        fs::remove(keyDirStr + "/key.pem.bak", ec);
     } catch (...) {
-        std::cout << "[DEBUG][HostStorage] CryptoManager::remove_cert_key_pair lanzo excepcion (ignorada)\n";
+        std::cout << "[DEBUG][HostStorage] Error eliminando certificados (ignorado)\n";
     }
 
     // Luego eliminar la carpeta completa del host

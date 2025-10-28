@@ -245,7 +245,12 @@
             "paired": "Emparejado",
             "pairing_failed": "Empareado cancelado/falló",
             "error_start_app": "Error al iniciar la aplicación",
-            "error_start_stream": "Error al iniciar streaming"
+            "error_start_stream": "Error al iniciar streaming",
+            "active_session_msg": "Sesión activa: $(app). ¿Deseas reanudarla o iniciar una nueva?",
+            "button_resume": "Reanudar",
+            "button_start_new": "Iniciar nueva",
+            "ending_session": "Cerrando sesión en el host...",
+            "error_end_session": "Error al cerrar la sesión en el host"
         }
     }
 }

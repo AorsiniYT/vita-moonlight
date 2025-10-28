@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include "model/HostStorage.hpp"      // HostInfo
-#include "connection_manager.hpp"     // RemoteAppInfo
+#include "GameStreamClient.hpp"     // RemoteAppInfo
 #include "session/overlay/vita_stream_overlay_view.hpp"
 
 // Vista principal de la sesión de streaming (usando XML)

@@ -7,7 +7,7 @@
 #include "view/pccard.hpp"
 #include "utils/dialog_utils.h"
 #include "model/HostStorage.hpp"
-#include "connection_manager.hpp"
+#include "GameStreamClient.hpp"
 #include "session/streaming_manager.hpp"
 #include "session/session_main.hpp"
 #include "session/vita_session.hpp"
@@ -58,23 +58,157 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
         spinner = new brls::ProgressSpinner(brls::ProgressSpinnerSize::NORMAL);
     }
 
-    // Si ya existe un stream activo para este host, ir directo a la vista de sesión
-    if (!this->host.ip.empty() && GameStreamClient::instance().hasActiveStream(this->host.ip)) {
-        brls::Logger::info("[SessionAppSelect] Stream activo detectado para {} -> saltando a SessionMainView", this->host.ip);
-        RemoteAppInfo running = GameStreamClient::instance().activeAppInfo(this->host.ip);
-        if (running.name.empty()) {
-            running.name = brls::getStr("moonlight/session/app_select/running_session");
-            running.id = "0";
-        }
-        auto* sessionView = new SessionMainView(this->host, running);
-        brls::Application::pushActivity(new brls::Activity(sessionView), brls::TransitionAnimation::NONE);
-        // Mostrar menú inmediatamente
-        brls::async([](){ brls::Logger::info("[SessionAppSelect] (async) Sesión retomada"); });
-        return;
-    }
+    // Comprobar si existe una sesión activa — delegando la lógica a GameStreamClient
+    HostInfo hostCopy = this->host;
+    brls::async([this, hostCopy]() mutable {
+        RemoteAppInfo running;
+        bool active = GameStreamClient::instance().probeActiveSession(hostCopy, running);
+        if (active) {
+            brls::sync([this, running, hostCopy]() {
+                brls::Logger::info("[SessionAppSelect] Sesión activa detectada para {} -> mostrar diálogo Reanudar/Empezar nuevo", hostCopy.ip);
+                auto* holder = new brls::Box(brls::Axis::COLUMN);
+                auto* label = new brls::Label();
+                std::string msg = brls::getStr("moonlight/session/app_select/active_session_msg");
+                size_t pos = msg.find("$(app)");
+                if (pos != std::string::npos) msg.replace(pos, 6, running.name);
+                label->setText(msg);
+                label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+                label->setMarginBottom(18);
 
-    // Iniciar la carga de la lista de apps si no hay sesión activa
-    this->populateAppList();
+                auto* btnBox = new brls::Box(brls::Axis::ROW);
+                btnBox->setJustifyContent(brls::JustifyContent::CENTER);
+                btnBox->setAlignItems(brls::AlignItems::CENTER);
+
+                auto* resumeBtn = new brls::Button();
+                resumeBtn->setText(brls::getStr("moonlight/session/app_select/button_resume"));
+                resumeBtn->setStyle(&brls::BUTTONSTYLE_HIGHLIGHT);
+                resumeBtn->setMargins(0, 8, 0, 0);
+
+                auto* newBtn = new brls::Button();
+                newBtn->setText(brls::getStr("moonlight/session/app_select/button_start_new"));
+                newBtn->setStyle(&brls::BUTTONSTYLE_PRIMARY);
+
+                btnBox->addView(resumeBtn);
+                btnBox->addView(newBtn);
+                holder->addView(label);
+                holder->addView(btnBox);
+                holder->setPadding(18,18,18,18);
+
+                auto* dialog = new brls::Dialog(holder);
+                dialog->setCancelable(true);
+                dialog->open();
+
+                resumeBtn->registerClickAction([this, running, dialog, hostCopy](brls::View*) -> bool {
+                    dialog->dismiss();
+                    // Reanudar la sesión activa llamando a AppSelected con la app en ejecución
+                    this->AppSelected(running);
+                    return true;
+                });
+
+                newBtn->registerClickAction([this, running, dialog, hostCopy](brls::View*) -> bool {
+                    dialog->dismiss();
+                    auto* waitDlg = createLoadingDialog(brls::getStr("moonlight/session/app_select/ending_session"));
+                    std::thread([hostCopy, this, waitDlg]() mutable {
+                        brls::Logger::info("[SessionAppSelect] Enviando quitApp para {} antes de mostrar apps", hostCopy.ip);
+                        if (!GameStreamClient::instance().isConnected(hostCopy.ip)) {
+                            GameStreamClient::instance().connect(hostCopy);
+                        }
+                        bool ok = GameStreamClient::instance().quitApp(hostCopy.ip);
+                        brls::sync([this, ok, waitDlg]() {
+                            if (waitDlg) waitDlg->close();
+                            if (!ok) {
+                                brls::Application::notify(brls::getStr("moonlight/session/app_select/error_end_session"));
+                            }
+                            this->populateAppList();
+                        });
+                    }).detach();
+                    return true;
+                });
+            });
+        } else {
+            // Si probeActiveSession devolvió false, puede deberse a que el servidor
+            // no reconoce el emparejamiento aunque localmente device.ini marque paired=true.
+            // En ese caso queremos alertar al usuario y ofrecer opciones de reparación.
+            brls::sync([this, hostCopy]() {
+                // Asegurarnos de tener serverData si estamos conectados
+                if (GameStreamClient::instance().isConnected(hostCopy.ip)) {
+                    SERVER_DATA& sd = GameStreamClient::instance().serverData(hostCopy.ip);
+                    // Caso: localmente paired pero servidor no lo reconoce y hay currentGame activo
+                    if (hostCopy.paired && !sd.paired && sd.currentGame != 0) {
+                        brls::Logger::info("[SessionAppSelect] Inconsistencia: device.ini indica paired pero servidor PairStatus=0 y currentGame={}", sd.currentGame);
+                        auto* holder = new brls::Box(brls::Axis::COLUMN);
+                        auto* label = new brls::Label();
+                        std::string msg = brls::getStr("host_dialog/active_session_mismatch");
+                        size_t pos = msg.find("$(app)");
+                        std::string appName = std::to_string(sd.currentGame);
+                        if (pos != std::string::npos) msg.replace(pos, 6, appName);
+                        label->setText(msg);
+                        label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+                        label->setMarginBottom(18);
+
+                        auto* btnBox = new brls::Box(brls::Axis::ROW);
+                        btnBox->setJustifyContent(brls::JustifyContent::CENTER);
+                        btnBox->setAlignItems(brls::AlignItems::CENTER);
+
+                        auto* repairBtn = new brls::Button();
+                        repairBtn->setText(brls::getStr("host_dialog/button_repair_pair"));
+                        repairBtn->setStyle(&brls::BUTTONSTYLE_HIGHLIGHT);
+                        repairBtn->setMargins(0, 8, 0, 0);
+
+                        auto* forgetBtn = new brls::Button();
+                        forgetBtn->setText(brls::getStr("host_dialog/button_forget_host"));
+                        forgetBtn->setStyle(&brls::BUTTONSTYLE_PRIMARY);
+
+                        btnBox->addView(repairBtn);
+                        btnBox->addView(forgetBtn);
+                        holder->addView(label);
+                        holder->addView(btnBox);
+                        holder->setPadding(18,18,18,18);
+
+                        auto* dialog = new brls::Dialog(holder);
+                        dialog->setCancelable(true);
+                        dialog->open();
+
+                        repairBtn->registerClickAction([this, dialog, hostCopy](brls::View*) -> bool {
+                            dialog->dismiss();
+                            // Intentar reparar emparejamiento
+                            brls::Application::notify(brls::getStr("host_dialog/repairing_pair"));
+                            GameStreamClient::instance().beginPairing(hostCopy, [this](bool ok){
+                                brls::sync([this, ok]() {
+                                    if (ok) {
+                                        brls::Application::notify(brls::getStr("moonlight/session/app_select/paired"));
+                                        // Re-llenar la lista ahora que puede estar emparejado
+                                        this->populateAppList();
+                                    } else {
+                                        brls::Application::notify(brls::getStr("moonlight/session/app_select/pairing_failed"));
+                                    }
+                                });
+                            });
+                            return true;
+                        });
+
+                        forgetBtn->registerClickAction([this, dialog, hostCopy](brls::View*) -> bool {
+                            dialog->dismiss();
+                            // Olvidar host localmente para forzar un nuevo flujo de pair más limpio
+                            bool removed = HostStorage::removeHost(hostCopy.name);
+                            if (removed) {
+                                brls::Application::notify(brls::getStr("moonlight/session/app_select/forgot_host"));
+                                // Volver a la lista de hosts (cerrar vista actual)
+                                brls::Application::popActivity();
+                            } else {
+                                brls::Application::notify(brls::getStr("moonlight/session/app_select/forget_failed"));
+                                this->populateAppList();
+                            }
+                            return true;
+                        });
+
+                        return;
+                    }
+                }
+                this->populateAppList();
+            });
+        }
+    });
 }
 
 SessionAppSelect::~SessionAppSelect() {
@@ -405,6 +539,73 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
                     }
                     if (!started) {
                         brls::Logger::error("[SessionAppSelect] Error al iniciar aplicación");
+                        // Si el servidor reporta una aplicación en ejecución, ofrecer
+                        // al usuario la opción de terminarla remotamente y reintentar.
+                        SERVER_DATA& sd = GameStreamClient::instance().serverData(hostCopy.ip);
+                        if (sd.currentGame != 0) {
+                            // Construir diálogo de confirmación: Quit & Retry
+                            auto* holder2 = new brls::Box(brls::Axis::COLUMN);
+                            auto* label2 = new brls::Label();
+                            std::string msg2 = brls::getStr("moonlight/session/app_select/host_reports_running");
+                            // Insertar nombre si lo tenemos
+                            size_t pos2 = msg2.find("$(app)");
+                            std::string appName = appCopy.name.empty() ? std::to_string(sd.currentGame) : appCopy.name;
+                            if (pos2 != std::string::npos) msg2.replace(pos2, 6, appName);
+                            label2->setText(msg2);
+                            label2->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+                            label2->setMarginBottom(18);
+
+                            auto* btnBox2 = new brls::Box(brls::Axis::ROW);
+                            btnBox2->setJustifyContent(brls::JustifyContent::CENTER);
+                            btnBox2->setAlignItems(brls::AlignItems::CENTER);
+
+                            auto* quitBtn = new brls::Button();
+                            quitBtn->setText(brls::getStr("moonlight/session/app_select/button_quit_remote"));
+                            quitBtn->setStyle(&brls::BUTTONSTYLE_HIGHLIGHT);
+                            quitBtn->setMargins(0, 8, 0, 0);
+
+                            auto* cancelBtn = new brls::Button();
+                            cancelBtn->setText(brls::getStr("moonlight/session/app_select/button_cancel"));
+                            cancelBtn->setStyle(&brls::BUTTONSTYLE_PRIMARY);
+
+                            btnBox2->addView(quitBtn);
+                            btnBox2->addView(cancelBtn);
+                            holder2->addView(label2);
+                            holder2->addView(btnBox2);
+                            holder2->setPadding(18,18,18,18);
+
+                            auto* dialog2 = new brls::Dialog(holder2);
+                            dialog2->setCancelable(true);
+                            dialog2->open();
+
+                            quitBtn->registerClickAction([this, dialog2, hostCopy, appCopy](brls::View*) -> bool {
+                                dialog2->dismiss();
+                                auto* waiting = createLoadingDialog(brls::getStr("moonlight/session/app_select/ending_session"));
+                                std::thread([this, hostCopy, appCopy, waiting]() mutable {
+                                    bool ok = GameStreamClient::instance().quitApp(hostCopy.ip);
+                                    brls::sync([this, ok, appCopy, waiting]() {
+                                        if (waiting) waiting->close();
+                                        if (!ok) {
+                                            brls::Application::notify(brls::getStr("moonlight/session/app_select/error_end_session"));
+                                            return;
+                                        }
+                                        // Reintentar iniciar la app ahora que hemos terminado la remota
+                                        this->AppSelected(appCopy);
+                                    });
+                                }).detach();
+                                return true;
+                            });
+
+                            cancelBtn->registerClickAction([dialog2](brls::View*) -> bool {
+                                dialog2->dismiss();
+                                brls::Application::notify(brls::getStr("moonlight/session/app_select/cancelled"));
+                                return true;
+                            });
+                            return;
+                        }
+
+                        // Si no hay currentGame, o el usuario no desea terminar la remota,
+                        // mostrar el error genérico.
                         brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_app"));
                         return;
                     }
@@ -460,11 +661,27 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app) {
             if (stat(devIni.c_str(), &st)==0) { pairedByFile = true; brls::Logger::info("[SessionAppSelect][gating] device.ini detectado en '{}' -> marcar como paired", dir); break; }
         }
     }
-    if (!pairedByFile && !GameStreamClient::instance().isPaired(this->host.ip)) {
-        brls::Logger::info("[SessionAppSelect] Host no emparejado - iniciando beginPairing desde gating");
+    // Si bien puede existir un device.ini (pairedByFile), eso no garantiza que
+    // el host siga reconociendo el emparejamiento (PairStatus en serverinfo).
+    // Intentar conectar y consultar el estado real del servidor antes de decidir
+    // si debemos iniciar el flujo de pairing.
+    bool serverPaired = false;
+    {
         HostInfo h = this->host;
         if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
-    GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
+        // Intentar conectar (gs_init) para obtener serverData actualizado si es necesario
+        if (!GameStreamClient::instance().isConnected(h.ip)) {
+            brls::Logger::info("[SessionAppSelect] No conectado a %s, intentando connect() para verificar estado de pairing", h.ip.c_str());
+            GameStreamClient::instance().connect(h);
+        }
+        serverPaired = GameStreamClient::instance().isPaired(h.ip);
+    }
+
+    if (!serverPaired) {
+        brls::Logger::info("[SessionAppSelect] Host no emparejado según el servidor - iniciando beginPairing desde gating");
+        HostInfo h = this->host;
+        if (h.safeId.empty()) h.safeId = makeSafeHostId(h.name.empty()? h.ip : h.name);
+        GameStreamClient::instance().beginPairing(h, [this, app](bool ok){
             if (ok) {
                 brls::Application::notify(brls::getStr("moonlight/session/app_select/paired"));
                 // Reintentar lanzamiento
