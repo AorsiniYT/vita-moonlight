@@ -6,6 +6,7 @@
 #include "GameStreamClient.hpp"
 #include <cstring>
 #include "ConfigManager.hpp"
+#include "model/HostStorage.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <thread>
@@ -14,6 +15,74 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+
+// --- ConnectionManager compatibility implementations (moved from connection_manager.cpp)
+// Implement a small, synchronous fetchRemoteApps helper so older call sites
+// that used ConnectionManager::fetchRemoteApps keep working.
+
+std::vector<RemoteAppInfo> ConnectionManager::fetchRemoteApps(const HostInfo& host) {
+    std::vector<RemoteAppInfo> result;
+
+    SERVER_DATA serverData;
+    std::string address = host.ip;
+    ConfigManager config;
+    std::string baseDir = config.getKeysDir();
+    std::string safeHostName = host.name;
+    for (char& c : safeHostName) {
+        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
+            c = '_';
+        }
+    }
+    std::string keyDir = baseDir + "/" + safeHostName;
+
+    if (address.empty()) {
+        brls::Logger::error("[ConnectionManager] Dirección IP vacía");
+        return result;
+    }
+    int status = gs_init(&serverData, address, keyDir);
+    if (status != GS_OK) {
+        brls::Logger::error("[ConnectionManager] Error al conectar con el host: %s", host.ip.c_str());
+        return result;
+    }
+
+    PAPP_LIST list = nullptr;
+    int appStatus = gs_applist(&serverData, &list);
+    if (appStatus != GS_OK) {
+        brls::Logger::error("[ConnectionManager] Error al obtener la lista de apps: %s", host.ip.c_str());
+        return result;
+    }
+
+    PAPP_LIST listHead = list;
+    while (list) {
+        RemoteAppInfo info;
+        info.id = std::to_string(list->id);
+        info.name = list->name ? std::string(list->name) : "Unknown App";
+        info.iconUrl = "";
+        result.push_back(info);
+        list = list->next;
+    }
+
+    PAPP_LIST current = listHead;
+    while (current) {
+        PAPP_LIST next = current->next;
+        if (current->name) free(current->name);
+        free(current);
+        current = next;
+    }
+
+    std::sort(result.begin(), result.end(), [](const RemoteAppInfo& a, const RemoteAppInfo& b) { return a.name < b.name; });
+    return result;
+}
+
+bool ConnectionManager::startConnection(const HostInfo& host, const RemoteAppInfo& app) {
+    // Minimal stub: use GameStreamClient path
+    return GameStreamClient::instance().connect(host);
+}
+
+void ConnectionManager::selectAndConnect(const HostInfo& host, std::function<void(bool)> onResult) {
+    bool ok = GameStreamClient::instance().connect(host);
+    if (onResult) onResult(ok);
+}
 
 // Directory creation is centralized in ConfigManager (ensureDirExists / ensureKeyDirExists)
 
@@ -109,10 +178,32 @@ bool GameStreamClient::connect(const HostInfo& host) {
         brls::Logger::error("[GameStreamClient] Error al inicializar servidor: {}", status);
         return false;
     }
+    // Guardar keyDir usado para este server para diagnósticos y comprobaciones
+    m_key_dirs[addr] = keyDir;
     m_server_data[addr] = serverData;
     brls::Logger::info("[GameStreamClient] Conexión exitosa a {}", addr);
     const char* srv_addr = serverData.serverInfo.address ? serverData.serverInfo.address : "NULL";
     brls::Logger::info("[GameStreamClient] ServerInfo address: {}", srv_addr);
+
+    // Si existe uniqueid.dat en keyDir, reescribimos device.ini para asegurar que
+    // el archivo exista y refleje valores actuales (paired/ip/port). NOTE: no
+    // escribimos el campo `uuid` en device.ini — eso es intencional y mantiene
+    // compatibilidad con Moonlight-Switch, que no persiste `uuid` en device.ini.
+    // Solo crear/actualizar device.ini si NO existe. Si ya existe (por ejemplo
+    // tras un emparejamiento previo), no debemos sobrescribirla con el valor
+    // `serverData.paired` que puede reportar el servidor en estados temporales
+    // (esto provocaba que device.ini pasara de paired=true a paired=false).
+    std::string deviceIniPath = keyDir + "/device.ini";
+    struct stat st{};
+    if (::stat(deviceIniPath.c_str(), &st) != 0) {
+        try {
+            HostStorage::writeDeviceIni(keyDir, safe, addr.c_str(), serverData.httpPort, serverData.paired);
+        } catch (...) {
+            brls::Logger::warning("[GameStreamClient] No se pudo crear device.ini para {}", addr);
+        }
+    } else {
+        brls::Logger::info("[GameStreamClient] device.ini ya existe en '{}' -> no se sobreescribe paired", deviceIniPath);
+    }
     return true;
 }
 
@@ -128,6 +219,12 @@ SERVER_DATA& GameStreamClient::serverData(const std::string& address) {
         return empty;
     }
     return m_server_data[address];
+}
+
+std::string GameStreamClient::getKeyDirFor(const std::string& address) const {
+    auto it = m_key_dirs.find(address);
+    if (it == m_key_dirs.end()) return std::string();
+    return it->second;
 }
 
 bool GameStreamClient::startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId) {
@@ -176,6 +273,17 @@ bool GameStreamClient::pair(const std::string& address, const std::string& pin) 
         return false;
     }
     brls::Logger::info("[GameStreamClient] pairing OK");
+    // Limpiar cualquier currentGame que pudiera estar desactualizado en el
+    // SERVER_DATA local tras el emparejamiento. Evita que se reanuden sesiones
+    // reportadas previamente pero ya finalizadas por el flujo de pairing.
+    s.currentGame = 0;
+    // Si tenemos datos almacenados en m_server_data, sincronizarlos
+    if (m_server_data.count(address) > 0) {
+        m_server_data[address].currentGame = 0;
+    }
+        // Invalidar caché de applist para este host: tras emparejar queremos forzar
+        // que la próxima obtención de apps solicite al servidor la lista actual.
+        if (m_app_lists.count(address) > 0) m_app_lists.erase(address);
     return true;
 }
 
@@ -205,7 +313,10 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
         if (onFinished) onFinished(false); return false;
     }
 
-    // Fast-path: si ya existe un device.ini en algún candidato, saltar pairing
+    // Fast-path: si existe device.ini intentamos conectar y verificar si el
+    // servidor considera el cliente emparejado. Si el servidor ya lo reconoce,
+    // podemos devolver success inmediatamente; si no, continuamos con el flujo
+    // normal de pairing (gs_init + PIN + gs_pair) para actualizar el estado.
     {
         ConfigManager cfg; cfg.load();
         std::string base = cfg.getKeysDir();
@@ -221,12 +332,29 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             candidates.push_back(base + "/" + makeSafeHostId(localHost.ip));
         }
         struct stat st{};
+        bool foundDeviceIni = false;
         for (auto& c : candidates) {
             std::string di = c + "/device.ini";
             if (stat(di.c_str(), &st)==0) {
-                brls::Logger::info("[Pairing][fast-path] device.ini existente en '{}' -> omitir pairing", c);
-                if (onFinished) onFinished(true);
-                return true;
+                brls::Logger::info("[Pairing][fast-path] device.ini existente en '{}' -> verificar estado en servidor", c);
+                foundDeviceIni = true;
+                break;
+            }
+        }
+        if (foundDeviceIni) {
+            // Intentar conectar para obtener serverData y comprobar paired
+            try {
+                if (!GameStreamClient::instance().isConnected(localHost.ip)) {
+                    GameStreamClient::instance().connect(localHost);
+                }
+                if (GameStreamClient::instance().isPaired(localHost.ip)) {
+                    brls::Logger::info("[Pairing][fast-path] servidor reconoce emparejamiento -> omitir pairing");
+                    if (onFinished) onFinished(true);
+                    return true;
+                }
+                // Si el servidor no reconoce el pair, continuar con flow para re-parear
+            } catch (...) {
+                // En caso de cualquier error, continuar con el flujo de pairing
             }
         }
     }
@@ -300,7 +428,7 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
 
         SERVER_DATA serverData{};
         // gs_init (bloqueante aquí, podemos optimizar con hilo nativo Vita más adelante)
-        int initRes = gs_init(&serverData, addr, keyDir);
+    int initRes = gs_init(&serverData, addr, keyDir);
         if (initRes != GS_OK) {
             brls::Logger::error("[Pairing] gs_init fallo {}", initRes);
             brls::sync([dialog, label]() { label->setText(brls::getStr("host_dialog/pairing_error_init")); });
@@ -323,6 +451,22 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             }
         }
         // Generar PIN
+        // Si el host está ocupado (currentGame != 0) vamos a forzar el emparejado.
+        // Legacy clients a veces permitían forzar pairing aún con sesión activa.
+        bool forced = false;
+        int oldCurrent = serverData.currentGame;
+        if (serverData.currentGame != 0) {
+            forced = true;
+            brls::Logger::warning("[Pairing] host ocupado (currentGame={}) -> forzando emparejado (puede fallar)", serverData.currentGame);
+            brls::sync([label]() {
+                label->setText(brls::getStr("host_dialog/pairing_force_warning"));
+            });
+            // Forzar que gs_pair no rechace por estado local
+            serverData.currentGame = 0;
+            // Dar un pequeño retardo para que el usuario vea el mensaje
+            std::this_thread::sleep_for(std::chrono::milliseconds(600));
+        }
+
         char pin[5];
         srand((unsigned int)time(nullptr));
         snprintf(pin, sizeof(pin), "%d%d%d%d", rand()%10, rand()%10, rand()%10, rand()%10);
@@ -344,10 +488,25 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             // la sobrecarga añadida en la cabecera (el llamador puede pasar onPinReady)
         }
         // Llamar gs_pair
-        int pairRes = gs_pair(&serverData, pin);
+            int pairRes = gs_pair(&serverData, pin);
+        // Restaurar currentGame si lo modificamos
+        if (forced) {
+            serverData.currentGame = oldCurrent;
+        }
         if (pairRes == GS_OK) {
             brls::Logger::info("[Pairing] Emparejamiento OK");
+            // Tras un emparejamiento exitoso asumimos que cualquier sesión previa
+            // en el host ha sido finalizada por el proceso de pairing. Para
+            // evitar que valores antiguos de currentGame queden en caché y
+            // provoquen que la UI muestre una "sesión activa" inexistente,
+            // limpiamos currentGame aquí. Si el servidor reporta un estado
+            // distinto posteriormente, se actualizará en la siguiente consulta.
+            serverData.currentGame = 0;
             HostStorage::savePairedHost(localHost.safeId, addr, serverData.httpPort, serverData.paired);
+            // Actualizar device.ini (sin incluir uuid) para que la UI/almacenamiento
+            // disponga de la información de paired/ip/port. Esto reproduce el
+            // comportamiento de Moonlight-Switch donde device.ini no contiene el
+            // uniqueid usado en las peticiones.
             HostStorage::writeDeviceIni(base + "/" + localHost.safeId, localHost.safeId, addr.c_str(), serverData.httpPort, serverData.paired);
             // Guardar serverData en mapa para futuro connect() reutilizable
             m_server_data[addr] = serverData;
@@ -355,7 +514,24 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             *finished = true; if (onFinished) onFinished(true);
         } else {
-            brls::Logger::error("[Pairing] gs_pair fallo {}", pairRes);
+            // Registrar gs_error procedente de libgamestream para diagnóstico
+            std::string gse_str = gs_error();
+            const char* gse = gse_str.empty() ? "(empty)" : gse_str.c_str();
+            brls::Logger::error("[Pairing] gs_pair fallo {} -> gs_error='{}'", pairRes, gse);
+            // También registrar contenido del keyDir para ayudar a reproducir
+            std::string files;
+            DIR* dchk = opendir(keyDir.c_str());
+            if (dchk) {
+                struct dirent* ent;
+                while ((ent = readdir(dchk)) != nullptr) {
+                    if (strcmp(ent->d_name, ".")==0 || strcmp(ent->d_name, "..")==0) continue;
+                    files += ent->d_name; files += ",";
+                }
+                closedir(dchk);
+            } else {
+                files = "(no-open)";
+            }
+            brls::Logger::info("[Pairing][keyDir] Estado actual archivos: {}", files.empty()? "(vacío)" : files);
             std::string err = brls::getStr("host_dialog/pairing_error");
             brls::sync([label, err]() { label->setText(err); });
             std::this_thread::sleep_for(std::chrono::milliseconds(1200));
@@ -478,4 +654,75 @@ RemoteAppInfo GameStreamClient::activeAppInfo(const std::string& address) const 
         info.iconUrl = ""; // placeholder
     }
     return info;
+}
+
+bool GameStreamClient::probeActiveSession(const HostInfo& host, RemoteAppInfo& outRunning) {
+    outRunning = RemoteAppInfo();
+    if (host.ip.empty()) return false;
+    const std::string& address = host.ip;
+
+    // Fast-path: si lo tenemos en memoria
+    auto it = m_active_streams.find(address);
+    if (it != m_active_streams.end()) {
+        outRunning.id = std::to_string(it->second.appId);
+        outRunning.name = it->second.appName;
+        outRunning.iconUrl = "";
+        return true;
+    }
+
+    // Intentar conectar al host (gs_init) si no estamos conectados
+    bool connected = isConnected(address);
+    if (!connected) {
+        connected = connect(host);
+    }
+    if (!connected) return false;
+
+    // Inspeccionar serverData.currentGame
+    SERVER_DATA& sd = serverData(address);
+    // Diagnóstico: comprobar que el keyDir usado contiene certificados/uniqueid
+    {
+        std::string kd = getKeyDirFor(address);
+        if (!kd.empty()) {
+            struct stat st;
+            std::string clientPem = kd + "/client.pem";
+            std::string keyPem = kd + "/key.pem";
+            std::string uniqueid = kd + "/uniqueid.dat";
+            bool hasClient = (stat(clientPem.c_str(), &st) == 0);
+            bool hasKey = (stat(keyPem.c_str(), &st) == 0);
+            bool hasUid = false;
+            if (stat(uniqueid.c_str(), &st) == 0 && st.st_size > 0) hasUid = true;
+            if (!hasClient || !hasKey || !hasUid) {
+                brls::Logger::info("[GameStreamClient] probeActiveSession: keyDir='{}' falta client/key/uniqueid -> no reanudar", kd);
+                return false;
+            }
+        }
+    }
+    // Si el host no está emparejado, no podemos reanudar desde él
+    // Comentado para permitir reanudar sesiones activas incluso si PairStatus=0
+    // if (!sd.paired) {
+    //     brls::Logger::info("[GameStreamClient] probeActiveSession: host %s no emparejado según serverData -> no reanudar", address.c_str());
+    //     return false;
+    // }
+    if (sd.currentGame == 0) return false;
+
+    // Rellena ID
+    outRunning.id = std::to_string(sd.currentGame);
+    outRunning.name = "";
+
+    // Intentar resolver nombre por medio de la lista de apps
+    std::vector<RemoteAppInfo> apps;
+    getAppList(address, [&apps](const std::vector<RemoteAppInfo>& a){ apps = a; });
+    for (const auto& a : apps) {
+        if (a.id == outRunning.id) { outRunning.name = a.name; break; }
+    }
+
+    if (outRunning.name.empty()) {
+        // Nombre por defecto si no pudimos resolverlo
+        outRunning.name = "Running session"; // texto por defecto; la UI puede sustituir por i18n
+    }
+
+    // Registrar en memoria para futuras consultas locales
+    ActiveStream s; s.appId = sd.currentGame; s.appName = outRunning.name;
+    m_active_streams[address] = s;
+    return true;
 }

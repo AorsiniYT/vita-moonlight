@@ -38,6 +38,8 @@
 #include "ConfigManager.hpp"
 
 #include "utils/host_search.hpp"
+// Incluir wrapper de debug para pruebas de salida en consola / Vita
+#include "debug.hpp"
 
 
 
@@ -127,6 +129,25 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "[DEBUG] Locale detectado por Borealis: " << brls::Application::getLocale() << std::endl;
+
+    // --- BLOQUE DE PRUEBAS DE LOG ---
+    // Imprimir varias formas para comparar comportamiento en consola/Vita
+    std::string testName = "AorsiniYT-PC.local";
+    std::string testUtf8 = u8"á>Àü↕"; // ejemplo con bytes no-ASCII
+    // Correcto: pasar c_str() a funciones estilo printf
+    // Habilitar vita_debug_log según configuración (se carga temprano para permitir prints desde init)
+    {
+        extern bool g_debug_log_enabled; // declarado en vita_globals.hpp
+        ConfigManager cfg;
+        cfg.load();
+        VideoSettings vs = cfg.getVideoSettings();
+        g_debug_log_enabled = vs.save_debug_log;
+    }
+    vita_debug_log("[TEST] vita_debug_log c_str: %s", testName.c_str());
+    // Otras salidas para comparar
+    std::cout << "[TEST] cout: " << testName << " " << testUtf8 << std::endl;
+    brls::Logger::info("[TEST] brls::Logger: {} {}", testName, testUtf8);
+    // --- FIN BLOQUE DE PRUEBAS ---
 
     // Cargar settings visuales (selector) después de init
     moonlight::settings::loadSettingsFromConfig();

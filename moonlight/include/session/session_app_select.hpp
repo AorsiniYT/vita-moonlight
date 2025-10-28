@@ -20,7 +20,7 @@
 #include "borealis.hpp"
 
 
-#include "connection_manager.hpp" // Para RemoteAppInfo
+#include "GameStreamClient.hpp" // Para RemoteAppInfo / ConnectionManager
 
 class SessionAppSelect : public brls::Box {
   public:

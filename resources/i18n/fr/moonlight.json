@@ -23,7 +23,12 @@
       "paired": "Appairé",
       "pairing_failed": "Appairage annulé/échoué",
       "error_start_app": "Erreur lors du lancement de l'application",
-      "error_start_stream": "Erreur lors du démarrage du streaming"
+      "error_start_stream": "Erreur lors du démarrage du streaming",
+      "active_session_msg": "Session active : $(app). Voulez-vous la reprendre ou en démarrer une nouvelle ?",
+      "button_resume": "Reprendre",
+      "button_start_new": "Démarrer nouvelle",
+      "ending_session": "Fermeture de la session sur l'hôte...",
+      "error_end_session": "Impossible de fermer la session sur l'hôte"
     }
   }
 }

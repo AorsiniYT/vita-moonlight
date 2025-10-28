@@ -24,7 +24,12 @@
       "paired": "已配对",
       "pairing_failed": "配对已取消/失败",
       "error_start_app": "启动应用时出错",
-      "error_start_stream": "启动流时出错"
+      "error_start_stream": "启动流时出错",
+      "active_session_msg": "存在活动会话：$(app)。要继续该会话还是开始新的？",
+      "button_resume": "恢复会话",
+      "button_start_new": "开始新会话",
+      "ending_session": "正在关闭主机上的会话...",
+      "error_end_session": "无法关闭主机上的会话"
     }
   }
 }

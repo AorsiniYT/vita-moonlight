@@ -246,7 +246,12 @@
             "paired": "Paired",
             "pairing_failed": "Pairing canceled/failed",
             "error_start_app": "Error starting the application",
-            "error_start_stream": "Error starting streaming"
+            "error_start_stream": "Error starting streaming",
+            "active_session_msg": "Active session: $(app). Do you want to resume it or start a new one?",
+            "button_resume": "Resume",
+            "button_start_new": "Start new",
+            "ending_session": "Closing session on host...",
+            "error_end_session": "Failed to close session on host"
         }
     }
 }
