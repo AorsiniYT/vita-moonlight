@@ -12,7 +12,9 @@
 #include <map>
 #include <string>
 #include <functional>
+#include <set>
 #include <vector>
+#include <chrono>
 
 // Headers de Limelight después de Borealis
 #include "client.h"
@@ -28,14 +30,8 @@ struct RemoteAppInfo {
 
 struct HostInfo; // forward
 
-// Compatibilidad: ConnectionManager mínima implementada en GameStreamClient.cpp
-// (se incluye aquí para evitar dependencias rotas con un header separado).
-class ConnectionManager {
-public:
-    static std::vector<RemoteAppInfo> fetchRemoteApps(const HostInfo& host);
-    static bool startConnection(const HostInfo& host, const RemoteAppInfo& app);
-    static void selectAndConnect(const HostInfo& host, std::function<void(bool)> onResult);
-};
+// NOTE: ConnectionManager compatibility shim removed. Use GameStreamClient::getAppList
+// and GameStreamClient::connect directly.
 
 typedef std::function<void(const std::vector<RemoteAppInfo>&)> AppListCallback;
 typedef std::function<void(bool)> BoolCallback;
@@ -54,6 +50,13 @@ public:
 
     // Lanzar aplicación
     bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId);
+
+    enum class StartMode {
+        AUTO = 0,
+        RESUME_ONLY,
+        NEW_ONLY
+    };
+    bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId, StartMode mode);
     // Recuperar última configuración usada (incluye remoteInputAesKey/IV si ya se generó)
     bool lastStreamConfig(const std::string& address, STREAM_CONFIGURATION& out) const;
 
@@ -98,6 +101,13 @@ private:
         std::string appName;
     };
     std::map<std::string, ActiveStream> m_active_streams; // address -> active stream
+    // Marcar reanudos en progreso para evitar que probeActiveSession reabriera
+    // el diálogo de "Active Session" durante el intento de resume iniciado
+    // desde la UI. La clave es la dirección (ip) del host.
+    std::set<std::string> m_resume_in_progress;
+    // Marcas de intento de resume con expiración para evitar reaparición del diálogo
+    // cuando la UI se recrea. Mapea address -> time_point de inicio.
+    std::map<std::string, std::chrono::steady_clock::time_point> m_resume_attempts;
 };
 
 #endif // GAMESTREAM_CLIENT_HPP

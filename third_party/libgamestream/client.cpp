@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -45,17 +46,28 @@ static std::string unique_id;
 static int load_unique_id(const std::string& keyDirectory) {
     std::string uniqueFilePath = keyDirectory + "/" + UNIQUE_FILE_NAME;
     FILE *fd = fopen(uniqueFilePath.c_str(), "r");
-    if (fd == NULL || fread(unique_id.data(), UNIQUEID_CHARS, 1, fd) != UNIQUEID_CHARS) {
-        unique_id = "0123456789ABCDEF";
-        if (fd) fclose(fd);
-        fd = fopen(uniqueFilePath.c_str(), "w");
-        if (fd == NULL) return GS_FAILED;
-        fwrite(unique_id.c_str(), UNIQUEID_CHARS, 1, fd);
+    // Asegurar buffer de tamaño correcto antes de fread
+    unique_id.resize(UNIQUEID_CHARS);
+    bool fromFile = false;
+    if (fd != NULL) {
+        if (fread(&unique_id[0], UNIQUEID_CHARS, 1, fd) == 1) {
+            fromFile = true;
+        }
         fclose(fd);
-    } else {
-        fclose(fd);
-        unique_id.resize(UNIQUEID_CHARS);
     }
+    if (!fromFile) {
+        // Valor por defecto legible si no existe o está corrupto
+        unique_id = "0123456789ABCDEF";
+        FILE *wfd = fopen(uniqueFilePath.c_str(), "w");
+        if (wfd == NULL) {
+            brls::Logger::error("[load_unique_id] no se pudo crear/abrir '{}' para escribir uniqueid", uniqueFilePath);
+            return GS_FAILED;
+        }
+        fwrite(unique_id.c_str(), UNIQUEID_CHARS, 1, wfd);
+        fclose(wfd);
+    }
+    // Log diagnóstico: qué unique_id y keyDir se están usando
+    brls::Logger::info("[load_unique_id] keyDir='{}' unique_id='{}' (fromFile={})", keyDirectory, unique_id, fromFile);
     return GS_OK;
 }
 
@@ -165,6 +177,13 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
         brls::Logger::error("[load_serverinfo] simpleXML fallo PairStatus");
         return ret;
     }
+    // Extraer y loggear el uniqueid que reporta el servidor para diagnóstico
+    std::string serverUniqueId;
+    if (extractTag(xmlPayload, "uniqueid", serverUniqueId)) {
+        brls::Logger::info("[load_serverinfo] server reported uniqueid='{}' (client unique_id='{}')", serverUniqueId, unique_id);
+    } else {
+        brls::Logger::info("[load_serverinfo] server did not include a uniqueid tag in response (client unique_id='{}')", unique_id);
+    }
     if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344) {
         brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE appversion c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
     }
@@ -206,6 +225,21 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     server->paired = pairedText == "1";
     if (!server->paired) {
         brls::Logger::info("[load_serverinfo] Host no emparejado (PairStatus=0). Se requerirá pairing antes de lanzar.");
+        // Información adicional para diagnosticar discrepancias entre device.ini/local keys y
+        // el estado reportado por el servidor. Si el serverUniqueId existe y difiere del
+        // unique_id local, es una pista de que el host podría no reconocer el identifier
+        // almacenado localmente (o que se usó otro keyDir durante el pairing en el host).
+        if (!serverUniqueId.empty() && serverUniqueId != unique_id) {
+            // Aclaración: el <uniqueid> devuelto por /serverinfo es el identificador del
+            // host/servidor. El "unique_id" local es el identificador del cliente
+            // (almacenado en uniqueid.dat). Que difieran no significa necesariamente
+            // que el pairing haya fallado; en muchos servidores (p.ej. Sunshine)
+            // PairStatus se reporta como 1 sólo cuando la consulta se hace vía HTTPS
+            // y se presenta el identificador del cliente. Si tras emparejar
+            // PairStatus sigue siendo 0, reintentar /serverinfo por HTTPS o ejecutar
+            // re-pair desde la UI.
+            brls::Logger::info("[load_serverinfo] Nota: server uniqueid (host)='{}' != local client unique_id='{}'. Esto puede ser normal. Si PairStatus sigue a 0, intenta reconsultar por HTTPS o re-pair.", serverUniqueId, unique_id);
+        }
     }
     if (currentGameText.size() > 32) {
         brls::Logger::error("[load_serverinfo] currentGameText demasiado largo ({} bytes)", currentGameText.size());
@@ -518,6 +552,21 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
     server->paired = true;
 
+    // Intento diagnóstico/validación: reconsultar /serverinfo por HTTPS para
+    // confirmar que el servidor refleja el emparejamiento (PairStatus=1).
+    // Algunos servidores (p. ej. Sunshine) muestran PairStatus=1 solo para
+    // peticiones HTTPS que incluyen el parámetro uniqueid.
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        int r = load_serverinfo(server, true);
+        if (r == GS_OK && server->paired) {
+            brls::Logger::info("[gs_pair] post-pair server reports paired via HTTPS (attempt {})", attempt + 1);
+            break;
+        }
+        brls::Logger::warning("[gs_pair] post-pair /serverinfo HTTPS did not report PairStatus=1 (attempt {})", attempt + 1);
+        // Small delay between retries
+        usleep(200 * 1000); // 200ms
+    }
+
     return gs_pair_cleanup(ret, server, &result);
 }
 
@@ -744,6 +793,18 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
             brls::Logger::info("Client: Failed to generate certs...");
             return GS_FAILED;
         }
+    }
+
+    // Log diagnóstico: imprimir un prefijo del certificado del cliente para
+    // comparar con lo que hubo en el momento del pairing.
+    try {
+    unsigned char* certHexC_uc = CryptoManager::cert_data().hex().bytes();
+    const char* certHexC = certHexC_uc ? reinterpret_cast<const char*>(certHexC_uc) : nullptr;
+    std::string certHex = certHexC ? std::string(certHexC) : std::string();
+        std::string certPreview = certHex.substr(0, certHex.size() > 32 ? 32 : certHex.size());
+        brls::Logger::info("[gs_init] keyDir='{}' client cert preview='{}'", keyDir, certPreview);
+    } catch (...) {
+        brls::Logger::warning("[gs_init] no se pudo obtener preview del certificado para keyDir='{}'", keyDir);
     }
 
     http_init(keyDir);

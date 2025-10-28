@@ -20,8 +20,7 @@
 #include "borealis.hpp"
 
 
-#include "GameStreamClient.hpp" // Para RemoteAppInfo / ConnectionManager
-
+#include "GameStreamClient.hpp" // Para RemoteAppInfo 
 class SessionAppSelect : public brls::Box {
   public:
     SessionAppSelect(const std::string& hostName);
@@ -31,7 +30,10 @@ class SessionAppSelect : public brls::Box {
 
   private:
     void populateAppList();
-    void AppSelected(const RemoteAppInfo& app);
+  void AppSelected(const RemoteAppInfo& app, bool forceStart = false);
+    // Helpers para mostrar/ocultar el diálogo de conexión y gestionar el GridView
+    brls::Dialog* showConnectingDialog(const std::string& msg, brls::Visibility& outPrevGridVis);
+    void restoreGridViewAndInputs(brls::Visibility prevGridVis);
 
     BRLS_BIND(brls::Label, app_select_title, "app_select_title");
     BRLS_BIND(brls::Label, app_select_subtitle, "app_select_subtitle");
@@ -43,4 +45,8 @@ class SessionAppSelect : public brls::Box {
     HostInfo host;
     GridView* gridView = nullptr;
     brls::ProgressSpinner* spinner = nullptr;
+  // Evita remostrar el diálogo de sesión activa si el usuario ya lo gestionó
+  bool suppressActiveDialog = false;
+  // Evita mostrar más de una vez el diálogo de sesión activa dentro de la misma instancia
+  bool activeDialogShown = false;
 };
