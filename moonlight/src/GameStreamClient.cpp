@@ -16,73 +16,8 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-// --- ConnectionManager compatibility implementations (moved from connection_manager.cpp)
-// Implement a small, synchronous fetchRemoteApps helper so older call sites
-// that used ConnectionManager::fetchRemoteApps keep working.
-
-std::vector<RemoteAppInfo> ConnectionManager::fetchRemoteApps(const HostInfo& host) {
-    std::vector<RemoteAppInfo> result;
-
-    SERVER_DATA serverData;
-    std::string address = host.ip;
-    ConfigManager config;
-    std::string baseDir = config.getKeysDir();
-    std::string safeHostName = host.name;
-    for (char& c : safeHostName) {
-        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
-            c = '_';
-        }
-    }
-    std::string keyDir = baseDir + "/" + safeHostName;
-
-    if (address.empty()) {
-        brls::Logger::error("[ConnectionManager] Dirección IP vacía");
-        return result;
-    }
-    int status = gs_init(&serverData, address, keyDir);
-    if (status != GS_OK) {
-        brls::Logger::error("[ConnectionManager] Error al conectar con el host: %s", host.ip.c_str());
-        return result;
-    }
-
-    PAPP_LIST list = nullptr;
-    int appStatus = gs_applist(&serverData, &list);
-    if (appStatus != GS_OK) {
-        brls::Logger::error("[ConnectionManager] Error al obtener la lista de apps: %s", host.ip.c_str());
-        return result;
-    }
-
-    PAPP_LIST listHead = list;
-    while (list) {
-        RemoteAppInfo info;
-        info.id = std::to_string(list->id);
-        info.name = list->name ? std::string(list->name) : "Unknown App";
-        info.iconUrl = "";
-        result.push_back(info);
-        list = list->next;
-    }
-
-    PAPP_LIST current = listHead;
-    while (current) {
-        PAPP_LIST next = current->next;
-        if (current->name) free(current->name);
-        free(current);
-        current = next;
-    }
-
-    std::sort(result.begin(), result.end(), [](const RemoteAppInfo& a, const RemoteAppInfo& b) { return a.name < b.name; });
-    return result;
-}
-
-bool ConnectionManager::startConnection(const HostInfo& host, const RemoteAppInfo& app) {
-    // Minimal stub: use GameStreamClient path
-    return GameStreamClient::instance().connect(host);
-}
-
-void ConnectionManager::selectAndConnect(const HostInfo& host, std::function<void(bool)> onResult) {
-    bool ok = GameStreamClient::instance().connect(host);
-    if (onResult) onResult(ok);
-}
+// ConnectionManager compatibility shim removed; callers should use
+// GameStreamClient::getAppList() and GameStreamClient::connect() directly.
 
 // Directory creation is centralized in ConfigManager (ensureDirExists / ensureKeyDirExists)
 
@@ -185,6 +120,19 @@ bool GameStreamClient::connect(const HostInfo& host) {
     const char* srv_addr = serverData.serverInfo.address ? serverData.serverInfo.address : "NULL";
     brls::Logger::info("[GameStreamClient] ServerInfo address: {}", srv_addr);
 
+    // Diagnóstico: comparar device.ini.paired (si existe) con lo que reporta el
+    // servidor (serverData.paired). Esto ayuda a detectar desincronizaciones.
+    {
+        std::string deviceIni = keyDir + "/device.ini";
+        struct stat st{};
+        if (stat(deviceIni.c_str(), &st) == 0) {
+            // intentamos leer el campo paired informativo ya cargado por HostStorage
+            brls::Logger::info("[GameStreamClient] Diagnóstico: device.ini presente en '{}' y server.paired={}", deviceIni, serverData.paired);
+        } else {
+            brls::Logger::info("[GameStreamClient] Diagnóstico: device.ini NO presente en '{}' y server.paired={}", keyDir, serverData.paired);
+        }
+    }
+
     // Si existe uniqueid.dat en keyDir, reescribimos device.ini para asegurar que
     // el archivo exista y refleje valores actuales (paired/ip/port). NOTE: no
     // escribimos el campo `uuid` en device.ini — eso es intencional y mantiene
@@ -228,18 +176,63 @@ std::string GameStreamClient::getKeyDirFor(const std::string& address) const {
 }
 
 bool GameStreamClient::startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId) {
+    return startApp(address, config, appId, StartMode::AUTO);
+}
+
+bool GameStreamClient::startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId, StartMode mode) {
     if (m_server_data.count(address) == 0) {
         brls::Logger::error("[GameStreamClient] No conectado a {}", address);
         return false;
     }
+    brls::Logger::info("[GameStreamClient] Iniciando aplicación {} en {} (mode={})", appId, address, (int)mode);
 
-    brls::Logger::info("[GameStreamClient] Iniciando aplicación {} en {}", appId, address);
+    // Si pedimos RESUME_ONLY, comprobar que hay currentGame
+    if (mode == StartMode::RESUME_ONLY) {
+        SERVER_DATA& sd = m_server_data[address];
+        if (sd.currentGame == 0) {
+            brls::Logger::warning("[GameStreamClient] Resume solicitado pero server.currentGame==0 para {}", address);
+            return false;
+        }
+    }
+
+    // Si estamos intentando un resume pedido por el usuario, marcarlo para que
+    // probeActiveSession no vuelva a mostrar el diálogo de "Active Session"
+    // mientras el intento de reanudar esté en progreso.
+    bool markedResume = false;
+    if (mode == StartMode::RESUME_ONLY) {
+        brls::Logger::info("[GameStreamClient] Marcando resume en progreso para {}", address);
+        m_resume_in_progress.insert(address);
+        markedResume = true;
+        // Registrar intento de resume con expiración para cubrir casos donde
+        // la UI se recrea antes de que setActiveStream sea llamado.
+        m_resume_attempts[address] = std::chrono::steady_clock::now();
+    }
+
+    // Si pedimos NEW_ONLY, forzamos fresh launch a través del flag global usado por libgamestream
+    extern bool g_force_fresh_launch_h264; // definido en vita_session_globals.cpp
+    bool prevForce = g_force_fresh_launch_h264;
+    if (mode == StartMode::NEW_ONLY) g_force_fresh_launch_h264 = true;
 
     int status = gs_start_app(&m_server_data[address], &config, appId, true, true, 0x1);
+
+    // Restaurar flag global
+    if (mode == StartMode::NEW_ONLY) g_force_fresh_launch_h264 = prevForce;
+
     if (status != GS_OK) {
+        // En caso de fallo, limpiar la marca de resume para permitir reintentos posteriores
+        if (markedResume) {
+            brls::Logger::info("[GameStreamClient] Resume falló para {} -> limpiando resume en progreso (status={})", address, status);
+            m_resume_in_progress.erase(address);
+            m_resume_attempts.erase(address);
+        }
         brls::Logger::error("[GameStreamClient] Error al iniciar aplicación: {}", status);
         return false;
     }
+
+    // NOTA: en caso de éxito dejamos la marca `m_resume_in_progress` activa hasta que
+    // la propia vista confirme que la sesión ha arrancado. Esto evita condiciones de
+    // carrera donde probeActiveSession vuelva a anunciar la sesión activa entre el
+    // retorno de gs_start_app y la creación efectiva de VitaSession.
 
     // Guardar copia de la configuración (incluye remoteInputAesKey rellenada por gs_start_app)
     m_last_stream_cfg[address] = config;
@@ -342,19 +335,42 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             }
         }
         if (foundDeviceIni) {
-            // Intentar conectar para obtener serverData y comprobar paired
-            try {
-                if (!GameStreamClient::instance().isConnected(localHost.ip)) {
-                    GameStreamClient::instance().connect(localHost);
+            // Intentar usar el keyDir exacto donde existe device.ini para comprobar
+            // si el servidor reconoce el emparejamiento. Esto reproduce el
+            // comportamiento de Moonlight-Switch: usar el mismo keyDir que
+            // contiene device.ini en lugar de dejar que connect() resuelva otro
+            // candidato (evita desajustes entre device.ini y los certs/uniqueid).
+            std::string foundKeyDir;
+            for (auto &c : candidates) {
+                std::string di = c + "/device.ini";
+                struct stat st{};
+                if (stat(di.c_str(), &st) == 0) {
+                    foundKeyDir = c;
+                    break;
                 }
-                if (GameStreamClient::instance().isPaired(localHost.ip)) {
-                    brls::Logger::info("[Pairing][fast-path] servidor reconoce emparejamiento -> omitir pairing");
-                    if (onFinished) onFinished(true);
-                    return true;
+            }
+            if (!foundKeyDir.empty()) {
+                try {
+                    SERVER_DATA tmp;
+                    brls::Logger::info("[Pairing][fast-path] intentando gs_init con keyDir='{}' para comprobar paired en servidor", foundKeyDir);
+                    int initRes = gs_init(&tmp, localHost.ip, foundKeyDir);
+                    if (initRes == GS_OK) {
+                        if (tmp.paired) {
+                            brls::Logger::info("[Pairing][fast-path] servidor reconoce emparejamiento usando keyDir='{}' -> omitir pairing", foundKeyDir);
+                            // Guardar serverData mínimo en el mapa local para uso futuro
+                            m_server_data[localHost.ip] = tmp;
+                            if (onFinished) onFinished(true);
+                            return true;
+                        } else {
+                            brls::Logger::info("[Pairing][fast-path] server PairStatus=0 usando keyDir='{}' -> continuar pairing", foundKeyDir);
+                        }
+                    } else {
+                        brls::Logger::warning("[Pairing][fast-path] gs_init falló ({} ) con keyDir='{}' -> continuar pairing", initRes, foundKeyDir);
+                    }
+                } catch (...) {
+                    // En caso de error no bloquear el flujo de pairing
+                    brls::Logger::error("[Pairing][fast-path] excepción al intentar gs_init con keyDir='{}'", foundKeyDir);
                 }
-                // Si el servidor no reconoce el pair, continuar con flow para re-parear
-            } catch (...) {
-                // En caso de cualquier error, continuar con el flujo de pairing
             }
         }
     }
@@ -495,6 +511,10 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
         }
         if (pairRes == GS_OK) {
             brls::Logger::info("[Pairing] Emparejamiento OK");
+            // Forzar paired=true en serverData independientemente de la reconsulta HTTPS,
+            // ya que el handshake de gs_pair fue exitoso. Esto evita que la UI muestre
+            // "no emparejado" después de un pairing exitoso si /serverinfo HTTPS timeout.
+            serverData.paired = true;
             // Tras un emparejamiento exitoso asumimos que cualquier sesión previa
             // en el host ha sido finalizada por el proceso de pairing. Para
             // evitar que valores antiguos de currentGame queden en caché y
@@ -630,11 +650,20 @@ bool GameStreamClient::quitApp(const std::string& address) {
     if (it != m_active_streams.end()) {
         m_active_streams.erase(it);
     }
+    // Actualizar currentGame a 0 después de terminar la app
+    m_server_data[address].currentGame = 0;
     return true;
 }
 
 void GameStreamClient::setActiveStream(const std::string& address, int appId, const std::string& appName) {
     m_active_streams[address] = { appId, appName };
+    // Si había un resume en progreso para este host, consideramos que la
+    // sesión ya arrancó correctamente y limpiamos la marca para permitir
+    // futuras detecciones/diálogos cuando corresponda.
+    if (m_resume_in_progress.count(address) > 0) {
+        brls::Logger::info("[GameStreamClient] setActiveStream: limpiando resume en progreso para {}", address);
+        m_resume_in_progress.erase(address);
+    }
 }
 
 void GameStreamClient::clearActiveStream(const std::string& address) {
@@ -660,6 +689,8 @@ bool GameStreamClient::probeActiveSession(const HostInfo& host, RemoteAppInfo& o
     outRunning = RemoteAppInfo();
     if (host.ip.empty()) return false;
     const std::string& address = host.ip;
+
+    brls::Logger::info("[GameStreamClient] probeActiveSession ENTRY for {} (thread={})", address, std::to_string((long long)std::hash<std::thread::id>()(std::this_thread::get_id())));
 
     // Fast-path: si lo tenemos en memoria
     auto it = m_active_streams.find(address);
@@ -703,6 +734,31 @@ bool GameStreamClient::probeActiveSession(const HostInfo& host, RemoteAppInfo& o
     //     brls::Logger::info("[GameStreamClient] probeActiveSession: host %s no emparejado según serverData -> no reanudar", address.c_str());
     //     return false;
     // }
+    // Si hay un resume en progreso iniciado por la UI para este host, evitar
+    // que probeActiveSession indique que hay una sesión activa — así no se
+    // reabrirá el diálogo de "Active Session" mientras el intento de resume
+    // está en curso.
+    if (m_resume_in_progress.count(address) > 0) {
+        brls::Logger::info("[GameStreamClient] probeActiveSession: omitiendo notificación de sesión activa para {} porque resume está en progreso (resume_in_progress_count={})",
+                           address, (int)m_resume_in_progress.count(address));
+        return false;
+    }
+
+    // Comprobar si hubo un intento reciente de resume (guard con expiración)
+    auto itAttempt = m_resume_attempts.find(address);
+    if (itAttempt != m_resume_attempts.end()) {
+        auto now = std::chrono::steady_clock::now();
+        auto ageMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - itAttempt->second).count();
+        const long long kExpireMs = 10000; // 10s
+        if (ageMs >= 0 && ageMs < kExpireMs) {
+            brls::Logger::info("[GameStreamClient] probeActiveSession: omitiendo notificación para {} porque resumeAttempt reciente (ageMs={})", address, ageMs);
+            return false;
+        } else {
+            // Expiró el guard, borrar
+            brls::Logger::info("[GameStreamClient] probeActiveSession: resumeAttempt para {} expiró (ageMs={}) -> continuar comprobación", address, ageMs);
+            m_resume_attempts.erase(itAttempt);
+        }
+    }
     if (sd.currentGame == 0) return false;
 
     // Rellena ID
@@ -724,5 +780,6 @@ bool GameStreamClient::probeActiveSession(const HostInfo& host, RemoteAppInfo& o
     // Registrar en memoria para futuras consultas locales
     ActiveStream s; s.appId = sd.currentGame; s.appName = outRunning.name;
     m_active_streams[address] = s;
+    brls::Logger::info("[GameStreamClient] probeActiveSession: registro m_active_streams[{}] = {{ appId={}, appName='{}' }}", address, sd.currentGame, outRunning.name);
     return true;
 }
