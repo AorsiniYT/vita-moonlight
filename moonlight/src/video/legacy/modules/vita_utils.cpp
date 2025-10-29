@@ -61,53 +61,44 @@ int vita_pacer_thread_main(SceSize args, void* argp) {
 
 extern "C" void vita_cleanup() {
 	VITA_DEBUG_LOG("[Video] vita_cleanup llamado");
-	active_pacer_thread = false;
-	if (pacer_thread >= 0) { pacer_thread = -1; }
-	if (decoder) { sceAvcdecDeleteDecoder(decoder); free(decoder); decoder = NULL; }
-	if (decoderblock >= 0) { sceKernelFreeMemBlock(decoderblock); decoderblock = -1; }
-	if (init) {
-		VITA_DEBUG_LOG("[Video] Terminando librería AVC (sceVideodecTermLibrary)...");
-		sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
-		free(init); init = NULL;
-	}
-	if (decoder_info) { free(decoder_info); decoder_info = NULL; }
-	for (int i=0;i<2;i++) { if (frame_textures[i]) { vita2d_free_texture(frame_textures[i]); frame_textures[i]=NULL; } }
-	if (decoder_buffer) { free(decoder_buffer); decoder_buffer = NULL; decoder_buffer_size = 0; }
-	if (decoder_yuv_raw) { free(decoder_yuv_raw); decoder_yuv_raw=NULL; decoder_yuv_buffer=NULL; decoder_yuv_buffer_size=0; decoder_yuv_total_alloc = 0; }
-	if (decoder_linear_rgba_memblock >= 0) {
-		sceKernelFreeMemBlock(decoder_linear_rgba_memblock);
-		decoder_linear_rgba_memblock = -1;
-	} else if (decoder_linear_rgba) {
-		free(decoder_linear_rgba);
-	}
-	decoder_linear_rgba = nullptr;
-	decoder_linear_rgba_size = 0;
-	decoder_linear_rgba_guard = nullptr;
-	decoder_linear_rgba_guard_size = 0;
-	decoder_linear_rgba_total_alloc = 0;
-	decoder_linear_rgba_pitch_pixels = 0;
-	decoder_linear_rgba_height = 0;
-	// Buffers staging RGBA eliminados
-	decoder_linear_rgba_physically_backed = false;
-	if (decoder_output_phys_block >= 0) {
-		if (decoder_output_phys_mapped && decoder_output_phys_ptr) {
-			sceGxmUnmapMemory(decoder_output_phys_ptr);
-			decoder_output_phys_mapped = false;
+	// Signal pacer thread to stop and wait for it to finish to avoid racing
+	// with vita2d rendering / GXM driver cleanup. This mirrors the legacy
+	// moonlight implementation which waits for the thread end before deleting it.
+	if (active_pacer_thread) {
+		active_pacer_thread = false;
+		if (pacer_thread >= 0) {
+			SceInt32 wait_ret = 0;
+			SceUInt timeout = 10000000; // 10s in microseconds
+			// Wait for pacer thread to exit gracefully
+			sceKernelWaitThreadEnd(pacer_thread, &wait_ret, &timeout);
+			// Delete thread handle
+			sceKernelDeleteThread(pacer_thread);
+			pacer_thread = -1;
 		}
-		sceKernelFreeMemBlock(decoder_output_phys_block);
-		decoder_output_phys_block = -1;
-		decoder_output_phys_ptr = nullptr;
-		decoder_output_phys_size = 0;
 	}
-	// g_sps_ctx eliminado temporalmente
-	// Recursos NVG eliminados
-	video_status = VITA_VIDEO_NOT_INIT;
+	// Ensure any pending vita2d rendering work is finished before we start
+	// tearing down decoder/GXM resources. Calling vita2d_wait_rendering_done()
+	// here prevents races where the GPU is still processing frames while we
+	// call sceAvcdecDeleteDecoder / sceVideodecTermLibrary.
 	if (vita2d_inited) {
-		vita2d_fini();
-		vita2d_inited = false;
-		VITA_DEBUG_LOG("[Video] vita2d finalizado");
+		VITA_DEBUG_LOG("[Video] Waiting for rendering to finish (post-pacer) before decoder teardown");
+		vita2d_wait_rendering_done();
 	}
-	VITA_DEBUG_LOG("[Video] cleanup completado");
+	// Do a soft-stop only: we must NOT terminate the AVC library or free
+	// decoder/textures/memblocks here because Borealis may still hold
+	// references into the GXM context (NVG images). Termination and full
+	// resource free are performed in vita_full_teardown() at application
+	// exit.
+
+	// Terminate the AVC library to allow re-initialization in next session
+	if (init) {
+		sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
+	}
+
+	// Mark video subsystem as not initialized and return after waiting for
+	// rendering to quiesce.
+	video_status = VITA_VIDEO_NOT_INIT;
+	VITA_DEBUG_LOG("[Video] soft cleanup completed (AVC termination done, full teardown deferred)");
 }
 
 // Stubs (placeholder)

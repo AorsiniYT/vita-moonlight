@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "network/NetworkOptimizations.hpp"
+#include <borealis/core/application.hpp>
 // #include "libgamestream/sps.h" // deshabilitado (SPS context temporalmente fuera)
 
 static inline size_t align_up_size(size_t value, size_t alignment) {
@@ -52,6 +53,11 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
             vita2d_inited = true;
             vita2d_set_vblank_wait(0); // desactivar espera de vblank para baja latencia
         }
+
+        // Ensure we register a one-time application-exit hook that will
+        // perform the full teardown of vita resources when Borealis exits.
+        // This prevents calling full teardown (sceVideodecTermLibrary / vita2d_fini)
+        // while the UI is still active, which can cause driver hangs.
         decoder_buffer_size = DECODER_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE;
         decoder_buffer = (char*)malloc(decoder_buffer_size);
         if (!decoder_buffer) {

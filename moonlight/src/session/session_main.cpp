@@ -32,6 +32,9 @@
 
 #include "session/hotkey_manager.hpp"
 
+#include <thread>
+#include <chrono>
+
 // Implementación del constructor
 SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     : brls::Box(), host(host), app(app) {
@@ -136,18 +139,31 @@ void SessionMainView::openSessionMenu() {
     });
 
     dialog->addButton("Desconectar", [this, dialog]() {
-        VitaSession::destroyActive(true);
-        GameStreamClient::instance().clearActiveStream(this->host.ip);
+        // Cerrar diálogo inmediatamente, destruyendo la sesión en background
         dialog->close();
-        brls::Application::popActivity();
+        std::string addr = this->host.ip;
+        std::thread([addr]() {
+            VitaSession::destroyActive(true);
+            GameStreamClient::instance().clearActiveStream(addr);
+            std::this_thread::sleep_for(std::chrono::milliseconds(350));
+            brls::sync([]() {
+                brls::Application::popActivity();
+            });
+        }).detach();
     });
 
     dialog->addButton("Cerrar app", [this, dialog]() {
         // Cerrar la app en el host (igual que desconectar por ahora)
-        VitaSession::destroyActive(true);
-        GameStreamClient::instance().clearActiveStream(this->host.ip);
         dialog->close();
-        brls::Application::popActivity();
+        std::string addr = this->host.ip;
+        std::thread([addr]() {
+            VitaSession::destroyActive(true);
+            GameStreamClient::instance().clearActiveStream(addr);
+            std::this_thread::sleep_for(std::chrono::milliseconds(350));
+            brls::sync([]() {
+                brls::Application::popActivity();
+            });
+        }).detach();
     });
 
     dialog->open();

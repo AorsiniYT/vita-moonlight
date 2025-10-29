@@ -97,13 +97,14 @@ extern "C" void vitavideo_reset_stats();
 // Funciones de configuración
 extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags);
 extern "C" void vita_cleanup();
+extern "C" void vita_full_teardown();
 extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit);
 
 // Modos legacy eliminados
 
 // Funciones de renderizado (legacy eliminadas; usar VitaVideoRenderer en lugar de vitavideo_draw_streaming*_*)
-void vitavideo_draw_fps();      // TODO: pendiente de implementación real (texto)
-void vitavideo_draw_indicators(); // TODO: pendiente (iconos / textos)
+extern "C" void vitavideo_draw_fps();
+extern "C" void vitavideo_draw_indicators();
 
 // Acceso a la textura actual (front) para integración futura con renderer Borealis
 extern "C" struct vita2d_texture* vitavideo_get_current_texture();

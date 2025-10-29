@@ -8,6 +8,8 @@
 #include "GameStreamClient.hpp"
 #include "controller/audio.hpp"
 #include <cstring>
+#include <thread>
+#include <chrono>
 
 VitaSession* VitaSession::s_active = nullptr;
 
@@ -25,7 +27,47 @@ VitaSession::~VitaSession() {
 VitaSession* VitaSession::active() { return s_active; }
 
 void VitaSession::destroyActive(bool terminateApp) {
-    if (!s_active) return; s_active->stop(terminateApp); delete s_active; }
+    if (!s_active) return;
+
+    // Stop the session immediately but defer the actual delete until we're
+    // confident video/decoder/GXM resources are fully quiescent. Deleting
+    // the object while the pacer/decoder/renderer are still active can
+    // cause SCE_GXM driver crashes on the Vita.
+    s_active->stop(terminateApp);
+
+    // Spawn a detached thread to watch termination state and active_pacer_thread
+    // then perform a safe delete. This mirrors the safe teardown ordering
+    // used in the legacy implementation and avoids deleting from UI thread
+    // while GPU calls may still be in-flight.
+    std::thread([](){
+        brls::Logger::info("[VitaSession] deferred delete watcher started");
+
+        // Wait until the session reports terminated and the pacer thread is gone.
+        // Timeout after ~5 seconds to avoid leaking forever in pathological cases.
+        const int maxAttempts = 50; // 50 * 100ms = 5s
+        int attempt = 0;
+        while (attempt++ < maxAttempts) {
+            if (!s_active) break;
+            if (s_active->m_is_terminated && !active_pacer_thread) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        // Ensure any pending vita2d rendering is finished before finalizing.
+        if (vita2d_inited) {
+            brls::Logger::info("[VitaSession] waiting for vita2d rendering to finish before delete");
+            // Best-effort: wait for rendering to drain.
+            vita2d_wait_rendering_done();
+        }
+
+        // Small back-off to further reduce race-window.
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        if (s_active) {
+            brls::Logger::info("[VitaSession] performing deferred delete now");
+            delete s_active;
+        }
+    }).detach();
+}
 
 bool VitaSession::start() {
     if (m_is_active) return true;
