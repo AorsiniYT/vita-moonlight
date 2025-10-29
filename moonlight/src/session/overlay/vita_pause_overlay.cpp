@@ -8,6 +8,8 @@
 #include "debug.hpp"
 #include "tab/settings_tab.hpp"
 #include "tab/hosts_tab.hpp"
+#include "controller/ControllerInput.hpp"
+#include "activity/main_activity.hpp"
 #include <thread>
 #include <chrono>
 
@@ -199,8 +201,12 @@ void VitaPauseOverlay::disconnect() {
             if (storedOnClose) {
                 try { storedOnClose(); } catch(...) {}
             }
+            vita_debug_log("[VitaPauseOverlay] After onClose, g_controllerInput: %p", g_controllerInput);
+            // Cerrar la actividad de la sesión para regresar completamente al main
+            brls::Application::popActivity(brls::TransitionAnimation::NONE); // session
             // Pedir recarga global segura del Home/Hosts (push de nueva MainActivity)
             HostsTab::requestGlobalRefresh();
+            brls::Application::unblockInputs();
         });
     }).detach();
 }

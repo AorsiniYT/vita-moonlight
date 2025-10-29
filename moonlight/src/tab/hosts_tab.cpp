@@ -40,6 +40,7 @@
 #include <cstring>
 #include <cctype>
 #include <filesystem>
+#include "debug.hpp"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -73,7 +74,13 @@ void HostsTab::requestGlobalRefresh()
         // but pushing a fresh one provides a clean UI state without in-place mutations
         // that previously caused crashes on PSVita.
         brls::Application::pushActivity(new MainActivity(), brls::TransitionAnimation::NONE);
-        brls::Logger::info("[HostsTab::requestGlobalRefresh] New MainActivity pushed");
+        vita_debug_log("[HostsTab::requestGlobalRefresh] New MainActivity pushed");
+        auto activities = brls::Application::getActivitiesStack();
+        if (!activities.empty()) {
+            brls::Application::giveFocus(nullptr); // Clear focus from previous activity
+            brls::Application::giveFocus(activities.back()->getContentView());
+            vita_debug_log("[HostsTab::requestGlobalRefresh] Focus given to new MainActivity");
+        }
     });
 }
 
