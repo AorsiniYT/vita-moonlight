@@ -7,6 +7,8 @@
 #include <cstring>
 #include "ConfigManager.hpp"
 #include "model/HostStorage.hpp"
+#include "crypto/CryptoManager.hpp"
+#include <filesystem>
 #include <algorithm>
 #include <cstdlib>
 #include <thread>
@@ -271,14 +273,12 @@ bool GameStreamClient::pair(const std::string& address, const std::string& pin) 
         return false;
     }
     brls::Logger::info("[GameStreamClient] pairing OK");
-    // Limpiar cualquier currentGame que pudiera estar desactualizado en el
-    // SERVER_DATA local tras el emparejamiento. Evita que se reanuden sesiones
-    // reportadas previamente pero ya finalizadas por el flujo de pairing.
-    s.currentGame = 0;
-    // Si tenemos datos almacenados en m_server_data, sincronizarlos
-    if (m_server_data.count(address) > 0) {
-        m_server_data[address].currentGame = 0;
-    }
+    // NOTA: no limpiamos `currentGame` aquí para evitar discrepancias con el
+    // estado real reportado por el servidor. Antes se forzaba a 0 para evitar
+    // que la UI mostrara una sesión activa inmediatamente tras el pairing,
+    // pero eso puede causar que `gs_start_app` falle con "An app is already
+    // running" si el servidor realmente tiene una sesión activa. Ahora
+    // conservamos el valor proporcionado por el servidor.
         // Invalidar caché de applist para este host: tras emparejar queremos forzar
         // que la próxima obtención de apps solicite al servidor la lista actual.
         if (m_app_lists.count(address) > 0) m_app_lists.erase(address);
@@ -453,6 +453,25 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
         }
 
         SERVER_DATA serverData{};
+        // Antes de inicializar, limpiar cualquier certificado en caché para
+        // forzar la regeneración desde cero. Esto evita que m_cert/m_key en
+        // OpenSSLCryptoManager permanezcan en memoria y eviten la generación
+        // de nuevos certificados al emparejar de nuevo.
+        try {
+            // Borrar client.pem, key.pem y uniqueid.dat para forzar regeneración completa
+            namespace fs = std::filesystem;
+            std::string clientPem = keyDir + "/client.pem";
+            std::string keyPem = keyDir + "/key.pem";
+            std::string uid = keyDir + "/uniqueid.dat";
+            std::error_code ec;
+            if (fs::exists(clientPem)) fs::remove(clientPem, ec);
+            if (fs::exists(keyPem)) fs::remove(keyPem, ec);
+            if (fs::exists(uid)) fs::remove(uid, ec);
+            // Limpiar caché en memoria y cualquier resto en disco
+            CryptoManager::remove_cert_key_pair(keyDir);
+        } catch (...) {
+            brls::Logger::warning("[Pairing] No se pudo limpiar cache de certificados para keyDir='{}'", keyDir);
+        }
         // gs_init (bloqueante aquí, podemos optimizar con hilo nativo Vita más adelante)
     int initRes = gs_init(&serverData, addr, keyDir);
         if (initRes != GS_OK) {
@@ -525,13 +544,12 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             // ya que el handshake de gs_pair fue exitoso. Esto evita que la UI muestre
             // "no emparejado" después de un pairing exitoso si /serverinfo HTTPS timeout.
             serverData.paired = true;
-            // Tras un emparejamiento exitoso asumimos que cualquier sesión previa
-            // en el host ha sido finalizada por el proceso de pairing. Para
-            // evitar que valores antiguos de currentGame queden en caché y
-            // provoquen que la UI muestre una "sesión activa" inexistente,
-            // limpiamos currentGame aquí. Si el servidor reporta un estado
-            // distinto posteriormente, se actualizará en la siguiente consulta.
-            serverData.currentGame = 0;
+            // Tras un emparejamiento exitoso conservamos el valor de
+            // `serverData.currentGame` que el servidor haya reportado (si
+            // libgamestream hizo una re-consulta HTTPS probablemente ya
+            // contiene el valor correcto). No forzamos a 0 para evitar
+            // inconsistencias al solicitar el arranque de una app inmediatamente
+            // después del emparejamiento.
             HostStorage::savePairedHost(localHost.safeId, addr, serverData.httpPort, serverData.paired, serverData.mac);
             // Actualizar device.ini (sin incluir uuid) para que la UI/almacenamiento
             // disponga de la información de paired/ip/port. Esto reproduce el
