@@ -18,6 +18,9 @@ public:
     void drawNVG(struct NVGcontext* vg, float viewportW, float viewportH, float alpha = 1.0f);
     void setFullscreenStretch(bool stretch);
     bool isFullscreenStretch() const { return fullscreenStretch; }
+    // Release NVG image that references the current vita2d texture.
+    // Public so UI code can clear any NVG references before stopping video.
+    void destroyImage(struct NVGcontext* vg);
 private:
     VitaVideoRenderer() = default;
     bool fullscreenStretch = true; // sincronizado con global video_fullscreen_stretch
@@ -26,6 +29,6 @@ private:
     const vita2d_texture* currentTexture = nullptr;
     int storedW = 0;
     int storedH = 0;
-    void destroyImage(struct NVGcontext* vg);
+    
 };
 

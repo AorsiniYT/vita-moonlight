@@ -2,10 +2,14 @@
 #include <borealis.hpp>
 #include <borealis/views/button.hpp>
 #include <borealis/views/label.hpp>
+#include "video/VitaVideoRenderer.hpp"
 #include "session/vita_session.hpp"
 #include "GameStreamClient.hpp"
 #include "debug.hpp"
 #include "tab/settings_tab.hpp"
+#include "tab/hosts_tab.hpp"
+#include <thread>
+#include <chrono>
 
 VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo& hostInfo)
     : onClose(std::move(onClose)), host(hostInfo) {
@@ -147,32 +151,98 @@ void VitaPauseOverlay::resume() {
 
 void VitaPauseOverlay::disconnect() {
     vita_debug_log("[VitaPauseOverlay] disconnect pressed");
-    VitaSession::destroyActive(true);
-    GameStreamClient::instance().clearActiveStream(this->host.ip);
+    // Ejecutar la destrucción de la sesión en background y sólo cuando se
+    // haya liberado el renderer/popular buffers, volver a la UI principal.
+    // Esto evita que el popActivity ocurra mientras el driver aún procesa
+    // recursos GXM y provoque SCE_GXM_ERROR_DRIVER.
+    std::string addr = this->host.ip;
+    auto storedOnClose = std::move(onClose);
+    onClose = nullptr;
+    // Notificar inmediatamente al usuario
     brls::Application::notify(brls::getStr("moonlight/session/pause/notify_disconnected"));
-    // cerrar overlay y la vista de sesión
-    brls::Application::popActivity(brls::TransitionAnimation::FADE); // overlay
-    brls::Application::popActivity(brls::TransitionAnimation::NONE); // session view
-    if (onClose) {
-        auto cb = std::move(onClose);
-        onClose = nullptr;
-        cb();
-    }
+    std::thread([addr, storedOnClose]() mutable {
+        // Before stopping the session, ensure UI-level NVG images that
+        // reference the video texture are released. This removes NVG image
+        // references to the underlying vita2d/GXM textures so we can avoid
+        // leaving stale handles that would block the UI when we perform
+        // the video soft-clean.
+        try {
+            brls::sync([]() { VitaVideoRenderer::instance().destroyImage(brls::Application::getNVGContext()); });
+        } catch (...) {}
+
+        // Parar la sesión localmente sin forzar el cierre de la app remota.
+        // Llamar a stop(false) invoca LiStopConnection para detener el streaming
+        // y limpiar buffers, pero NO mandará quitApp al host.
+        try {
+            VitaSession* s = VitaSession::active();
+            if (s) {
+                s->stop(false);
+            }
+        } catch (...) {
+            // Ignorar fallos al intentar parar la sesión localmente
+        }
+        // Limpiar estado de stream activo en el cliente (marca local)
+        GameStreamClient::instance().clearActiveStream(addr);
+        // esperar un breve margen para asegurar que LiStopConnection / video threads
+        // hayan terminado y no intenten usar recursos gráficos liberados.
+        std::this_thread::sleep_for(std::chrono::milliseconds(350));
+        // Volver al hilo UI para cerrar overlay y mostrar Hosts limpia (sin forzar pop de la session view)
+        brls::sync([storedOnClose]() mutable {
+            // Pop solo el overlay. No hacemos pop de la session view porque
+            // en algunas condiciones el driver GXM aún puede estar liberando
+            // recursos y esto provocaba SCE_GXM_ERROR_DRIVER al hacer pop
+            // inmediatamente tras la liberación. En su lugar, solicitamos una
+            // recarga segura del MainActivity (Hosts) que empuja una nueva
+            // actividad encima y evita el crasheo.
+            brls::Application::popActivity(brls::TransitionAnimation::FADE); // overlay
+            // Restaurar estado desde el callback del overlay (reactivar inputs, etc)
+            if (storedOnClose) {
+                try { storedOnClose(); } catch(...) {}
+            }
+            // Pedir recarga global segura del Home/Hosts (push de nueva MainActivity)
+            HostsTab::requestGlobalRefresh();
+        });
+    }).detach();
 }
 
 void VitaPauseOverlay::closeApp() {
     vita_debug_log("[VitaPauseOverlay] close app pressed");
-    VitaSession::destroyActive(true);
-    GameStreamClient::instance().clearActiveStream(this->host.ip);
+    std::string addr = this->host.ip;
+    auto storedOnClose = std::move(onClose);
+    onClose = nullptr;
     brls::Application::notify(brls::getStr("moonlight/session/pause/notify_app_closed"));
-    // cerrar overlay y la vista de sesión
-    brls::Application::popActivity(brls::TransitionAnimation::FADE); // overlay
-    brls::Application::popActivity(brls::TransitionAnimation::NONE); // session view
-    if (onClose) {
-        auto cb = std::move(onClose);
-        onClose = nullptr;
-        cb();
-    }
+    std::thread([addr, storedOnClose]() mutable {
+        // Intentar pedir al host que cierre la app, pero no destruir localmente
+        // la sesión hasta que LiStopConnection haya limpiado recursos.
+        try {
+            GameStreamClient::instance().quitApp(addr);
+        } catch (...) {
+            // Ignorar errores de quitApp
+        }
+
+        // Release any NVG image referencing the video texture before stopping
+        // the session. This prevents the UI from holding references to video
+        // GXM textures during the soft-clean path.
+        try {
+            brls::sync([]() { VitaVideoRenderer::instance().destroyImage(brls::Application::getNVGContext()); });
+        } catch (...) {}
+
+        // Parar la sesión localmente sin forzar doble limpieza por destructor
+        try {
+            VitaSession* s = VitaSession::active();
+            if (s) s->stop(false);
+        } catch (...) {}
+        GameStreamClient::instance().clearActiveStream(addr);
+        std::this_thread::sleep_for(std::chrono::milliseconds(350));
+        brls::sync([storedOnClose]() mutable {
+            // Pop solo el overlay y pedir refresh de Hosts
+            brls::Application::popActivity(brls::TransitionAnimation::FADE); // overlay
+            if (storedOnClose) {
+                try { storedOnClose(); } catch(...) {}
+            }
+            HostsTab::requestGlobalRefresh();
+        });
+    }).detach();
 }
 
 VitaPauseOverlay::~VitaPauseOverlay() {
