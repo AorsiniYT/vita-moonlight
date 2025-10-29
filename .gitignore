@@ -22,3 +22,5 @@ scripts/
 compile_commands.json
 dump-analysis/
 temp/
+client.pem
+key.pem

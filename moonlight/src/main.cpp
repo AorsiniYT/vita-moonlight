@@ -40,6 +40,8 @@
 #include "utils/host_search.hpp"
 // Incluir wrapper de debug para pruebas de salida en consola / Vita
 #include "debug.hpp"
+// Para pruebas de conectividad / certificados
+//#include "check_test.hpp"
 
 
 
@@ -147,6 +149,8 @@ int main(int argc, char* argv[])
     // Otras salidas para comparar
     std::cout << "[TEST] cout: " << testName << " " << testUtf8 << std::endl;
     brls::Logger::info("[TEST] brls::Logger: {} {}", testName, testUtf8);
+    // Ejecutar pruebas diagnósticas (conectividad / certificados)
+    // moonlight::tests::run_cert_checks();
     // --- FIN BLOQUE DE PRUEBAS ---
 
     // Cargar settings visuales (selector) después de init

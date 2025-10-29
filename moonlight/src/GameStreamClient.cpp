@@ -143,14 +143,19 @@ bool GameStreamClient::connect(const HostInfo& host) {
     // (esto provocaba que device.ini pasara de paired=true a paired=false).
     std::string deviceIniPath = keyDir + "/device.ini";
     struct stat st{};
-    if (::stat(deviceIniPath.c_str(), &st) != 0) {
+        if (::stat(deviceIniPath.c_str(), &st) != 0) {
         try {
-            HostStorage::writeDeviceIni(keyDir, safe, addr.c_str(), serverData.httpPort, serverData.paired);
+            HostStorage::writeDeviceIni(keyDir, safe, addr.c_str(), serverData.httpPort, serverData.paired, serverData.mac.empty() ? nullptr : serverData.mac.c_str());
         } catch (...) {
             brls::Logger::warning("[GameStreamClient] No se pudo crear device.ini para {}", addr);
         }
     } else {
         brls::Logger::info("[GameStreamClient] device.ini ya existe en '{}' -> no se sobreescribe paired", deviceIniPath);
+        // Si device.ini ya existe pero el servidor nos reporta un MAC válido,
+        // intentamos actualizar solo la línea mac= sin sobrescribir el resto.
+        if (!serverData.mac.empty() && serverData.mac != "00:00:00:00:00:00") {
+            brls::Logger::info("[GameStreamClient] Observado MAC '{}' para {} -> (sin acción: persistencia gestionada por flujo de pairing)", serverData.mac, addr);
+        }
     }
     return true;
 }
@@ -277,6 +282,11 @@ bool GameStreamClient::pair(const std::string& address, const std::string& pin) 
         // Invalidar caché de applist para este host: tras emparejar queremos forzar
         // que la próxima obtención de apps solicite al servidor la lista actual.
         if (m_app_lists.count(address) > 0) m_app_lists.erase(address);
+        // Si después del pair el servidor nos proporcionó un MAC válido, actualizar device.ini
+        std::string kd = getKeyDirFor(address);
+        if (!kd.empty() && !s.mac.empty() && s.mac != "00:00:00:00:00:00") {
+            brls::Logger::info("[GameStreamClient] pair(): MAC '{}' detectado -> (sin acción: persistencia gestionada por flujo de pairing)", s.mac, kd);
+        }
     return true;
 }
 
@@ -522,12 +532,12 @@ bool GameStreamClient::beginPairing(const HostInfo& host, std::function<void(boo
             // limpiamos currentGame aquí. Si el servidor reporta un estado
             // distinto posteriormente, se actualizará en la siguiente consulta.
             serverData.currentGame = 0;
-            HostStorage::savePairedHost(localHost.safeId, addr, serverData.httpPort, serverData.paired);
+            HostStorage::savePairedHost(localHost.safeId, addr, serverData.httpPort, serverData.paired, serverData.mac);
             // Actualizar device.ini (sin incluir uuid) para que la UI/almacenamiento
             // disponga de la información de paired/ip/port. Esto reproduce el
             // comportamiento de Moonlight-Switch donde device.ini no contiene el
             // uniqueid usado en las peticiones.
-            HostStorage::writeDeviceIni(base + "/" + localHost.safeId, localHost.safeId, addr.c_str(), serverData.httpPort, serverData.paired);
+            HostStorage::writeDeviceIni(base + "/" + localHost.safeId, localHost.safeId, addr.c_str(), serverData.httpPort, serverData.paired, serverData.mac.empty() ? nullptr : serverData.mac.c_str());
             // Guardar serverData en mapa para futuro connect() reutilizable
             m_server_data[addr] = serverData;
             brls::sync([label]() { label->setText(brls::getStr("host_dialog/pairing_success")); });
