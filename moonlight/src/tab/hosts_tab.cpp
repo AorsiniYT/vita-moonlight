@@ -20,6 +20,8 @@
 #include "utils/host_search.hpp"
 #include "view/pccard.hpp"
 #include "model/HostStorage.hpp"
+#include "GameStreamClient.hpp"
+#include "ConfigManager.hpp"
 #include "session/session_app_select.hpp"
 #include "tab/edit_host_tab.hpp"
 #include <borealis/views/edit_text_dialog.hpp>
@@ -37,6 +39,7 @@
 #include <dirent.h>
 #include <cstring>
 #include <cctype>
+#include <filesystem>
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -168,7 +171,7 @@ void HostsTab::refreshHostsList() {
                                 auto* confirm = new brls::Dialog(confirmMsg);
                                 confirm->setCancelable(false);
                                 std::string hostToRemove = hostNameCopy;
-                                confirm->addButton(brls::getStr("host_dialog/yes"), [hostToRemove]() {
+                                    confirm->addButton(brls::getStr("host_dialog/yes"), [hostToRemove]() {
 #ifdef __PSV__
                                     sceClibPrintf("[PCCard] Eliminando host: %s\n", hostToRemove.c_str());
 #endif
@@ -190,9 +193,78 @@ void HostsTab::refreshHostsList() {
                                         }
                                     });
 
-                                    // perform removal in background
+                                    // perform graceful remote cleanup then removal in background
                                     std::thread([hostToRemove]() {
-                                        bool ok = HostStorage::removeHost(hostToRemove);
+                                        bool ok = false;
+                                        try {
+                                            // Intentar obtener la información completa del host (incluye IP)
+                                            auto hopt = HostStorage::findHost(hostToRemove);
+                                            if (hopt.has_value()) {
+                                                HostInfo h = *hopt;
+                                                // Intentar conectar y, si procede, terminar app remota y unpair
+                                                auto &gsc = GameStreamClient::instance();
+                                                if (!h.ip.empty()) {
+                                                    // intentar connect si no está conectado
+                                                    if (!gsc.isConnected(h.ip)) {
+                                                        gsc.connect(h);
+                                                    }
+                                                    if (gsc.isConnected(h.ip)) {
+                                                        // Si hay una sesión activa, intentar cerrarla
+                                                        try {
+                                                            if (gsc.serverData(h.ip).currentGame != 0) {
+                                                                gsc.quitApp(h.ip);
+                                                            }
+                                                        } catch (...) {
+                                                            // Ignorar fallos en quitApp
+                                                        }
+                                                        // Intentar desemparejar en el host
+                                                        try {
+                                                            gsc.unpair(h.ip);
+                                                        } catch (...) {
+                                                            // Ignorar fallos en unpair
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } catch (...) {
+                                            // Ignorar cualquier excepción y proceder a la eliminación local
+                                        }
+
+                                            // Intentar renombrar el keyDir a un backup temporal y luego eliminarlo.
+                                            try {
+                                                ConfigManager cfg; cfg.load();
+                                                std::string baseDir = cfg.getKeysDir();
+                                                // Intentar resolver host para obtener safeId
+                                                auto hopt = HostStorage::findHost(hostToRemove);
+                                                std::string keyDir;
+                                                if (hopt.has_value()) {
+                                                    std::string safe = hopt->safeId.empty() ? hostToRemove : hopt->safeId;
+                                                    keyDir = baseDir + "/" + safe;
+                                                } else {
+                                                    // Si no se encuentra, intentar con safe derivado
+                                                    std::string safeGuess = hostToRemove;
+                                                    for (char &c : safeGuess) { if (c == '/'||c=='\\'||c==':'||c=='*'||c=='?'||c=='"'||c=='<'||c=='>'||c=='|') c = '_'; }
+                                                    keyDir = baseDir + "/" + safeGuess;
+                                                }
+                                                namespace fs = std::filesystem;
+                                                if (fs::exists(keyDir)) {
+                                                    std::string backup = keyDir + ".deleted." + std::to_string(time(NULL));
+                                                    try {
+                                                        fs::rename(keyDir, backup);
+                                                        fs::remove_all(backup);
+                                                        ok = true;
+                                                    } catch (...) {
+                                                        // Si el rename o remove_all falla intentar el método tradicional
+                                                        ok = HostStorage::removeHost(hostToRemove);
+                                                    }
+                                                } else {
+                                                    // fallback
+                                                    ok = HostStorage::removeHost(hostToRemove);
+                                                }
+                                            } catch (...) {
+                                                // Si algo falla, intentar eliminación directa
+                                                ok = HostStorage::removeHost(hostToRemove);
+                                            }
                                         brls::sync([hostToRemove, ok]() {
                                             if (ok) {
                                                 std::string msg = brls::getStr("host_dialog/notification_deleted") + ": " + hostToRemove;
