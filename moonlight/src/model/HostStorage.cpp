@@ -43,7 +43,7 @@ std::string makeSafeHostId(const std::string& raw) {
 }
 
 // Genera el archivo device.ini en la carpeta del host
-bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& safeHostName, const char* address, int port, bool paired) {
+bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& safeHostName, const char* address, int port, bool paired, const char* mac) {
     std::string deviceIniPath = hostDir + "/device.ini";
     FILE* f = fopen(deviceIniPath.c_str(), "w");
     if (!f) return false;
@@ -70,16 +70,35 @@ bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& 
     fprintf(f, "port=%d\n", port);
     // prefer_external: por defecto false
     fprintf(f, "prefer_external=false\n");
+
+    // mac: escribir solo si se pasó un valor válido
+    if (mac != nullptr) {
+        std::string macs(mac);
+        // Evitar escribir placeholder conocido o cadenas vacías
+        if (!macs.empty() && macs != "00:00:00:00:00:00") {
+            // Normalizar: eliminar espacios iniciales/finales
+            size_t b = 0; while (b < macs.size() && isspace((unsigned char)macs[b])) ++b;
+            size_t e = macs.size(); while (e > b && isspace((unsigned char)macs[e-1])) --e;
+            std::string macTrim = macs.substr(b, e-b);
+            if (!macTrim.empty()) fprintf(f, "mac=%s\n", macTrim.c_str());
+        }
+    }
+
     fclose(f);
     return true;
 }
+// Nota: la lógica para actualizar la línea `mac=` se ha consolidado en los
+// puntos de persistencia y en `writeDeviceIni`/`savePairedHost`. La función
+// antigua `updateDeviceIniMac` fue eliminada porque ya no es necesaria y su
+// responsabilidad se maneja durante los flujos de emparejamiento normales.
 // Guarda un host tras pairing exitoso
-bool HostStorage::savePairedHost(const std::string& name, const std::string& ip, int port, bool paired) {
+bool HostStorage::savePairedHost(const std::string& name, const std::string& ip, int port, bool paired, const std::string& mac) {
     HostInfo host;
     host.name = name;
     host.ip = ip;
     host.port = port;
     host.paired = paired;
+    host.mac = mac;
     return HostStorage::addHost(host);
 }
 
@@ -142,11 +161,14 @@ std::vector<HostInfo> HostStorage::loadHosts() {
     host.safeId = makeSafeHostId(folder);
         std::cout << "[DEBUG][HostStorage] Leyendo device.ini para host: '" << folder << "'\n";
         std::string line;
-        while (std::getline(ini, line)) {
+            while (std::getline(ini, line)) {
             std::cout << "[DEBUG][HostStorage] device.ini: " << line << "\n";
             if (line.find("internal=") == 0) {
                 std::string v = line.substr(strlen("internal="));
                 host.ip = sanitize_display(v);
+            } else if (line.find("mac=") == 0) {
+                std::string v = line.substr(strlen("mac="));
+                host.mac = sanitize_display(v);
             } else if (line.find("port=") == 0) {
                 try {
                     host.port = std::stoi(line.substr(strlen("port=")));
@@ -179,7 +201,7 @@ bool HostStorage::addHost(const HostInfo& host) {
     if (fs::exists(deviceIniPath)) return false;
     // Crear directorio por-host (si no existe)
     if (!config.ensureKeyDirExists(safe)) return false;
-    return HostStorage::writeDeviceIni(keyDirStr, safe, host.ip.c_str(), host.port, host.paired);
+    return HostStorage::writeDeviceIni(keyDirStr, safe, host.ip.c_str(), host.port, host.paired, host.mac.empty() ? nullptr : host.mac.c_str());
 }
 
 std::optional<HostInfo> HostStorage::findHost(const std::string& name) {
@@ -241,5 +263,5 @@ bool HostStorage::updateHostIp(const std::string& name, const std::string& newIp
         host.safeId = safe;
     }
 
-    return HostStorage::writeDeviceIni(hostDir, safe, host.ip.c_str(), host.port, host.paired);
+    return HostStorage::writeDeviceIni(hostDir, safe, host.ip.c_str(), host.port, host.paired, host.mac.empty() ? nullptr : host.mac.c_str());
 }

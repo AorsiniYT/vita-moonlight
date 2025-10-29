@@ -120,7 +120,11 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
              https ? server->httpsPort : server->httpPort, unique_id.c_str());
 
     Data data;
-    if (http_request(url, &data, HTTPRequestTimeoutLow) != GS_OK) {
+    // Use a longer timeout for HTTPS requests because TLS handshake and
+    // client-certificate negotiation can take more time on some platforms
+    // (PS Vita network stack). Use LONG for https and LOW for http.
+    HTTPRequestTimeout timeout = https ? HTTPRequestTimeoutLong : HTTPRequestTimeoutLow;
+    if (http_request(url, &data, timeout) != GS_OK) {
         brls::Logger::error("[load_serverinfo] http_request fallo");
         return GS_IO_ERROR;
     }
