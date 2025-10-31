@@ -8,7 +8,6 @@
 #include "utils/dialog_utils.h"
 #include "model/HostStorage.hpp"
 #include "GameStreamClient.hpp"
-#include "session/streaming_manager.hpp"
 #include "session/session_main.hpp"
 #include "session/vita_session.hpp"
 #include "ConfigManager.hpp"

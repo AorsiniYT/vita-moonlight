@@ -153,9 +153,9 @@ void VitaSession::onFrameDecoded() {
     static uint32_t logCounter = 0;
     st.videoFrames++;
     uint64_t now = monotonicMs();
-    if (logCounter < 120 || (logCounter % 60) == 0) {
-        VITA_DEBUG_LOG("[VitaSession] onFrameDecoded count=%u framesDecoded=%u presented=%u", logCounter, g_stats.frames_decoded, g_stats.frames_presented);
-    }
+    // if (logCounter < 120 || (logCounter % 60) == 0) {
+    //     VITA_DEBUG_LOG("[VitaSession] onFrameDecoded count=%u framesDecoded=%u presented=%u", logCounter, g_stats.frames_decoded, g_stats.frames_presented);
+    // }
     logCounter++;
     if (!st.firstFrameTimestampMs) { st.firstFrameTimestampMs = now; st.windowStartMs = now; st.windowFrames = 1; }
     else {
