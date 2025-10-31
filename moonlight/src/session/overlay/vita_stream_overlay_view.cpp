@@ -10,8 +10,10 @@ static uint64_t monotonicMs() {
     return sceKernelGetSystemTimeWide() / 1000ULL; // micro -> ms
 }
 
-VitaStreamOverlayView::VitaStreamOverlayView() {
-    this->setFocusable(false);
+VitaStreamOverlayView::VitaStreamOverlayView() : BaseOverlay() {
+    setPanelPosition(10.0f, 10.0f);
+    setPanelSize(300.0f, 150.0f);
+    setPanelAlpha(0.5f); // Semi-transparente
     vitavideo_get_stats(&cached);
 }
 
@@ -31,12 +33,10 @@ void VitaStreamOverlayView::draw(NVGcontext* vg, float x, float y, float width, 
         lastFetchMs = now;
     }
 
-    // Fondo semitransparente
-    nvgBeginPath(vg);
-    nvgRect(vg, 10, 10, 300, 150);
-    nvgFillColor(vg, nvgRGBA(0,0,0,128));
-    nvgFill(vg);
+    // Dibujar el panel base
+    BaseOverlay::draw(vg, x, y, width, height, style, ctx);
 
+    // Dibujar las estadísticas encima del panel
     nvgFontSize(vg, 18.0f);
     // Intentar reutilizar fuente de un label estándar si existe; como fallback usar font id 0
     nvgFontFaceId(vg, 0);
@@ -53,8 +53,8 @@ void VitaStreamOverlayView::draw(NVGcontext* vg, float x, float y, float width, 
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Session(ms): %u\n", (unsigned)cached.session_ms);
     statsBuf[sizeof(statsBuf)-1] = '\0';
 
-    const float tx = 20.0f;
-    const float ty = 35.0f;
+    const float tx = panelX + 10.0f;
+    const float ty = panelY + 25.0f;
     const float lineH = 22.0f;
     float drawY = ty;
     const char* lineStart = statsBuf;
