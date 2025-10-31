@@ -109,9 +109,9 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     if (!tex) return;
     const SceGxmTexture* gxmTex = &tex->gxm_tex;
     static uint32_t drawNvgCounter = 0;
-    if (drawNvgCounter < 120 || (drawNvgCounter % 60) == 0) {
-        VITA_DEBUG_LOG("[Video][DRAW NVG] frame=%u tex=%p gxm=%p", drawNvgCounter, tex, gxmTex);
-    }
+    // if (drawNvgCounter < 120 || (drawNvgCounter % 60) == 0) {
+    //     VITA_DEBUG_LOG("[Video][DRAW NVG] frame=%u tex=%p gxm=%p", drawNvgCounter, tex, gxmTex);
+    // }
     drawNvgCounter++;
     if (!image_scaling.enabled) return;
 

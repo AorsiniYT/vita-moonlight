@@ -16,6 +16,8 @@ static uint64_t pause_shortcut_start_time = 0;
 static bool pause_start_pressed = false;
 static bool pause_l1_pressed = false;
 static bool pause_r1_pressed = false;
+// Tiempo del último disparo del shortcut (us) para debounce y evitar re-disparos
+static uint64_t last_pause_exec_time = 0;
 
 // Establecer callback para pausa
 void set_pause_callback(const std::function<void()>& cb) {
@@ -26,6 +28,10 @@ void set_pause_callback(const std::function<void()>& cb) {
 // Devuelve true si se ejecutó un acceso directo y se debe limpiar el input
 bool process_physical_shortcuts(const SceCtrlData* pad, const SceCtrlData* pad_old) {
     uint64_t now = sceKernelGetSystemTimeWide();
+    // Ignorar shortcuts repetidos si acabamos de ejecutar uno (debounce 300ms)
+    if (last_pause_exec_time && now - last_pause_exec_time < 300000) {
+        return false;
+    }
     
     // Verificar botones actuales
     bool start_pressed = (pad->buttons & SCE_CTRL_START);
@@ -63,6 +69,8 @@ bool process_physical_shortcuts(const SceCtrlData* pad, const SceCtrlData* pad_o
                 if (pause_callback) {
                     vita_debug_log("Shortcut: ejecutando callback de pausa");
                     pause_callback();
+                    // Marcar tiempo de ejecución para evitar reentradas rápidas
+                    last_pause_exec_time = now;
                 } else {
                     vita_debug_log("Shortcut: callback de pausa es NULL!");
                 }

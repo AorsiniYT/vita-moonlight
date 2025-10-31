@@ -11,6 +11,9 @@
 #include "controller/shortcuts.hpp"
 #include "controller/input_types.hpp"
 #include "ConfigManager.hpp"
+#include <thread>
+#include <chrono>
+#include <cstdint>
 
 namespace {
 
@@ -81,9 +84,11 @@ ControllerInputManager::~ControllerInputManager() {
 
 // Procesar input
 void ControllerInputManager::handleInput() {
+    using namespace std::chrono;
     if (!inputEnabled) return;
 
     inputDropped = false;
+    auto t_start = high_resolution_clock::now();
 
     // Leer controles
     SceCtrlData ctrlData;
@@ -138,6 +143,16 @@ void ControllerInputManager::handleInput() {
 
     // Manejar táctil basado en modo
     touchManager->handleTouch(touchscreenMode);
+
+    // Medir tiempo total de handleInput y loggear periódicamente para detectar bloqueos
+    auto t_end = high_resolution_clock::now();
+    auto dur_us = duration_cast<microseconds>(t_end - t_start).count();
+    uint64_t now_ms = duration_cast<milliseconds>(t_end.time_since_epoch()).count();
+    static uint64_t lastInputLogMs = 0;
+    if (now_ms - lastInputLogMs > 500) {
+        lastInputLogMs = now_ms;
+        vita_debug_log("[ControllerInput][PERF] handleInput time=%lld us inputEnabled=%d inputDropped=%d", (long long)dur_us, inputEnabled ? 1 : 0, inputDropped ? 1 : 0);
+    }
 }
 
 // Enviar estado de gamepad
@@ -179,8 +194,13 @@ void ControllerInputManager::setPauseCallback(const std::function<void()>& cb) {
 void ControllerInputManager::setInputEnabled(bool enabled) {
     this->inputEnabled = enabled;
     if (!enabled) {
-        // Enviar estado cero inmediato
-        this->dropInput();
+        // Enviar estado cero INMEDIATO de forma asíncrona para no bloquear el hilo UI.
+        // dropInput() puede invocar LiSendMultiControllerEvent que a veces
+        // puede bloquear si la conexión está en un mal estado; llamarlo en
+        // un hilo separado evita que la UI sufra hitches al abrir overlays.
+        std::thread([this]() {
+            this->dropInput();
+        }).detach();
     }
     vita_debug_log("[ControllerInput] setInputEnabled -> %d", enabled ? 1 : 0);
 }
