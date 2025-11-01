@@ -16,11 +16,7 @@ public:
     brls::View* getDefaultFocus() override { return nullptr; }
     const char* describe() const { return "VitaStreamOverlayView"; }
 
-    void setVisible(bool v) { visible = v; }
-    bool isVisible() const { return visible; }
-
 private:
-    bool visible = true;
     uint64_t lastFetchMs = 0;
     VitaVideoStats cached; // se inicializa en constructor via vitavideo_get_stats
 };

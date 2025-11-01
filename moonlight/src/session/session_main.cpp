@@ -100,7 +100,6 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
         overlayStatsView = std::make_unique<VitaStreamOverlayView>();
     }
     if (overlayStatsView) {
-        overlayStatsView->setVisible(videoSettings.show_fps);
         this->addView(overlayStatsView.get());
     }
 

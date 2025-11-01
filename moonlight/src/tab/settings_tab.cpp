@@ -348,6 +348,9 @@ SettingsTab::SettingsTab()
         settings.show_fps = value;
         config.setVideoSettings(settings);
         config.save();
+        // Actualizar snapshot global para cambios inmediatos
+        extern VideoSettings g_video_settings_snapshot;
+        g_video_settings_snapshot.show_fps = value;
     });
 
     debugLogToggle->init(brls::getStr("moonlight/settings_tab/save_debug_log_title"), videoSettings.save_debug_log, [this](bool value) {

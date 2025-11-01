@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <psp2/kernel/threadmgr.h>
+#include "video/legacy/modules/vita_globals.hpp"
 // Evitamos dependencia de std::string por problemas de toolchain Vita
 // Renderer legacy eliminado: la presentación ahora la realiza SessionMainView usando VitaVideoRenderer
 
@@ -25,7 +26,7 @@ void VitaStreamOverlayView::onLayout() {
 void VitaStreamOverlayView::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
     // El frame de video ya se dibuja en SessionMainView::draw antes de los overlays.
 
-    if (!visible) return;
+    if (!g_video_settings_snapshot.show_fps) return;
 
     uint64_t now = monotonicMs();
     if (now - lastFetchMs > 500) { // refrescar cada 0.5s
