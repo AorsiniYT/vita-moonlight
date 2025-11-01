@@ -25,7 +25,7 @@ public:
 
     // Navegación
     void moveFocus(int delta);
-    void activateFocused();
+    void activateFocused(int index = -1);
 
     // Callback para cuando se activa un botón
     void setActivateCallback(std::function<void(int index)> callback);

@@ -41,6 +41,29 @@ BaseOverlay::BaseOverlay() {
         });
     }
 
+    // Agregar gesture recognizer para toques táctiles en botones
+    brls::TapGestureRecognizer* tapRecognizer = new brls::TapGestureRecognizer([this](brls::TapGestureStatus status, brls::Sound* sound) {
+        if (status.state == brls::GestureState::END) {
+            float tapX = status.position.x;
+            float tapY = status.position.y;
+            // Verificar si el tap está dentro del panel
+            if (tapX >= this->panelX && tapX <= this->panelX + this->panelW &&
+                tapY >= this->panelY && tapY <= this->panelY + this->panelH) {
+                // Calcular en qué botón cayó el tap
+                float btnStartY = this->panelY + this->btnYStart;
+                for (size_t i = 0; i < this->buttonLabels.size(); ++i) {
+                    float btnY = btnStartY + i * (this->btnH + this->btnMargin);
+                    if (tapY >= btnY && tapY <= btnY + this->btnH) {
+                        // Activar el botón correspondiente
+                        this->activateFocused(i);
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    this->addGestureRecognizer(tapRecognizer);
+
     brls::sync([this]() { brls::Application::giveFocus(focusDummy); });
 }
 
@@ -58,9 +81,10 @@ void BaseOverlay::moveFocus(int delta) {
     focusedIndex = (focusedIndex + delta + numButtons) % numButtons;
 }
 
-void BaseOverlay::activateFocused() {
-    if (activateCallback && focusedIndex >= 0 && focusedIndex < (int)buttonLabels.size()) {
-        activateCallback(focusedIndex);
+void BaseOverlay::activateFocused(int index) {
+    if (index == -1) index = focusedIndex;
+    if (activateCallback && index >= 0 && index < (int)buttonLabels.size()) {
+        activateCallback(index);
     }
 }
 
