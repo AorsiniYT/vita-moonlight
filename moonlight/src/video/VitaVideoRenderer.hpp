@@ -25,10 +25,14 @@ private:
     VitaVideoRenderer() = default;
     bool fullscreenStretch = true; // sincronizado con global video_fullscreen_stretch
     // Recursos para imagen NVG (textura GXM directa)
+    // Patrón Borealis: crear una sola vez, reutilizar hasta cambio de contexto (resolución)
     int nvgImageId = -1;
     const vita2d_texture* currentTexture = nullptr;
     int storedW = 0;
     int storedH = 0;
+    
+    // Diagnósticos
+    uint32_t nvgImageCreateCount = 0;
     
 };
 
