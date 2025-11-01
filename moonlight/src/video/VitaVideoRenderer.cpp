@@ -108,31 +108,47 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     const vita2d_texture* tex = FRAME_FRONT();
     if (!tex) return;
     const SceGxmTexture* gxmTex = &tex->gxm_tex;
-    static uint32_t drawNvgCounter = 0;
-    // if (drawNvgCounter < 120 || (drawNvgCounter % 60) == 0) {
-    //     VITA_DEBUG_LOG("[Video][DRAW NVG] frame=%u tex=%p gxm=%p", drawNvgCounter, tex, gxmTex);
-    // }
-    drawNvgCounter++;
+    
     if (!image_scaling.enabled) return;
 
     uint32_t texW = image_scaling.texture_width;
     uint32_t texH = image_scaling.texture_height;
     if (texW == 0 || texH == 0) return;
 
-    if (nvgImageId < 0 || tex != currentTexture || (int)texW != storedW || (int)texH != storedH) {
-        destroyImage(vg);
+    // PATRÓN CORRECTO (de Borealis Image.cpp):
+    // - Crear NVG image UNA SOLA VEZ cuando el contexto cambia (resolución, etc)
+    // - Reutilizar la misma imagen para todos los frames (incluyendo doble buffering)
+    // - Solo recrear si hay cambio significativo de contexto
+    // - NO recrear por cada frame ni por doble buffering normal
+    
+    bool texSizeChanged = ((int)texW != storedW || (int)texH != storedH);
+    bool firstTime = (nvgImageId < 0);
+    
+    if (firstTime || texSizeChanged) {
+        // Destruir imagen vieja si existe (cambio de contexto/resolución)
+        if (nvgImageId >= 0) {
+            VITA_DEBUG_LOG("[Video][DRAW NVG] Destruyendo imageId=%d (resize de %dx%d a %dx%d)",
+                nvgImageId, storedW, storedH, texW, texH);
+            nvgDeleteImage(vg, nvgImageId);
+            nvgImageId = -1;
+        }
+        
+        // Crear nueva imagen NVG desde el handle GXM actual
         int imageId = nvgxmCreateImageFromHandle(vg, const_cast<SceGxmTexture*>(gxmTex));
         if (imageId <= 0) {
-            VITA_DEBUG_LOG("[Video][DRAW NVG][ERR] nvgxmCreateImageFromHandle fallo tex=%p", tex);
+            VITA_DEBUG_LOG("[Video][DRAW NVG][ERR] nvgxmCreateImageFromHandle fallo (w=%u h=%u)", texW, texH);
             return;
         }
         nvgImageId = imageId;
-        currentTexture = tex;
         storedW = (int)texW;
         storedH = (int)texH;
-        // VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d tex=%p w=%u h=%u", nvgImageId, tex, texW, texH);
+        nvgImageCreateCount++;
+        
+        VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d w=%u h=%u (total_creates=%u)",
+            nvgImageId, texW, texH, nvgImageCreateCount);
     }
-
+    
+    // Dibujar con la imagen NVG persistente
     int dw = fullscreenStretch ? (int)viewportW : image_scaling.display_width;
     int dh = fullscreenStretch ? (int)viewportH : image_scaling.display_height;
     int ox = fullscreenStretch ? 0 : image_scaling.offset_x;
@@ -146,6 +162,15 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     nvgFill(vg);
     g_stats.frames_presented++;
     update_present_stats();
+    
+    // Sincronizar GPU de manera explícita cada N frames para evitar acumulación de trabajo
+    // (similar a vita2d_wait_rendering_done en legacy)
+    static uint32_t gpuSyncCounter = 0;
+    if (++gpuSyncCounter % 30 == 0) { // Cada 30 frames (~500ms a 60fps)
+        if (vita2d_inited) {
+            vita2d_wait_rendering_done();
+        }
+    }
 }
 
 void VitaVideoRenderer::destroyImage(NVGcontext* vg) {

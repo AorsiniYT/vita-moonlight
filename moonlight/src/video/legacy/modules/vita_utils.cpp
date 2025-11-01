@@ -31,8 +31,11 @@ int vita_pacer_thread_main(SceSize args, void* argp) {
 	sceKernelChangeThreadCpuAffinityMask(sceKernelGetThreadId(), SCE_KERNEL_CPU_MASK_USER_0 | SCE_KERNEL_CPU_MASK_USER_1);
 	uint64_t last_50_tick = vita_monotonic_ms();
 	uint64_t last_500_tick = last_50_tick;
+	uint64_t last_fps_reset_ms = last_50_tick; // Para resetear frame_count periódicamente (como legacy)
 	// Sincronizar target fps con configuración actual (curr_fps[1] se actualiza externamente)
 	vita_netopt_set_target_fps(curr_fps[1] > 0 ? curr_fps[1] : 60);
+	uint32_t fps_window_frames = 0;
+	uint32_t logCounter = 0;
 	while (active_pacer_thread) {
 		sceKernelDelayThread(5 * 1000); // sleep corto (~5ms) para granularidad sin busy-wait
 		uint64_t now = vita_monotonic_ms();
@@ -48,11 +51,27 @@ int vita_pacer_thread_main(SceSize args, void* argp) {
 			last_500_tick = now;
 		}
 
+		// Resetear frame_count cada 1 segundo (como legacy) para evitar acumulación infinita
+		if (now - last_fps_reset_ms >= 1000) {
+			fps_window_frames = frame_count;
+			frame_count = 0; // Resetear frame_count para nueva ventana de 1s
+			if (logCounter % 10 == 0) { // Log cada 10 segundos (~10x 1000ms)
+				VITA_DEBUG_LOG("[Video][PACER][FPS] fps_window=%u need_drop=%d", fps_window_frames, need_drop);
+			}
+			logCounter++;
+			last_fps_reset_ms = now;
+		}
+
 		// Consumir drop budget adaptativo y cargar en need_drop (legacy variable) para compatibilidad
+		// CAMBIO: usar fps_window_frames fresco para calcular drops (no acumular indefinidamente)
 		unsigned drops = vita_netopt_consume_drop_budget();
 		if (drops) {
+			// En lugar de += (que acumula), usar un modelo similar a legacy: si fps_window > target, calcular drops frescos
+			// Por ahora, agregar con un límite razonable para evitar que need_drop explote
 			need_drop += (int)drops;
-			if (need_drop < 0) need_drop = 0;
+			if (need_drop > 120) { // Límite: no dejar que crezca más allá de 2 segundos de frames a 60fps
+				need_drop = 120;
+			}
 		}
 	}
 	VITA_DEBUG_LOG("[Video][PACER] thread saliendo");
@@ -84,11 +103,41 @@ extern "C" void vita_cleanup() {
 		VITA_DEBUG_LOG("[Video] Waiting for rendering to finish (post-pacer) before decoder teardown");
 		vita2d_wait_rendering_done();
 	}
-	// Do a soft-stop only: we must NOT terminate the AVC library or free
-	// decoder/textures/memblocks here because Borealis may still hold
-	// references into the GXM context (NVG images). Termination and full
-	// resource free are performed in vita_full_teardown() at application
-	// exit.
+
+	// Liberar buffers que no afectan GXM (para evitar leaks entre sesiones)
+	if (decoder_buffer) {
+		free(decoder_buffer);
+		decoder_buffer = nullptr;
+		decoder_buffer_size = 0;
+	}
+	if (decoder_yuv_raw) {
+		free(decoder_yuv_raw);
+		decoder_yuv_raw = nullptr;
+		decoder_yuv_buffer = nullptr;
+		decoder_yuv_buffer_size = 0;
+		decoder_yuv_total_alloc = 0;
+	}
+	if (decoder_linear_rgba) {
+		if (decoder_linear_rgba_memblock >= 0) {
+			sceKernelFreeMemBlock(decoder_linear_rgba_memblock);
+			decoder_linear_rgba_memblock = -1;
+		}
+		decoder_linear_rgba = nullptr;
+		decoder_linear_rgba_size = 0;
+		decoder_linear_rgba_guard = nullptr;
+		decoder_linear_rgba_guard_size = 0;
+		decoder_linear_rgba_total_alloc = 0;
+	}
+	if (decoder_output_phys_mapped && decoder_output_phys_ptr) {
+		sceGxmUnmapMemory(decoder_output_phys_ptr);
+		decoder_output_phys_mapped = false;
+	}
+	if (decoder_output_phys_block >= 0) {
+		sceKernelFreeMemBlock(decoder_output_phys_block);
+		decoder_output_phys_block = -1;
+		decoder_output_phys_ptr = nullptr;
+		decoder_output_phys_size = 0;
+	}
 
 	// Terminate the AVC library to allow re-initialization in next session
 	if (init) {
@@ -98,7 +147,7 @@ extern "C" void vita_cleanup() {
 	// Mark video subsystem as not initialized and return after waiting for
 	// rendering to quiesce.
 	video_status = VITA_VIDEO_NOT_INIT;
-	VITA_DEBUG_LOG("[Video] soft cleanup completed (AVC termination done, full teardown deferred)");
+	VITA_DEBUG_LOG("[Video] soft cleanup completed (buffers freed, AVC termination done, full teardown deferred)");
 }
 
 // Stubs (placeholder)
