@@ -7,6 +7,9 @@
 #include "video/legacy/vita.hpp" // vitavideo_get_stats, decoder callbacks
 #include "GameStreamClient.hpp"
 #include "controller/audio.hpp"
+#include "controller/ControllerInput.hpp"
+#include "ConfigManager.hpp"
+#include "Limelight.h"
 #include <cstring>
 #include <thread>
 #include <chrono>
@@ -25,6 +28,27 @@ VitaSession::~VitaSession() {
 }
 
 VitaSession* VitaSession::active() { return s_active; }
+
+void VitaSession::notifyGamepadType() {
+    if (!s_active || !s_active->m_is_active) return;
+    
+    // Cargar el tipo de gamepad desde configuración
+    ConfigManager config;
+    config.load();
+    VideoSettings settings = config.getVideoSettings();
+    GamepadType type = settings.gamepad_type;
+    
+    // Enviar al servidor: LI_CTYPE_XBOX = 0x01, LI_CTYPE_PS = 0x02
+    uint8_t liType = (type == GAMEPAD_TYPE_PS4) ? 0x02 : 0x01;
+    uint16_t capabilities = 0x01 | 0x02; // ANALOG_TRIGGERS | RUMBLE
+    uint32_t supportedButtonFlags = 0xFFFFFFFF;
+    
+    if (LiSendControllerArrivalEvent(0, 0x01, liType, supportedButtonFlags, capabilities) != 0) {
+        brls::Logger::error("[VitaSession] Fallo notificar tipo de gamepad al servidor");
+    } else {
+        brls::Logger::info("[VitaSession] Tipo de gamepad notificado al servidor (LI_CTYPE={})", liType);
+    }
+}
 
 void VitaSession::destroyActive(bool terminateApp) {
     if (!s_active) return;

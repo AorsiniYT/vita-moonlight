@@ -63,11 +63,14 @@ ControllerInputManager::ControllerInputManager() : inputEnabled(true), inputDrop
     config.load();
     VideoSettings initialSettings = config.getVideoSettings();
     rearTouchManager->updateSettings(initialSettings.rear_touch);
+    
+    // Cargar tipo de gamepad desde config
+    currentGamepadType = initialSettings.gamepad_type;
 
     isPstvModel = (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV);
     initMapping();
 
-    vita_debug_log("[ControllerInput] Initialized");
+    vita_debug_log("[ControllerInput] Initialized (gamepad_type=%d)", (int)currentGamepadType);
 }
 
 // Destructor
@@ -242,11 +245,18 @@ void ControllerInputManager::initMapping() {
 GamepadState ControllerInputManager::buildGamepadState(const SceCtrlData& ctrlData) const {
     GamepadState state{};
 
+    // Mapeo de botones depende del tipo de gamepad
+    // Ambos tipos usan el mismo layout de botones Vita (X/O/△/□ = sur/este/norte/oeste)
+    // La diferencia está en cómo el host interpreta estos botones según el tipo reportado
+    // PS4: Square=X, Triangle=Y, Circle=B, Cross=A (conforme a PS4 layout)
+    // Xbox: A/B/X/Y siguen el estándar Xbox (Cross=A, Circle=B, Square=X, Triangle=Y)
+
     if (isPressed(mapping.btnDpadUp, ctrlData)) state.buttonFlags |= UP_FLAG;
     if (isPressed(mapping.btnDpadDown, ctrlData)) state.buttonFlags |= DOWN_FLAG;
     if (isPressed(mapping.btnDpadLeft, ctrlData)) state.buttonFlags |= LEFT_FLAG;
     if (isPressed(mapping.btnDpadRight, ctrlData)) state.buttonFlags |= RIGHT_FLAG;
 
+    // Botones de cara (la conversión se hace en el servidor según tipo reportado)
     if (isPressed(mapping.btnSouth, ctrlData)) state.buttonFlags |= A_FLAG;
     if (isPressed(mapping.btnEast, ctrlData)) state.buttonFlags |= B_FLAG;
     if (isPressed(mapping.btnWest, ctrlData)) state.buttonFlags |= X_FLAG;
@@ -255,6 +265,7 @@ GamepadState ControllerInputManager::buildGamepadState(const SceCtrlData& ctrlDa
     if (isPressed(mapping.btnStart, ctrlData)) state.buttonFlags |= PLAY_FLAG;
     if (isPressed(mapping.btnSelect, ctrlData)) state.buttonFlags |= BACK_FLAG;
 
+    // L1/R1 se mapean a LB/RB (consistente con Xbox)
     if (isPressed(mapping.btnL1, ctrlData)) state.buttonFlags |= LB_FLAG;
     if (isPressed(mapping.btnR1, ctrlData)) state.buttonFlags |= RB_FLAG;
     state.leftTrigger = readTrigger(mapping.btnL2, ctrlData);
@@ -348,6 +359,44 @@ void ControllerInputManager::applyRearTouchSettings(const RearTouchSettings& set
     }
 }
 
+void ControllerInputManager::setGamepadType(GamepadType type) {
+    if (currentGamepadType == type) {
+        vita_debug_log("[ControllerInput] Gamepad type ya es %d, ignorando", (int)type);
+        return;
+    }
+
+    currentGamepadType = type;
+    vita_debug_log("[ControllerInput] Cambiando tipo de gamepad a %d (%s)",
+        (int)type, (type == GAMEPAD_TYPE_PS4) ? "PS4" : "XBOX");
+
+    // Para cambiar el tipo de un controlador existente, necesitamos desconectarlo y reconectarlo
+    // porque Sunshine no soporta cambiar el tipo de controladores ya asignados
+    
+    // Paso 1: Desconectar el controlador enviando activeGamepadMask = 0
+    vita_debug_log("[ControllerInput] Desconectando controlador para cambio de tipo...");
+    if (LiSendMultiControllerEvent(0, 0, 0, 0, 0, 0, 0, 0, 0) != 0) {
+        vita_debug_log("[ControllerInput][ERR] Fallo al desconectar controlador");
+    }
+    
+    // Paso 2: Esperar un poco para que Sunshine procese la desconexión
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    // Paso 3: Reconectar con el nuevo tipo
+    uint8_t liType = (type == GAMEPAD_TYPE_PS4) ? 0x02 : 0x01;
+    uint16_t capabilities = 0x01 | 0x02; // ANALOG_TRIGGERS | RUMBLE
+    uint32_t supportedButtonFlags = 0xFFFFFFFF; // Todos los botones
+    
+    vita_debug_log("[ControllerInput] Reconectando controlador con nuevo tipo (LI_CTYPE=%d)...", liType);
+    if (LiSendControllerArrivalEvent(0, 0x01, liType, supportedButtonFlags, capabilities) != 0) {
+        vita_debug_log("[ControllerInput][ERR] LiSendControllerArrivalEvent fallo");
+    } else {
+        vita_debug_log("[ControllerInput] Tipo de gamepad notificado al host (LI_CTYPE=%d)", liType);
+    }
+
+    // Enviar estado cero inmediato para resetear cualquier botón pendiente
+    GamepadState zeroState = {0};
+    sendGamepadState(zeroState);
+}
 void ControllerInputManager::setRearTouchEnabled(bool enabled) {
     if (rearTouchManager) {
         rearTouchManager->setEnabled(enabled);

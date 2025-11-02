@@ -19,6 +19,7 @@
 #include "tab/settings_tab.hpp"
 #include "ConfigManager.hpp"
 #include "tab/rear_touch_settings_tab.hpp"
+#include "controller/ControllerInput.hpp"
 #include <cstdlib>
 #include <string>
 #include <fmt/format.h>
@@ -432,6 +433,29 @@ SettingsTab::SettingsTab()
         config.setVideoSettings(settings);
         config.save();
         brls::Application::notify(brls::getStr("moonlight/settings_tab/touchscreen_mode/saved"));
+    });
+
+    // Configurar selector de tipo de gamepad (Xbox vs PS4)
+    std::vector<std::string> gamepadTypes = {
+        brls::getStr("moonlight/settings_tab/gamepad_type/options/xbox"),
+        brls::getStr("moonlight/settings_tab/gamepad_type/options/ps4")
+    };
+    gamepadTypeSelector->init(brls::getStr("moonlight/settings_tab/gamepad_type/title"), gamepadTypes, (int)videoSettings.gamepad_type, [this, gamepadTypes](int selected) {
+        ConfigManager config;
+        config.load();
+        VideoSettings settings = config.getVideoSettings();
+        GamepadType newType = (selected == 0) ? GAMEPAD_TYPE_XBOX : GAMEPAD_TYPE_PS4;
+        settings.gamepad_type = newType;
+        config.setVideoSettings(settings);
+        config.save();
+        
+        // Cambiar tipo de gamepad en vivo sin reiniciar sesión
+        if (g_controllerInput) {
+            g_controllerInput->setGamepadType(newType);
+            std::string message = brls::getStr("moonlight/settings_tab/gamepad_type/notify_prefix") + 
+                                  gamepadTypes.at(selected);
+            brls::Application::notify(message);
+        }
     });
 
     // Configurar slider de aceleración del mouse

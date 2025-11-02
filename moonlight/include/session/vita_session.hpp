@@ -57,6 +57,9 @@ public:
     // Obtiene snapshot para overlay (usa vitavideo_get_stats internamente)
     VitaOverlaySnapshot overlaySnapshot() const;
 
+    // Notificar al servidor del tipo de gamepad guardado en config
+    static void notifyGamepadType();
+
 private:
     // Callbacks estáticos estilo Moonlight-Switch
     static void connection_stage_starting(int stage);
