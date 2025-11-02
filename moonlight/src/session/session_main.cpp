@@ -53,6 +53,9 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     // Inicializar input manager
     g_controllerInput = new ControllerInputManager();
 
+    // Notificar al servidor del tipo de gamepad guardado en config
+    VitaSession::notifyGamepadType();
+
     // Registrar callback de pausa en ControllerInputManager (START+L+R)
     // Evitar abrir múltiples overlays si se mantiene la combinación pulsada.
     g_controllerInput->setPauseCallback([this]() {

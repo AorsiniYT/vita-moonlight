@@ -58,6 +58,12 @@ struct RearTouchSettings {
     std::uint32_t actionSouthEast = controller::INPUT_TYPE_GAMEPAD | controller::GAMEPAD_FLAG_RS;
 };
 
+// Enum para tipos de gamepad soportados
+enum GamepadType : int {
+    GAMEPAD_TYPE_XBOX = 0,    // Emular Xbox 360 (A/B/X/Y, LB/RB)
+    GAMEPAD_TYPE_PS4 = 1,     // Emular PS4 (Cross/Circle/Square/Triangle, L1/R1)
+};
+
 struct VideoSettings {
     bool sops = true; // Stream Optimization
     bool localaudio = false;
@@ -82,6 +88,9 @@ struct VideoSettings {
     // Nueva opción: modo de renderizado
     int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
     int pixel_format_mode = 0; // 0=RGBA directo, 1=YUV420 (pruebas)
+    
+    // Nueva opción: tipo de gamepad
+    GamepadType gamepad_type = GAMEPAD_TYPE_XBOX; // 0=Xbox, 1=PS4 (para emular controlador)
 
     RearTouchSettings rear_touch;
 };

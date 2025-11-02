@@ -7,6 +7,7 @@
 #include "controller/TouchInput.hpp"
 #include "controller/RearTouchInput.hpp"
 #include "controller/GamepadState.hpp"
+#include "ConfigManager.hpp"
 
 struct VitaMouseState {
     uint16_t buttonFlags;
@@ -44,6 +45,9 @@ public:
 
     void applyRearTouchSettings(const RearTouchSettings& settings);
     void setRearTouchEnabled(bool enabled);
+    
+    // Cambiar tipo de gamepad sin reiniciar sesión
+    void setGamepadType(GamepadType type);
 
 private:
     bool inputEnabled;
@@ -61,6 +65,9 @@ private:
 
     // Hotkey state
     std::function<void()> pauseCallback;
+
+    // Tipo de gamepad actual
+    GamepadType currentGamepadType = GAMEPAD_TYPE_XBOX;
 
     struct ButtonMapping {
         uint32_t btnDpadUp;

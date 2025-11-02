@@ -152,6 +152,14 @@
             },
             "saved": "Touchscreen mode saved"
         },
+        "gamepad_type": {
+            "title": "Controller type",
+            "options": {
+                "xbox": "Xbox 360",
+                "ps4": "PlayStation 4"
+            },
+            "notify_prefix": "Controller type changed to: "
+        },
         "mouse_accel": {
             "title": "Mouse acceleration"
         },

@@ -267,6 +267,7 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.keyboard_layout = std::stoi(get("video", "keyboard_layout", "0"));
     settings.render_mode = std::stoi(get("video", "render_mode", "0"));
     settings.pixel_format_mode = std::stoi(get("video", "pixel_format_mode", "0"));
+    settings.gamepad_type = static_cast<GamepadType>(std::stoi(get("video", "gamepad_type", "0")));
     auto readMargin = [this](const std::string& key, int fallback) -> int {
         std::string value = get("rear_touch", key, "");
         if (value.empty())
@@ -338,6 +339,7 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "keyboard_layout", std::to_string(settings.keyboard_layout));
     set("video", "render_mode", std::to_string(settings.render_mode));
     set("video", "pixel_format_mode", std::to_string(settings.pixel_format_mode));
+    set("video", "gamepad_type", std::to_string(static_cast<int>(settings.gamepad_type)));
     set("rear_touch", "enabled", settings.rear_touch.enabled ? "true" : "false");
     set("rear_touch", "top", std::to_string(settings.rear_touch.top));
     set("rear_touch", "right", std::to_string(settings.rear_touch.right));
