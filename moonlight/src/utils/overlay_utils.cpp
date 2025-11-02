@@ -64,7 +64,8 @@ BaseOverlay::BaseOverlay() {
     });
     this->addGestureRecognizer(tapRecognizer);
 
-    brls::sync([this]() { brls::Application::giveFocus(focusDummy); });
+    // No usar brls::sync aquí - focusDummy puede no ser válido más tarde
+    // Dejar que willAppear() maneje el foco inicial
 }
 
 BaseOverlay::~BaseOverlay() {
@@ -121,7 +122,11 @@ void BaseOverlay::onLayout() {
 void BaseOverlay::willAppear(bool resetState) {
     Box::willAppear(resetState);
     focusedIndex = 0;
-    brls::Application::giveFocus(focusDummy);
+    
+    // Dar foco seguramente si focusDummy existe
+    if (focusDummy) {
+        brls::Application::giveFocus(focusDummy);
+    }
 }
 
 void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
