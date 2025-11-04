@@ -331,6 +331,17 @@ inline void special(uint32_t defined, uint32_t pressed, uint32_t old_pressed) {
   uint32_t dev_val  = defined & INPUT_VALUE_MASK;
 
   if (pressed) {
+    if( dev_val == LEFT_TRIGGER || dev_val == RIGHT_TRIGGER ) {
+        switch(dev_val) {
+          case LEFT_TRIGGER:
+            curr.lt = 0xff;
+            return;
+          case RIGHT_TRIGGER:
+            curr.rt = 0xff;
+            return;
+        }
+    }
+
     switch(dev_type) {
       case INPUT_TYPE_SPECIAL:
         // Limpiar input físico ANTES de overlays/eventos modales
@@ -372,16 +383,6 @@ inline void special(uint32_t defined, uint32_t pressed, uint32_t old_pressed) {
         return;
       case INPUT_TYPE_GAMEPAD:
         curr.button |= dev_val;
-        return;
-      case INPUT_TYPE_ANALOG:
-        switch(dev_val) {
-          case LEFT_TRIGGER:
-            curr.lt = 0xff;
-            return;
-          case RIGHT_TRIGGER:
-            curr.rt = 0xff;
-            return;
-        }
         return;
       case INPUT_TYPE_MOUSE:
         if (!old_pressed) {
@@ -510,6 +511,17 @@ inline void check_for_double_click(input_data *curr) {
 }
 
 
+static bool has_specialkey( int key ) {
+  if( key == 0 )
+    return !!config.special_keys.nw;
+  if( key == 1 )
+    return !!config.special_keys.ne;
+  if( key == 2 )
+    return !!config.special_keys.sw;
+  if( key == 3 )
+    return !!config.special_keys.se;
+}
+
 // Callback para enviar eventos de mouse absoluto
 // static void send_absolute_mouse_event(int x, int y, bool down) {
 //     if (down) {
@@ -534,7 +546,13 @@ inline void vitainput_process(void) {
   // Siempre procesar las esquinas del back (para compatibilidad o futuros usos)
   read_backscreen();
   // --- SOLO PROCESAR SPECIAL KEYS Y ESQUINAS DEL FRENTE SI NO HAY MODO TÁCTIL EXCLUSIVO ACTIVO ---
-  if (config.touchscreen_mode == 0) {
+
+  // analogs: solo asignar si no están activos por rear touch
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tl2))
+    curr.lt = read_analog(map.btn_tl); // l2
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tr2))
+    curr.rt = read_analog(map.btn_tr); // r2
+  if (config.touchscreen_mode <= 1) {
     read_frontscreen();
     special(config.special_keys.nw,
             is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW),
@@ -686,11 +704,6 @@ extern bool keyboardsystem_is_open(void);
     curr.rt = 0;
   }
 
-  // analogs: solo asignar si no están activos por rear touch
-  if (!swap_shoulder_buttons && !is_pressed(map.btn_tl2))
-    curr.lt = read_analog(map.btn_tl); // l2
-  if (!swap_shoulder_buttons && !is_pressed(map.btn_tr2))
-    curr.rt = read_analog(map.btn_tr); // r2
   curr.lx = read_analog(map.abs_x);
   curr.ly = read_analog(map.abs_y);
   curr.rx = read_analog(map.abs_rx);
@@ -699,10 +712,22 @@ extern bool keyboardsystem_is_open(void);
   if (config.enable_double_tap_sprint) {
     check_for_double_click(&curr);
   }
-
+  bool in_special_key = false;
+  for (int i = 0; i < touch.finger; i++) {
+    int x = touch.points[i].x;
+    int y = touch.points[i].y;
+    for (int s = 0; s < 4; s++) {
+      if (has_specialkey(s) && IN_SECTION(FRONT_SECTIONS[s], x, y)) {
+        in_special_key = true;
+        break;
+      }
+    }
+    if (in_special_key) break;
+  }
   // --- PROCESAMIENTO DE MODOS TÁCTILES EXCLUSIVOS ---
   if (config.touchscreen_mode == 1) {
-    touchabsolute_handle_ds4(&touch, &current);
+    if( !in_special_key )
+      touchabsolute_handle_ds4(&touch, &current);
   } else if (config.touchscreen_mode == 2) {
     touchabsolute_handle_absolute(&touch, &current, &front_state, &finger_count, &swipe, &touch_old);
   } else if (config.touchscreen_mode == 3) {
@@ -712,18 +737,7 @@ extern bool keyboardsystem_is_open(void);
     mouse_released = false;
   // mouse y gestos solo si no está en modo touchscreen
   // Si el toque está en una sección de special key, NO procesar como ratón
-  bool in_special_key = false;
-  for (int i = 0; i < touch.finger; i++) {
-    int x = touch.points[i].x;
-    int y = touch.points[i].y;
-    for (int s = 0; s < 4; s++) {
-      if (IN_SECTION(FRONT_SECTIONS[s], x, y)) {
-        in_special_key = true;
-        break;
-      }
-    }
-    if (in_special_key) break;
-  }
+
   if (!in_special_key) {
     switch (front_state) {
       case NO_TOUCH_ACTION:
