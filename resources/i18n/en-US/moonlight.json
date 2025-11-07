@@ -146,11 +146,13 @@
             "title": "Touchscreen mode",
             "options": {
                 "0": "Disabled",
-                "1": "DS4 touchpad",
-                "2": "Absolute mouse",
-                "3": "Multitouch tablet"
+                "1": "Relative trackpad",
+                "2": "DS4 touchpad (PS4 only)",
+                "3": "Absolute mouse",
+                "4": "Multitouch tablet"
             },
-            "saved": "Touchscreen mode saved"
+            "saved": "Touchscreen mode saved",
+            "changed": "Touchscreen mode changed to:"
         },
         "gamepad_type": {
             "title": "Controller type",
@@ -232,6 +234,53 @@
     "host_dialog/connecting": "Generating certificates...",
     "main": {
         "cancel": "Cancel"
+    },
+    "trackpad": {
+        "header": "Trackpad Configuration",
+        "pointer_speed": {
+            "title": "Pointer speed",
+            "detail": "Adjust the cursor speed multiplier when swiping"
+        },
+        "tap_to_click": {
+            "title": "Tap to click",
+            "detail": "Click by tapping the trackpad without pressing",
+            "enabled": "Tap to click enabled",
+            "disabled": "Tap to click disabled"
+        },
+        "gestures_header": "Gestures & Click Options",
+        "two_finger_right_click": {
+            "title": "Two-finger right click",
+            "detail": "Perform right-click with two fingers",
+            "enabled": "Two-finger right click enabled",
+            "disabled": "Two-finger right click disabled"
+        },
+        "two_finger_scroll": {
+            "title": "Two-finger scrolling",
+            "detail": "Scroll by swiping with two fingers",
+            "enabled": "Two-finger scrolling enabled",
+            "disabled": "Two-finger scrolling disabled"
+        },
+        "invert_scroll": {
+            "title": "Invert scroll direction",
+            "detail": "Use natural scrolling (iOS-style) or traditional",
+            "natural": "Natural scrolling enabled (iOS-style)",
+            "traditional": "Traditional scrolling enabled"
+        },
+        "multi_touch": {
+            "title": "Multi-touch gestures",
+            "detail": "Enable advanced gestures like pinch to zoom",
+            "enabled": "Multi-touch gestures enabled",
+            "disabled": "Multi-touch gestures disabled"
+        },
+        "advanced_header": "Advanced Options",
+        "edge_zone": {
+            "title": "Edge dead zones",
+            "detail": "Define zones at the edges to ignore accidental touches"
+        },
+        "dead_zone": {
+            "title": "Movement dead zone",
+            "detail": "Minimum movement threshold before registering as a swipe"
+        }
     },
     "session": {
         "pause": {

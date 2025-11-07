@@ -37,6 +37,13 @@ public:
     // Set touchscreen mode
     void setTouchscreenMode(int mode) { touchscreenMode = mode; }
 
+    // Validar y cambiar modo touch (con compatibilidad de gamepad)
+    bool setTouchscreenModeWithValidation(int newMode);
+
+    // Cambiar modo touch en tiempo de ejecución (como setGamepadType)
+    // Valida compatibilidad, actualiza config y notifica cambio
+    bool setTouchscreenModeRuntime(int newMode);
+
     // Enviar estado de gamepad
     void sendGamepadState(const GamepadState& state);
 

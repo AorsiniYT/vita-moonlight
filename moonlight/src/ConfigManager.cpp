@@ -268,6 +268,17 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.render_mode = std::stoi(get("video", "render_mode", "0"));
     settings.pixel_format_mode = std::stoi(get("video", "pixel_format_mode", "0"));
     settings.gamepad_type = static_cast<GamepadType>(std::stoi(get("video", "gamepad_type", "0")));
+    
+    // Configuración del Trackpad
+    settings.trackpad_pointer_speed = std::stoi(get("trackpad", "pointer_speed", "100"));
+    settings.trackpad_dead_zone = std::stoi(get("trackpad", "dead_zone", "50"));
+    settings.trackpad_tap_to_click = get("trackpad", "tap_to_click", "true") == "true";
+    settings.trackpad_two_finger_right_click = get("trackpad", "two_finger_right_click", "true") == "true";
+    settings.trackpad_two_finger_scroll = get("trackpad", "two_finger_scroll", "true") == "true";
+    settings.trackpad_invert_scroll = get("trackpad", "invert_scroll", "false") == "true";
+    settings.trackpad_multi_touch = get("trackpad", "multi_touch", "true") == "true";
+    settings.trackpad_edge_zone = std::stoi(get("trackpad", "edge_zone", "15"));
+    
     auto readMargin = [this](const std::string& key, int fallback) -> int {
         std::string value = get("rear_touch", key, "");
         if (value.empty())
@@ -340,6 +351,17 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("video", "render_mode", std::to_string(settings.render_mode));
     set("video", "pixel_format_mode", std::to_string(settings.pixel_format_mode));
     set("video", "gamepad_type", std::to_string(static_cast<int>(settings.gamepad_type)));
+    
+    // Configuración del Trackpad
+    set("trackpad", "pointer_speed", std::to_string(settings.trackpad_pointer_speed));
+    set("trackpad", "dead_zone", std::to_string(settings.trackpad_dead_zone));
+    set("trackpad", "tap_to_click", settings.trackpad_tap_to_click ? "true" : "false");
+    set("trackpad", "two_finger_right_click", settings.trackpad_two_finger_right_click ? "true" : "false");
+    set("trackpad", "two_finger_scroll", settings.trackpad_two_finger_scroll ? "true" : "false");
+    set("trackpad", "invert_scroll", settings.trackpad_invert_scroll ? "true" : "false");
+    set("trackpad", "multi_touch", settings.trackpad_multi_touch ? "true" : "false");
+    set("trackpad", "edge_zone", std::to_string(settings.trackpad_edge_zone));
+    
     set("rear_touch", "enabled", settings.rear_touch.enabled ? "true" : "false");
     set("rear_touch", "top", std::to_string(settings.rear_touch.top));
     set("rear_touch", "right", std::to_string(settings.rear_touch.right));

@@ -145,11 +145,13 @@
             "title": "Modo touchscreen",
             "options": {
                 "0": "Desactivado",
-                "1": "Touchpad DS4",
-                "2": "Mouse absoluto",
-                "3": "Tableta multitouch"
+                "1": "Trackpad relativo",
+                "2": "Touchpad DS4 (PS4 solo)",
+                "3": "Mouse absoluto",
+                "4": "Tableta multitouch"
             },
-            "saved": "Modo touchscreen guardado"
+            "saved": "Modo touchscreen guardado",
+            "changed": "Modo touchscreen cambiado a:"
         },
         "gamepad_type": {
             "title": "Tipo de control",
@@ -231,6 +233,54 @@
     "host_dialog/connecting": "Generando certificados...",
     "main": {
         "cancel": "Cancelar"
+    },
+    "trackpad": {
+        "header": "Configuración del Trackpad",
+            "pointer_speed": {
+                "title": "Velocidad del puntero",
+                "detail": "Ajusta el multiplicador de velocidad del cursor al deslizar"
+        },
+        "tap_to_click": {
+            "title": "Tocar para hacer clic",
+            "detail": "Haz clic tocando el trackpad sin presionar",
+            "enabled": "Tocar para hacer clic activado",
+            "disabled": "Tocar para hacer clic desactivado",
+            "required": "Tocar para hacer clic es obligatorio en PS Vita"
+        },
+        "gestures_header": "Gestos y opciones de clic",
+        "two_finger_right_click": {
+            "title": "Clic derecho con dos dedos",
+            "detail": "Realiza clic derecho con dos dedos",
+            "enabled": "Clic derecho con dos dedos activado",
+            "disabled": "Clic derecho con dos dedos desactivado"
+        },
+        "two_finger_scroll": {
+            "title": "Desplazamiento con dos dedos",
+            "detail": "Desplázate deslizando con dos dedos",
+            "enabled": "Desplazamiento con dos dedos activado",
+            "disabled": "Desplazamiento con dos dedos desactivado"
+        },
+        "invert_scroll": {
+            "title": "Invertir dirección de desplazamiento",
+            "detail": "Usa desplazamiento natural (estilo iOS) o tradicional",
+            "natural": "Desplazamiento natural activado (estilo iOS)",
+            "traditional": "Desplazamiento tradicional activado"
+        },
+        "multi_touch": {
+            "title": "Gestos multitáctiles",
+            "detail": "Activa gestos avanzados como pellizcar para hacer zoom",
+            "enabled": "Gestos multitáctiles activados",
+            "disabled": "Gestos multitáctiles desactivados"
+        },
+        "advanced_header": "Opciones avanzadas",
+        "edge_zone": {
+            "title": "Zonas muertas en los bordes",
+            "detail": "Define zonas en los bordes para ignorar toques accidentales"
+        },
+        "dead_zone": {
+            "title": "Zona muerta de movimiento",
+            "detail": "Umbral mínimo de movimiento antes de registrar como deslizamiento"
+        }
     },
     "session": {
         "pause": {

@@ -62,9 +62,9 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::BooleanCell, doubleTapSprintToggle, "doubleTapSprintToggle");
     BRLS_BIND(brls::SelectorCell, touchscreenModeSelector, "touchscreenModeSelector");
     BRLS_BIND(brls::SelectorCell, gamepadTypeSelector, "gamepadTypeSelector");
-    BRLS_BIND(brls::SliderCell, mouseAccelerationSlider, "mouseAccelerationSlider");
     BRLS_BIND(brls::SelectorCell, keyboardLayoutSelector, "keyboardLayoutSelector");
     BRLS_BIND(brls::DetailCell, rearTouchSettingsEntry, "rearTouchSettingsEntry");
+    BRLS_BIND(brls::DetailCell, trackpadSettingsEntry, "trackpadSettingsEntry");
 
     static inline brls::SelectorCell* languageSelectorPtr = nullptr;
 

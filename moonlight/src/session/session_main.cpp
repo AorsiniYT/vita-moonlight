@@ -184,8 +184,12 @@ void showSessionMain(const HostInfo& host, const RemoteAppInfo& app) {
 }
 
 SessionMainView::~SessionMainView() {
+    overlayStatsView.release();
+    testOverlay.release();
     if (g_controllerInput) {
         delete g_controllerInput;
         g_controllerInput = nullptr;
     }
+    // Crear un nuevo manejador de entrada para la UI principal tras cerrar la sesión
+    g_controllerInput = new ControllerInputManager();
 }

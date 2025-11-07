@@ -57,6 +57,7 @@ ControllerInputManager::ControllerInputManager() : inputEnabled(true), inputDrop
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
 
     touchManager = new TouchInputManager();
+    g_touchInput = touchManager;
     rearTouchManager = new RearTouchInputManager();
 
     ConfigManager config;
@@ -76,6 +77,9 @@ ControllerInputManager::ControllerInputManager() : inputEnabled(true), inputDrop
 // Destructor
 ControllerInputManager::~ControllerInputManager() {
     if (touchManager) {
+        if (g_touchInput == touchManager) {
+            g_touchInput = nullptr;
+        }
         delete touchManager;
         touchManager = nullptr;
     }
@@ -402,3 +406,57 @@ void ControllerInputManager::setRearTouchEnabled(bool enabled) {
         rearTouchManager->setEnabled(enabled);
     }
 }
+
+// Validar y cambiar modo touch con compatibilidad de gamepad
+bool ControllerInputManager::setTouchscreenModeWithValidation(int newMode) {
+    if (!touchManager) {
+        vita_debug_log("[ControllerInput][ERR] TouchManager no inicializado");
+        return false;
+    }
+
+    // Usar el método de validación de TouchInput
+    if (touchManager->setTouchMode(newMode, static_cast<int>(currentGamepadType))) {
+        touchscreenMode = newMode;
+        vita_debug_log("[ControllerInput] Modo touch validado y cambiado a %d", newMode);
+        return true;
+    } else {
+        vita_debug_log("[ControllerInput][WARN] Modo touch %d no compatible con gamepad tipo %d", 
+                      newMode, static_cast<int>(currentGamepadType));
+        return false;
+    }
+}
+
+// Cambiar modo touch en tiempo de ejecución (guarda config y valida)
+bool ControllerInputManager::setTouchscreenModeRuntime(int newMode) {
+    if (touchscreenMode == newMode) {
+        vita_debug_log("[ControllerInput] Modo touch ya es %d, ignorando", newMode);
+        return true;
+    }
+
+    if (!touchManager) {
+        vita_debug_log("[ControllerInput][ERR] TouchManager no inicializado");
+        return false;
+    }
+
+    // Validar compatibilidad con gamepad actual
+    if (!touchManager->setTouchMode(newMode, static_cast<int>(currentGamepadType))) {
+        vita_debug_log("[ControllerInput][WARN] Modo touch %d no compatible con gamepad tipo %d", 
+                      newMode, static_cast<int>(currentGamepadType));
+        return false;
+    }
+
+    // Actualizar modo actual
+    touchscreenMode = newMode;
+    vita_debug_log("[ControllerInput] Modo touch cambiado en tiempo de ejecución a %d", newMode);
+
+    // Guardar en config para persistencia
+    ConfigManager config;
+    config.load();
+    VideoSettings settings = config.getVideoSettings();
+    settings.touchscreen_mode = newMode;
+    config.setVideoSettings(settings);
+    config.save();
+
+    return true;
+}
+
