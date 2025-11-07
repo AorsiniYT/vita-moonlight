@@ -4,7 +4,17 @@
     "info": "Información",
     "settings": "Ajustes",
     "close": "Cerrar",
-    "title": "Opciones del host"
+    "title": "Opciones del host",
+    "ok": "Aceptar"
+  },
+  "info": {
+    "title": "Información del Host",
+    "name": "Nombre",
+    "ip": "IP",
+    "mac": "Dirección MAC"
+  },
+  "settings": {
+    "title": "Configuración"
   },
   "dropdown": {
     "edit_host": "Editar host",
