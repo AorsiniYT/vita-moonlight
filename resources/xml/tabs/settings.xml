@@ -98,6 +98,10 @@
                 id="rearTouchSettingsEntry"
                 title="@i18n/moonlight/rear_touch/title"/>
             
+            <brls:DetailCell
+                id="trackpadSettingsEntry"
+                title="@i18n/moonlight/trackpad/header"/>
+            
             <brls:BooleanCell
                 id="motionControlsToggle"
                 title="@i18n/moonlight/settings_tab/motion_controls_title"/>
@@ -114,11 +118,6 @@
                 id="gamepadTypeSelector"
                 title="@i18n/moonlight/settings_tab/gamepad_type/title"/>
 
-            <!-- Aceleración del Mouse -->
-            <brls:SliderCell
-                id="mouseAccelerationSlider"
-                title="@i18n/moonlight/settings_tab/mouse_accel/title"/>
-                
             <!-- Layout del Teclado -->
             <brls:SelectorCell
                 id="keyboardLayoutSelector"

@@ -85,6 +85,16 @@ struct VideoSettings {
     int mouse_acceleration = 150;
     int keyboard_layout = 0; // 0=EN_US, 1=ES_ES, 2=ES_LATAM
     
+    // Configuración del Trackpad (específica)
+    int trackpad_pointer_speed = 100;       // 0-200
+    int trackpad_dead_zone = 50;            // 0-200px
+    bool trackpad_tap_to_click = true;
+    bool trackpad_two_finger_right_click = true;
+    bool trackpad_two_finger_scroll = true;
+    bool trackpad_invert_scroll = false;
+    bool trackpad_multi_touch = true;
+    int trackpad_edge_zone = 15;            // 0-50%
+    
     // Nueva opción: modo de renderizado
     int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
     int pixel_format_mode = 0; // 0=RGBA directo, 1=YUV420 (pruebas)

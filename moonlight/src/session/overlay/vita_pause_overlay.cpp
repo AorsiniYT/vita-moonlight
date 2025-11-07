@@ -1,5 +1,7 @@
 #include "session/overlay/vita_pause_overlay.hpp"
 #include <borealis.hpp>
+#include <borealis/core/thread.hpp>
+#include <borealis/views/applet_frame.hpp>
 #include "video/VitaVideoRenderer.hpp"
 #include "session/vita_session.hpp"
 #include "GameStreamClient.hpp"
@@ -9,8 +11,88 @@
 #include "tab/hosts_tab.hpp"
 #include "controller/ControllerInput.hpp"
 #include "activity/main_activity.hpp"
+#include "session/session_main.hpp"
+#include "session/session_app_select.hpp"
 #include <thread>
 #include <chrono>
+
+namespace {
+
+bool dismissSessionAppSelectIfPresent()
+{
+    auto stack = brls::Application::getActivitiesStack();
+    if (stack.empty())
+        return false;
+
+    auto* mainActivity = dynamic_cast<MainActivity*>(stack.back());
+    if (!mainActivity)
+        return false;
+
+    brls::View* content = mainActivity->getContentView();
+    auto* applet = dynamic_cast<brls::AppletFrame*>(content);
+    if (!applet)
+        return false;
+
+    brls::View* currentView = applet->getContentView();
+    auto* appSelect = dynamic_cast<SessionAppSelect*>(currentView);
+    if (!appSelect)
+        return false;
+
+    vita_debug_log("[VitaPauseOverlay] Dismissing SessionAppSelect to return to hosts list");
+    appSelect->dismiss([]() {
+        vita_debug_log("[VitaPauseOverlay] SessionAppSelect dismissed");
+    });
+    return true;
+}
+
+void finalizeReturnToHosts()
+{
+    if (!dismissSessionAppSelectIfPresent()) {
+        HostsTab::requestGlobalRefresh();
+    }
+}
+
+// Schedules the removal of the SessionMain activity once the overlay is gone.
+void returnToMainMenuAsync(int retries = 8)
+{
+    brls::delay(30, [retries]() mutable {
+        if (brls::Application::isInputBlocks()) {
+            if (retries > 0) {
+                returnToMainMenuAsync(retries - 1);
+            } else {
+                while (brls::Application::isInputBlocks()) {
+                    brls::Application::unblockInputs();
+                }
+                HostsTab::requestGlobalRefresh();
+            }
+            return;
+        }
+
+        auto stack = brls::Application::getActivitiesStack();
+        if (!stack.empty()) {
+            brls::Activity* top = stack.back();
+            if (top && dynamic_cast<SessionMainView*>(top->getContentView())) {
+                brls::Application::popActivity(brls::TransitionAnimation::NONE, []() {
+                    vita_debug_log("[VitaPauseOverlay] Session activity popped, finalizing return");
+                    finalizeReturnToHosts();
+                });
+                return;
+            }
+        }
+
+        if (dismissSessionAppSelectIfPresent()) {
+            return;
+        }
+
+        if (retries > 0) {
+            returnToMainMenuAsync(retries - 1);
+        } else {
+            finalizeReturnToHosts();
+        }
+    });
+}
+
+}
 
 VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo& hostInfo)
     : BaseOverlay(), onClose(std::move(onClose)), host(hostInfo) {
@@ -113,13 +195,7 @@ void VitaPauseOverlay::disconnect() {
             if (storedOnClose) {
                 try { storedOnClose(); } catch(...) {}
             }
-            vita_debug_log("[VitaPauseOverlay] After onClose, g_controllerInput: %p", g_controllerInput);
-            try {
-                int fps2 = (int)std::lround(brls::Application::getFPS());
-                VitaVideoStats vstats2{}; vitavideo_get_stats(&vstats2);
-                vita_debug_log("[VitaPauseOverlay][INST] afterOnClose FPS=%d video_presented=%u decoded=%u target=%u", fps2, vstats2.frames_presented, vstats2.frames_decoded, vstats2.target_fps);
-            } catch(...) {}
-            HostsTab::requestGlobalRefresh();
+            returnToMainMenuAsync();
         });
     }).detach();
 }
@@ -147,7 +223,7 @@ void VitaPauseOverlay::closeApp() {
             if (storedOnClose) {
                 try { storedOnClose(); } catch(...) {}
             }
-            HostsTab::requestGlobalRefresh();
+            returnToMainMenuAsync();
         });
     }).detach();
 }

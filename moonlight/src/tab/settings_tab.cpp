@@ -19,6 +19,7 @@
 #include "tab/settings_tab.hpp"
 #include "ConfigManager.hpp"
 #include "tab/rear_touch_settings_tab.hpp"
+#include "tab/trackpad_settings_tab.hpp"
 #include "controller/ControllerInput.hpp"
 #include <cstdlib>
 #include <string>
@@ -418,21 +419,46 @@ SettingsTab::SettingsTab()
         });
     }
 
+    // Trackpad Settings Entry
+    if (trackpadSettingsEntry)
+    {
+        trackpadSettingsEntry->setDetailText(brls::getStr("moonlight/trackpad/header"));
+        trackpadSettingsEntry->registerClickAction([](brls::View*) {
+            auto* trackpadView = new TrackpadSettingsTab();
+            // Prefer wrapping the settings view in an AppletFrame so the
+            // standard header / footer are displayed (like in main.xml).
+            // Set the title on the frame so the top header is visible.
+            auto* frame = new brls::AppletFrame(trackpadView);
+            frame->setTitle(brls::getStr("moonlight/trackpad/header"));
+            auto* act = new brls::Activity(frame);
+            brls::Application::pushActivity(act);
+            return true;
+        });
+    }
+
     // Configurar selector de modo touchscreen
     std::vector<std::string> touchscreenModes = {
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/0"),
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/1"),
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/2"),
-        brls::getStr("moonlight/settings_tab/touchscreen_mode/options/3")
+        brls::getStr("moonlight/settings_tab/touchscreen_mode/options/3"),
+        brls::getStr("moonlight/settings_tab/touchscreen_mode/options/4")
     };
-    touchscreenModeSelector->init(brls::getStr("moonlight/settings_tab/touchscreen_mode/title"), touchscreenModes, videoSettings.touchscreen_mode, [this](int selected) {
-        ConfigManager config;
-        config.load();
-        VideoSettings settings = config.getVideoSettings();
-        settings.touchscreen_mode = selected;
-        config.setVideoSettings(settings);
-        config.save();
-        brls::Application::notify(brls::getStr("moonlight/settings_tab/touchscreen_mode/saved"));
+    touchscreenModeSelector->init(brls::getStr("moonlight/settings_tab/touchscreen_mode/title"), touchscreenModes, videoSettings.touchscreen_mode, [this, touchscreenModes](int selected) {
+        // Cambiar modo touch en tiempo de ejecución (igual que gamepad type)
+        if (g_controllerInput && g_controllerInput->setTouchscreenModeRuntime(selected)) {
+            // Éxito: mostrar notificación con el modo seleccionado
+            std::string message = brls::getStr("moonlight/settings_tab/touchscreen_mode/changed") + 
+                                  " " + touchscreenModes.at(selected);
+            brls::Application::notify(message);
+        } else {
+            // Error: mostrar notificación de incompatibilidad
+            if (selected == 2) { // TOUCHSCREEN_MODE_DS4_TOUCHPAD
+                brls::Application::notify("⚠ DS4 Touchpad solo compatible con PlayStation");
+            } else {
+                brls::Application::notify("⚠ No se pudo cambiar el modo táctil");
+            }
+        }
     });
 
     // Configurar selector de tipo de gamepad (Xbox vs PS4)
@@ -457,22 +483,6 @@ SettingsTab::SettingsTab()
             brls::Application::notify(message);
         }
     });
-
-    // Configurar slider de aceleración del mouse
-    // El slider interno usa progreso entre 0.0 y 1.0; la configuración se guarda en 0..150
-    constexpr int MOUSE_ACCEL_MAX = 150;
-    float initialProgress = static_cast<float>(videoSettings.mouse_acceleration) / static_cast<float>(MOUSE_ACCEL_MAX);
-    mouseAccelerationSlider->init(brls::getStr("moonlight/settings_tab/mouse_accel/title"), initialProgress, [this](float progress) {
-        ConfigManager config;
-        config.load();
-        VideoSettings settings = config.getVideoSettings();
-        int accel = static_cast<int>(roundf(progress * MOUSE_ACCEL_MAX));
-        settings.mouse_acceleration = accel;
-        config.setVideoSettings(settings);
-        config.save();
-        mouseAccelerationSlider->setDetailText(std::to_string(accel));
-    });
-    mouseAccelerationSlider->setDetailText(std::to_string(videoSettings.mouse_acceleration));
 
     // Configurar selector de layout de teclado
     std::vector<std::string> keyboardLayouts = {"EN-US", "ES-ES", "ES-LATAM"};
