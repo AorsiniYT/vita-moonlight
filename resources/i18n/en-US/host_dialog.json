@@ -4,7 +4,17 @@
     "close": "Close",
     "connect": "Connect",
     "info": "Info",
-    "settings": "Settings"
+    "settings": "Settings",
+    "ok": "OK"
+  },
+  "info": {
+    "title": "Host Information",
+    "name": "Name",
+    "ip": "IP",
+    "mac": "MAC Address"
+  },
+  "settings": {
+    "title": "Settings"
   },
   "dropdown": {
     "edit_host": "Edit host",

@@ -24,6 +24,7 @@
 #include "ConfigManager.hpp"
 #include "session/session_app_select.hpp"
 #include "tab/edit_host_tab.hpp"
+#include "utils/dialog_utils.h"
 #include <borealis/views/edit_text_dialog.hpp>
 #include <borealis/views/label.hpp>
 
@@ -147,7 +148,46 @@ void HostsTab::refreshHostsList() {
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/info"), [dialog, host]() {
                 sceClibPrintf("[PCCard] Info para %s (%s)\n", host.name.c_str(), host.ip.c_str());
-                // No cerrar el diálogo para evitar que aparezca el menú de cerrar app
+                
+                // Crear diálogo de información del host usando dialog_utils
+                brls::Style style = brls::Application::getStyle();
+                
+                // Crear el contenido con las filas de información
+                std::vector<std::pair<std::string, std::string>> infoRows = {
+                    {brls::getStr("host_dialog/info/name"), host.name},
+                    {brls::getStr("host_dialog/info/ip"), host.ip},
+                    {brls::getStr("host_dialog/info/mac"), host.mac}
+                };
+                
+                brls::Box* infoContent = new brls::Box(brls::Axis::COLUMN);
+                infoContent->setAlignItems(brls::AlignItems::FLEX_START);
+                infoContent->setJustifyContent(brls::JustifyContent::FLEX_START);
+                infoContent->setWidth(620.0f);
+                
+                // Título del diálogo
+                auto* titleLabel = createLabel(brls::getStr("host_dialog/info/title"), 
+                                               style["brls/applet_frame/header_title_font_size"],
+                                               brls::HorizontalAlign::CENTER, 18.0f);
+                infoContent->addView(titleLabel);
+                
+                // Filas de información
+                brls::Box* infoBox = createInfoBox(infoRows, 
+                                                    style["brls/label/default_font_size"], 
+                                                    10.0f);
+                infoContent->addView(infoBox);
+                
+                // Crear diálogo personalizado
+                DialogOptions options;
+                options.contentPadding = style["brls/dialog/paddingTopBottom"] * 0.6f;
+                options.contentWidth = 620.0f;
+                options.alignItems = brls::AlignItems::FLEX_START;
+                options.cancelable = true;
+                
+                auto* infoDialog = createCustomDialog(infoContent, options);
+                infoDialog->addButton(brls::getStr("host_dialog/dialog/ok"), []() {
+                    // Cerrar automáticamente
+                });
+                infoDialog->open();
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host](/*dialog*/) {
                 sceClibPrintf("[PCCard] Settings para %s (%s)\n", host.name.c_str(), host.ip.c_str());

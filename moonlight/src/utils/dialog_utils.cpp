@@ -3,6 +3,82 @@
 
 using namespace brls;
 
+// Crear un diálogo personalizado con contenido Box
+Dialog* createCustomDialog(brls::Box* content, const DialogOptions& options) {
+    Style style = Application::getStyle();
+    
+    if (!content) return nullptr;
+
+    // Aplicar padding al contenido si se especifica
+    if (options.contentPadding > 0) {
+        float padding = options.contentPadding;
+        content->setPadding(padding, padding, padding, padding);
+    }
+
+    // Aplicar ancho si se especifica
+    if (options.contentWidth > 0) {
+        content->setWidth(options.contentWidth);
+    }
+
+    // Aplicar alineación
+    if (options.alignItems != brls::AlignItems::AUTO) {
+        content->setAlignItems(options.alignItems);
+    }
+    if (options.justifyContent != brls::JustifyContent::FLEX_START) {
+        content->setJustifyContent(options.justifyContent);
+    }
+
+    auto* dialog = new brls::Dialog(content);
+    dialog->setCancelable(options.cancelable);
+    dialog->setFocusable(options.focusable);
+    if (options.hideHighlight) {
+        dialog->setHideHighlight(true);
+    }
+
+    return dialog;
+}
+
+// Crear una etiqueta personalizada
+Label* createLabel(const std::string& text, float fontSize, 
+                   brls::HorizontalAlign align, float marginBottom) {
+    auto* label = new brls::Label();
+    label->setText(text);
+    label->setFontSize(fontSize);
+    label->setHorizontalAlign(align);
+    label->setSingleLine(false);
+    if (marginBottom > 0) {
+        label->setMarginBottom(marginBottom);
+    }
+    return label;
+}
+
+// Crear un Box de información con filas (clave: valor)
+Box* createInfoBox(const std::vector<std::pair<std::string, std::string>>& rows, 
+                   float fontSize, float rowSpacing) {
+    Style style = Application::getStyle();
+    auto* box = new brls::Box(brls::Axis::COLUMN);
+    box->setAlignItems(brls::AlignItems::FLEX_START);
+    box->setJustifyContent(brls::JustifyContent::FLEX_START);
+
+    bool isFirst = true;
+    for (const auto& row : rows) {
+        auto* label = new brls::Label();
+        std::string displayValue = row.second.empty() ? "-" : row.second;
+        label->setText(row.first + ": " + displayValue);
+        label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
+        label->setSingleLine(false);
+        label->setFontSize(fontSize);
+        
+        if (!isFirst && rowSpacing > 0) {
+            label->setMarginTop(rowSpacing);
+        }
+        isFirst = false;
+        box->addView(label);
+    }
+    
+    return box;
+}
+
 Dialog* createLoadingDialog(const std::string& message) {
     Style style = Application::getStyle();
     brls::Box* holder = new brls::Box(brls::Axis::COLUMN);
