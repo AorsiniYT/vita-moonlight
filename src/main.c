@@ -50,6 +50,7 @@
 
 #include <psp2/io/stat.h>
 
+#include <psp2/shellutil.h>
 #include <psp2/sysmodule.h>
 #include <psp2/ctrl.h>
 #include <psp2/touch.h>
@@ -80,6 +81,8 @@ void loop_forever(void) {
 }
 
 static void vita_init() {
+  sceShellUtilInitEvents(0);
+
   // Seed OpenSSL with Sony-grade random number generator
   char random_seed[0x40] = {0};
   sceKernelGetRandomNumber(random_seed, sizeof(random_seed));

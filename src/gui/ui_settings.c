@@ -440,6 +440,8 @@ enum {
   SETTINGS_ENABLE_MAPPING,
   SETTINGS_BACK_DEADZONE,
   SETTINGS_SPECIAL_KEYS,
+  SETTINGS_ENABLE_SPECIAL_KEYS,
+  SETTINGS_ENABLE_PSBUTTON_CAPTURE,
   // SETTINGS_HOTKEYS, // Eliminado: hotkeys fijos
   SETTINGS_CONTROLLER_TYPE,
   SETTINGS_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
@@ -471,6 +473,8 @@ enum {
   SETTINGS_VIEW_ENABLE_MAPPING,
   SETTINGS_VIEW_BACK_DEADZONE,
   SETTINGS_VIEW_SPECIAL_KEYS,
+  SETTINGS_VIEW_ENABLE_SPECIAL_KEYS,
+  SETTINGS_VIEW_ENABLE_PSBUTTON_CAPTURE,
   // SETTINGS_VIEW_HOTKEYS, // Eliminado: hotkeys fijos
   SETTINGS_VIEW_CONTROLLER_TYPE,
   SETTINGS_VIEW_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
@@ -838,6 +842,22 @@ static int settings_loop(int id, void *context, const input_data *input) {
       }
       special_keys_menu();
       break;
+    case SETTINGS_ENABLE_SPECIAL_KEYS:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+
+      config.enable_front_touchzones = !config.enable_front_touchzones;
+      did_change = 1;
+      break;
+    case SETTINGS_ENABLE_PSBUTTON_CAPTURE:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+
+      config.enable_psbutton_capture = !config.enable_psbutton_capture;
+      did_change = 1;
+      break;
     case SETTINGS_MOUSE_ACCEL:
       left = input->buttons & SCE_CTRL_LEFT;
       right = input->buttons & SCE_CTRL_RIGHT;
@@ -936,6 +956,12 @@ static int settings_loop(int id, void *context, const input_data *input) {
   sprintf(current, "%s", config.save_debug_log ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_SAVE_DEBUG_LOG, current);
 
+  sprintf(current, "%s", config.enable_psbutton_capture ? "yes" : "no");
+  MENU_REPLACE(SETTINGS_VIEW_ENABLE_PSBUTTON_CAPTURE, current);
+
+  sprintf(current, "%s", config.enable_front_touchzones ? "yes" : "no");
+  MENU_REPLACE(SETTINGS_VIEW_ENABLE_SPECIAL_KEYS, current);
+
   sprintf(current, "%s", config.mapping != 0 ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_ENABLE_MAPPING, current);
 
@@ -1025,7 +1051,9 @@ int ui_settings_menu() {
   menu[idx].subname[sizeof(menu[idx].subname) - 1] = '\0';
   idx++;
   MENU_MESSAGE("Example in github repo.");
+  MENU_ENTRY(SETTINGS_ENABLE_PSBUTTON_CAPTURE, SETTINGS_VIEW_ENABLE_PSBUTTON_CAPTURE, "Enable PS button capture", "");
   MENU_ENTRY(SETTINGS_BACK_DEADZONE, SETTINGS_VIEW_BACK_DEADZONE, "Back touchscreen deadzone", "");
+  MENU_ENTRY(SETTINGS_ENABLE_SPECIAL_KEYS, SETTINGS_VIEW_ENABLE_SPECIAL_KEYS, "Enable touchscreen special keys", "");
   MENU_ENTRY(SETTINGS_SPECIAL_KEYS, SETTINGS_VIEW_SPECIAL_KEYS, "Touchscreen special keys", "");
   // MENU_ENTRY(SETTINGS_HOTKEYS, SETTINGS_VIEW_HOTKEYS, "Configure hotkeys", ""); // Eliminado: hotkeys fijos
   // NUEVO: Opción para usar la pantalla táctil como touchpad DS4
