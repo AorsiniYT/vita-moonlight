@@ -22,6 +22,7 @@
 #include <borealis/core/logger.hpp>
 #include <thread>
 #include <atomic>
+#include <cstdio>
 #include "debug.hpp"
 #if defined(__PSV__) || defined(_WIN32)
 #include <borealis/core/thread.hpp>
@@ -187,7 +188,30 @@ void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const
     brls::Logger::info("[check_host] startVitaDiscovery: después de crear hilo");
     if (vitaDiscoveryThread >= 0) {
         brls::Logger::info("[check_host] startVitaDiscovery: hilo creado correctamente, iniciando...");
-        sceKernelStartThread(vitaDiscoveryThread, 0, nullptr);
+        int startResult = sceKernelStartThread(vitaDiscoveryThread, 0, nullptr);
+        if (startResult < 0) {
+            brls::Logger::error("[check_host] Error iniciando hilo mDNS (sceKernelStartThread): 0x{:08X}", startResult);
+            vita_debug_log("[check_host] Error start thread: 0x%08X\n", startResult);
+            sceKernelDeleteThread(vitaDiscoveryThread);
+            vitaDiscoveryThread = -1;
+            udp_sniffer_vita_deinit();
+            vitaDiscoveryStatus = 0;
+            vitaThreadActive = false;
+            brls::sync([startResult]() {
+                char msg[96];
+                std::snprintf(msg, sizeof(msg), "[mDNS] No se pudo iniciar la búsqueda (0x%08X)", static_cast<unsigned int>(startResult));
+                if (AddHostTab::vitaInstance) {
+                    brls::View* spinnerRow = AddHostTab::vitaInstance->getView("spinner_row");
+                    if (spinnerRow)
+                        spinnerRow->setVisibility(brls::Visibility::GONE);
+                    brls::Application::notify(msg);
+                } else {
+                    brls::Application::notify(msg);
+                }
+            });
+        } else {
+            brls::Logger::info("[check_host] startVitaDiscovery: hilo mDNS en ejecución (sceKernelStartThread=0x{:08X})", startResult);
+        }
     } else {
         brls::Logger::error("[check_host] Error creando hilo de descubrimiento mDNS Vita");
     }

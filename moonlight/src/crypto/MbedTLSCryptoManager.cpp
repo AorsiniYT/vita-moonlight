@@ -1,5 +1,7 @@
 #ifdef USE_MBEDTLS_CRYPTO
 
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+
 #include "MbedTLSCryptoManager.hpp"
 #include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
@@ -14,7 +16,7 @@
 static Data m_cert;
 static Data m_key;
 
-static bool _generate_new_cert_key_pair();
+static bool _generate_new_cert_key_pair(const std::string& keyDir);
 
 
 bool MbedTLSCryptoManager::load_cert_key_pair(const std::string& keyDir) {
@@ -130,9 +132,14 @@ Data MbedTLSCryptoManager::aes_decrypt(Data data, Data key) {
 
 
 Data MbedTLSCryptoManager::signature(Data cert) {
-    // No se expone la firma directamente en mbedtls >= 2.0, devolver el cert completo
-    // o implementar extracción manual si es necesario
-    return cert;
+    mbedtls_x509_crt x509;
+    mbedtls_x509_crt_init(&x509);
+
+    mbedtls_x509_crt_parse(&x509, cert.bytes(), cert.size() + 1);
+
+    Data data(x509.sig.p, x509.sig.len);
+    mbedtls_x509_crt_free(&x509);
+    return data;
 }
 
 bool MbedTLSCryptoManager::verify_signature(Data data, Data signature,

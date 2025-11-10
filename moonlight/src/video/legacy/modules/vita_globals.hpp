@@ -64,9 +64,10 @@ extern gs::SpsContext* g_sps_ctx; // contexto SPS (puntero crudo)
 #define DECODER_BUFFER_SIZE (128 * 1024)
 #define AV_INPUT_BUFFER_PADDING_SIZE 64
 
-#define SCREEN_WIDTH 960
-#define SCREEN_HEIGHT 544
-#define LINE_SIZE 960
+#include <stddef.h>
+extern int SCREEN_WIDTH;
+extern int SCREEN_HEIGHT;
+#define LINE_SIZE SCREEN_WIDTH
 #define FRAMEBUFFER_SIZE (2 * 1024 * 1024)
 #define FRAMEBUFFER_ALIGNMENT (256 * 1024)
 
@@ -186,6 +187,7 @@ extern bool g_debug_log_enabled;
 
 // Function declarations
 void vitavideo_update_scaling_settings(int width, int height);
+void vitavideo_configure_screen_resolution(int stream_width);
 void yuv_write_canaries();
 bool yuv_check_canaries();
 uint64_t vita_monotonic_ms();

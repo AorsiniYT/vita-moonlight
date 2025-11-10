@@ -66,7 +66,10 @@ if (USE_LIBROMFS)
     add_libromfs(${PROJECT_NAME} ${PROJECT_RESOURCES})
 endif ()
 
-
+# Set USE_MBEDTLS for moonlight-common-c when BUILD_FFMPEG is enabled
+if(BUILD_FFMPEG)
+    set(USE_MBEDTLS ON CACHE BOOL "Use MbedTLS instead of OpenSSL" FORCE)
+endif()
 
 add_subdirectory(third_party)
 
@@ -102,14 +105,34 @@ option(BUILD_FFMPEG "Build FFmpeg integration" OFF)
 file(GLOB_RECURSE _ALL_SRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} moonlight/*.cpp)
 set(MAIN_SRC)
 
+# NOTE: wiliwili builds FFmpeg externally for PSVita and links precompiled
+# static archives from the VITASDK sysroot. To avoid mixing in-tree FFmpeg
+# sources with prebuilt FFmpeg archives (which may use different compile
+# flags for ABI/FPU), exclude the FFmpeg subtree from the global source
+# glob. When BUILD_FFMPEG is enabled we prefer linking the prebuilt
+# archives under $VITASDK/arm-vita-eabi/lib; if those archives are missing
+# the user must either install/build FFmpeg for Vita in the sysroot or
+# disable BUILD_FFMPEG.
 if(NOT BUILD_FFMPEG)
-    # Remove ffmpeg subtree entries (paths relative to source dir)
+    # Remove ffmpeg subtree entries (paths relative to source dir) when not building
     list(FILTER _ALL_SRC EXCLUDE REGEX "^moonlight/src/video/ffmpeg/")
 endif()
 
 foreach(_f IN LISTS _ALL_SRC)
     list(APPEND MAIN_SRC "${CMAKE_CURRENT_SOURCE_DIR}/${_f}")
 endforeach()
+
+# If BUILD_FFMPEG is enabled, prefer linking prebuilt FFmpeg archives from the
+# VITASDK sysroot. Warn if the archives are missing. Note: we still compile
+# our integration glue (moonlight/src/video/ffmpeg/*.cpp) from source because
+# those implement the `ffmpeg_video_*` functions used by the project.
+if(BUILD_FFMPEG)
+    if(NOT EXISTS "$ENV{VITASDK}/arm-vita-eabi/lib/libavcodec.a")
+        message(WARNING "BUILD_FFMPEG=ON but no FFmpeg static libs found in VITASDK sysroot; either install/build FFmpeg for Vita into $ENV{VITASDK}/arm-vita-eabi/lib or set BUILD_FFMPEG=OFF to compile without FFmpeg.")
+    else()
+        message(STATUS "BUILD_FFMPEG=ON and prebuilt FFmpeg libs found in VITASDK sysroot; will link against them.")
+    endif()
+endif()
 # Nota: NetworkOptimizations.cpp añadido en moonlight/src/network/ queda incluido por el GLOB anterior.
 # Si se desea desactivar en runtime se expone vita_netopt_set_enabled().
 add_definitions(-DVITA_NETOPT_ENABLED)
@@ -118,6 +141,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/legacy)
 if(BUILD_FFMPEG)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/ffmpeg)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/ffmpeg/modules)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moonlight/src/video/legacy)
 endif()
 
 # If building for PSV, generate a small compat source at configure time
@@ -140,8 +164,12 @@ if (WIN32)
         set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static" CACHE STRING "" FORCE)
     endif ()
 elseif (PLATFORM_PSV)
-    add_definitions(-DUSE_OPENSSL_CRYPTO)
     add_definitions(-D__vita__ -D__PSV__)
+    if(BUILD_FFMPEG)
+        add_definitions(-DUSE_MBEDTLS_CRYPTO)
+    else()
+        add_definitions(-DUSE_OPENSSL_CRYPTO)
+    endif()
     # On PSV we set platform defs above. Avoid adding ad-hoc stubs here;
     # fmt will be compiled with the fallback FILE handling via the
     # target_compile_definitions hook above.
@@ -159,7 +187,6 @@ if(WIN32)
 elseif(PLATFORM_PSV)
     include_directories(SYSTEM $ENV{VITASDK}/arm-vita-eabi/include)
     link_directories($ENV{VITASDK}/arm-vita-eabi/lib)
-    add_definitions(-DUSE_OPENSSL_CRYPTO)
 endif()
 
 # building target
@@ -168,7 +195,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
 
 # Expose BUILD_FFMPEG macro to sources so we can guard FFmpeg-specific code
 if(BUILD_FFMPEG)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_FFMPEG=1)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_FFMPEG=1 USE_MBEDTLS)
 endif()
 
 # Envolver LiRequestIdrFrame para redirigir a optimizaciones de red
@@ -228,13 +255,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih 
 
 if(PLATFORM_PSV)
     # Enlaza todas las librerías de PSVita necesarias (igual que moonlight-legacy)
+    if(BUILD_FFMPEG)
+        set(CRYPTO_LIBS "")
+    else()
+        set(CRYPTO_LIBS -lssl -lcrypto)
+    endif()
     target_link_libraries(${PROJECT_NAME} PRIVATE
         -lSceVshBridge_stub
         -lexpat
         -lcurl
         -lz
-        -lssl
-        -lcrypto
+        ${CRYPTO_LIBS}
         -lopus
         -lbz2
         -lpthread
@@ -265,6 +296,26 @@ if(PLATFORM_PSV)
         h264bitstream
         moonlight-common-c
     )
+
+    # If mbedTLS static libs are present in the VITASDK sysroot (installed
+    # by scripts/prepare/install_all.sh), link them so code that depends on
+    # libcurl built against mbedtls resolves correctly. We prefer explicit
+    # absolute archives when available, otherwise fallback to linker names.
+    if (EXISTS "$ENV{VITASDK}/arm-vita-eabi/lib/libmbedtls.a")
+        message(STATUS "mbedTLS static libs found in VITASDK sysroot; linking mbedtls, mbedx509 and mbedcrypto")
+        # Prefer absolute paths to ensure correct link order for static libs
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            "$ENV{VITASDK}/arm-vita-eabi/lib/libmbedtls.a"
+            "$ENV{VITASDK}/arm-vita-eabi/lib/libmbedx509.a"
+            "$ENV{VITASDK}/arm-vita-eabi/lib/libmbedcrypto.a"
+        )
+    elseif (TARGET MbedTLS::lib)
+        # If mbedtls was provided as a CMake target, link via the target
+        target_link_libraries(${PROJECT_NAME} PRIVATE MbedTLS::lib)
+    elseif (EXISTS "$ENV{VITASDK}/arm-vita-eabi/lib/libmbedcrypto.a")
+        # Fall back to linker names (less preferred)
+        target_link_libraries(${PROJECT_NAME} PRIVATE -lmbedtls -lmbedx509 -lmbedcrypto)
+    endif()
     include_directories(
     include/
     moonlight/include

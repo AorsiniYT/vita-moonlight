@@ -43,6 +43,7 @@ std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin();
 #include <thread>
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 #if defined(__PSV__)
 #include <psp2/kernel/threadmgr.h>
@@ -81,9 +82,14 @@ AddHostTab::AddHostTab() {
     brls::Logger::info("[AddHostTab][CPU] Núcleos CPU detectados: {}", cpuCoreCount);
 #endif
     // Log de IDs de hilos y afinidad (diagnóstico)
+#if defined(__PSV__)
+    SceUID threadId = sceKernelGetThreadId();
+    brls::Logger::info("[AddHostTab][CPU] ID del hilo principal: 0x{:X}", threadId);
+#else
     std::stringstream ss;
     ss << std::this_thread::get_id();
     brls::Logger::info("[AddHostTab][CPU] ID del hilo principal: {}", ss.str());
+#endif
 
     // El spinner y el label ya están en el XML, controlar visibilidad por id
     brls::View* spinner = this->getView("spinner");
@@ -337,8 +343,7 @@ void AddHostTab::startDeviceDiscovery() {
     // Iniciar descubrimiento usando la nueva interfaz centralizada
 #if defined(__PSV__)
     AddHostTab::vitaInstance = this;
-    static std::vector<std::pair<std::string, std::string>> discoveredHosts; // name, ip
-    discoveredHosts.clear();
+    this->discoveredHosts.clear();
     check_host::startVitaDiscovery([](int idx, const char* host, const char* pcname, const char* ip, int port) {
         if (!AddHostTab::vitaInstance) {
             brls::Logger::error("[check_host] vitaInstance es nulo");
@@ -359,68 +364,23 @@ void AddHostTab::startDeviceDiscovery() {
             brls::Logger::error("[AddHostTab] Host detectado pero sin datos válidos (VITA)");
             return;
         }
-        // Guardar en la lista temporal
-        discoveredHosts.push_back({displayName, ipStr});
-        // Redibujar el grid en el hilo principal
-        brls::sync([=]() {
-            if (!AddHostTab::vitaInstance->hostsList) {
+        brls::sync([displayName, ipStr]() {
+            AddHostTab* self = AddHostTab::vitaInstance;
+            if (!self) {
+                brls::Logger::error("[check_host] vitaInstance liberada antes de procesar host");
+                return;
+            }
+            if (!self->hostsList) {
                 brls::Logger::error("[check_host] hostsList es nulo");
                 return;
             }
-            // Limpiar todo menos el spinner
-            brls::View* spinnerRow = AddHostTab::vitaInstance->getView("spinner_row");
-            auto children = AddHostTab::vitaInstance->hostsList->getChildren();
-            for (auto* child : children) {
-                if (child != spinnerRow)
-                    AddHostTab::vitaInstance->hostsList->removeView(child);
-            }
-            // Parámetros de grid
-            const int cardsPerRow = 3;
-            int count = 0;
-            brls::Box* currentRow = nullptr;
-            for (const auto& host : discoveredHosts) {
-                if (count % cardsPerRow == 0) {
-                    currentRow = new brls::Box(brls::Axis::ROW);
-                    currentRow->setMarginBottom(16);
-                    AddHostTab::vitaInstance->hostsList->addView(currentRow);
-                }
-                auto* card = new PCCard(host.first.c_str(), "img/moonlight/pc.png");
-                card->setFocusable(true);
-                card->setMarginRight(16);
-                card->setMarginBottom(0);
-                // La lógica de truncado/animación se maneja internamente en PCCard
-                AddHostTab* self = AddHostTab::vitaInstance;
-                std::string ipStr = host.second;
-                std::string name = host.first;
-                card->setClickAction([self, ipStr, name]() {
-                    std::string msg = brls::getStr("moonlight/settings/add_host_connect_question_dialog");
-                    size_t pos_ip = msg.find("$(ip)");
-                    if (pos_ip != std::string::npos)
-                        msg.replace(pos_ip, 5, ipStr);
-                    size_t pos_name = msg.find("$(name)");
-                    if (pos_name != std::string::npos)
-                        msg.replace(pos_name, 7, name);
-                    auto* dialog = new brls::Dialog(msg);
-                    dialog->addButton(brls::getStr("moonlight/settings/add_host_connect"), [self, ipStr, name, dialog]() {
-                        // Solo rellenar los campos manuales y cerrar el diálogo, sin emparejar
-                        if (self && self->ipField) self->ipField->setValue(ipStr);
-                        if (self && self->nameField) self->nameField->setValue(name);
-
-                    });
-                    dialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [dialog]() {
-
-                    });
-                    dialog->open();
-                });
-                if (currentRow)
-                    currentRow->addView(card);
-                count++;
-            }
-            // Spinner siempre al final
-            if (spinnerRow)
-                spinnerRow->setVisibility(brls::Visibility::VISIBLE);
-            else
-                brls::Logger::error("[check_host] spinnerRow es nulo tras añadir host");
+            auto duplicate = std::find_if(self->discoveredHosts.begin(), self->discoveredHosts.end(), [&](const auto& h) {
+                return h.first == displayName && h.second == ipStr;
+            });
+            if (duplicate != self->discoveredHosts.end())
+                return;
+            self->discoveredHosts.emplace_back(displayName, ipStr);
+            self->rebuildDiscoveredHostsUI();
         });
     });
 #elif defined(_WIN32)
@@ -466,5 +426,65 @@ AddHostTab::~AddHostTab() {
 std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin() {
     static std::vector<std::pair<std::string, std::string>> discoveredHostsWin;
     return discoveredHostsWin;
+}
+#endif
+
+#if defined(__PSV__)
+void AddHostTab::rebuildDiscoveredHostsUI() {
+    if (!this->hostsList) {
+        brls::Logger::error("[AddHostTab] hostsList es nulo durante rebuild");
+        return;
+    }
+
+    brls::View* spinnerRow = this->getView("spinner_row");
+    auto children = this->hostsList->getChildren();
+    for (auto* child : children) {
+        if (child != spinnerRow)
+            this->hostsList->removeView(child);
+    }
+
+    const int cardsPerRow = 3;
+    int count = 0;
+    brls::Box* currentRow = nullptr;
+    for (const auto& host : this->discoveredHosts) {
+        if (count % cardsPerRow == 0) {
+            currentRow = new brls::Box(brls::Axis::ROW);
+            currentRow->setMarginBottom(16);
+            this->hostsList->addView(currentRow);
+        }
+        auto* card = new PCCard(host.first.c_str(), "img/moonlight/pc.png");
+        card->setFocusable(true);
+        card->setMarginRight(16);
+        card->setMarginBottom(0);
+        std::string ipStr = host.second;
+        std::string name = host.first;
+        card->setClickAction([this, ipStr, name]() {
+            std::string msg = brls::getStr("moonlight/settings/add_host_connect_question_dialog");
+            size_t pos_ip = msg.find("$(ip)");
+            if (pos_ip != std::string::npos)
+                msg.replace(pos_ip, 5, ipStr);
+            size_t pos_name = msg.find("$(name)");
+            if (pos_name != std::string::npos)
+                msg.replace(pos_name, 7, name);
+            auto* dialog = new brls::Dialog(msg);
+            dialog->addButton(brls::getStr("moonlight/settings/add_host_connect"), [this, ipStr, name, dialog]() {
+                if (this->ipField)
+                    this->ipField->setValue(ipStr);
+                if (this->nameField)
+                    this->nameField->setValue(name);
+            });
+            dialog->addButton(brls::getStr("moonlight/settings/add_host_cancel"), [dialog]() {
+            });
+            dialog->open();
+        });
+        if (currentRow)
+            currentRow->addView(card);
+        count++;
+    }
+
+    if (spinnerRow)
+        spinnerRow->setVisibility(brls::Visibility::VISIBLE);
+    else
+        brls::Logger::error("[AddHostTab] spinnerRow es nulo tras rebuild");
 }
 #endif

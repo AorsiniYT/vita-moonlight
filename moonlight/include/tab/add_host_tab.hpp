@@ -23,6 +23,7 @@
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <vector>
 
 // Contexto seguro para pairing asíncrono
 struct PairingContext {
@@ -43,6 +44,7 @@ public:
 #endif
 #if defined(__PSV__)
     static AddHostTab* vitaInstance;
+    void rebuildDiscoveredHostsUI();
 #endif
     BRLS_BIND(brls::InputCell, ipField, "ip_field");
     BRLS_BIND(brls::InputCell, nameField, "name_field");
@@ -59,4 +61,7 @@ public:
     // --- Pairing seguro y asincrónico ---
     std::shared_ptr<PairingContext> pairingContext;
     std::thread pairingThread;
+#if defined(__PSV__)
+    std::vector<std::pair<std::string, std::string>> discoveredHosts;
+#endif
 };

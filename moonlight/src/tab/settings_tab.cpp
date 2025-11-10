@@ -22,6 +22,7 @@
 #include "tab/trackpad_settings_tab.hpp"
 #include "controller/ControllerInput.hpp"
 #include <cstdlib>
+#include <memory>
 #include <string>
 #include <fmt/format.h>
 #ifndef _WIN32
@@ -101,7 +102,9 @@ SettingsTab::SettingsTab()
 
     int initialRenderMode = videoSettings.render_mode;
     if (initialRenderMode < 0 || initialRenderMode >= (int)renderModes.size()) initialRenderMode = 0; // clamp si config tiene valor desconocido
-    renderModeSelector->init(brls::getStr("moonlight/settings_tab/render_mode/title"), renderModes, initialRenderMode, [this, updatePixelSelectorVisibility](int selected) {
+    // Shared container to keep the mapping from visible selector indices to original vitaResolutions
+    auto filteredIndicesPtr = std::make_shared<std::vector<int>>();
+    renderModeSelector->init(brls::getStr("moonlight/settings_tab/render_mode/title"), renderModes, initialRenderMode, [this, updatePixelSelectorVisibility, filteredIndicesPtr](int selected) {
         ConfigManager config;
         config.load();
         VideoSettings settings = config.getVideoSettings();
@@ -120,6 +123,76 @@ SettingsTab::SettingsTab()
         // Actualizar cache atómico sin relectura posterior
         set_render_mode_cached(chosen);
         updatePixelSelectorVisibility(chosen, true);
+        // Also update available resolution options depending on render mode
+        // Legacy mode (0) only exposes resolutions <= 1280x720. FFmpeg (modern) exposes all.
+    auto updateResOptions = [this, filteredIndicesPtr](int mode) {
+            // Recreate the vitaResolutions and labels exactly as initial construction in this TU
+            std::vector<std::string> resolutions = {
+                brls::getStr("moonlight/settings_tab/resolution/options/0"),
+                brls::getStr("moonlight/settings_tab/resolution/options/1"),
+                brls::getStr("moonlight/settings_tab/resolution/options/2"),
+                brls::getStr("moonlight/settings_tab/resolution/options/3"),
+                brls::getStr("moonlight/settings_tab/resolution/options/4"),
+                brls::getStr("moonlight/settings_tab/resolution/options/5"),
+                brls::getStr("moonlight/settings_tab/resolution/options/6"),
+                brls::getStr("moonlight/settings_tab/resolution/options/7"),
+                brls::getStr("moonlight/settings_tab/resolution/options/8")
+            };
+            std::vector<std::pair<int, int>> vitaResolutions = {
+                {960, 544},
+                {960, 544},
+                {1024, 576},
+                {1152, 656},
+                {1280, 544},
+                {1280, 720},
+                {1360, 768},
+                {1600, 896},
+                {1920, 1088}
+            };
+
+            std::vector<std::string> filteredLabels;
+            std::vector<int> filteredIndices;
+            for (size_t i = 0; i < vitaResolutions.size(); ++i) {
+                int w = vitaResolutions[i].first;
+                int h = vitaResolutions[i].second;
+                bool include = true;
+                if (mode == 0) { // legacy
+                    // only include resolutions 1280x720 and below
+                    if (w > 1280 || h > 720) include = false;
+                }
+                if (include) {
+                    filteredLabels.push_back(resolutions[i]);
+                    filteredIndices.push_back((int)i);
+                }
+            }
+
+            if (resolutionSelector) {
+                // update shared mapping
+                filteredIndicesPtr->assign(filteredIndices.begin(), filteredIndices.end());
+                resolutionSelector->setData(filteredLabels);
+                // Determine selection based on current saved stream config if possible
+                ConfigManager cfg;
+                cfg.load();
+                StreamConfiguration sc = cfg.getStreamConfig();
+                int mapped = 0;
+                // try to find saved resolution in the filtered list
+                for (size_t i = 0; i < filteredIndices.size(); ++i) {
+                    int orig = filteredIndices[i];
+                    if (vitaResolutions[orig].first == sc.width && vitaResolutions[orig].second == sc.height) {
+                        mapped = (int)i;
+                        break;
+                    }
+                }
+                // if not found, prefer 1280x720
+                bool foundPref = false;
+                for (size_t i = 0; i < filteredIndices.size(); ++i) {
+                    if (filteredIndices[i] == 5) { mapped = (int)i; foundPref = true; break; }
+                }
+                if (!foundPref && filteredIndices.empty() == false) mapped = 0;
+                resolutionSelector->setSelection(mapped, true);
+            }
+        };
+        updateResOptions(chosen);
         const char* modeNameKey = nullptr;
         if (chosen == 0) {
             modeNameKey = "moonlight/settings_tab/render_mode/legacy_name";
@@ -189,19 +262,57 @@ SettingsTab::SettingsTab()
     else if (streamConfig.width == 1360 && streamConfig.height == 768) currentRes = 6;
     else if (streamConfig.width == 1600 && streamConfig.height == 896) currentRes = 7;
     else if (streamConfig.width == 1920 && streamConfig.height == 1088) currentRes = 8;
-    
-    resolutionSelector->init(brls::getStr("moonlight/settings_tab/resolution/title"), resolutions, currentRes, [this, vitaResolutions](int selected) {
+
+    // Build an initial filtered list of resolutions depending on the initial render mode.
+    auto buildFiltered = [&](int mode, std::vector<std::string>& outLabels, std::vector<int>& outIndices) {
+        outLabels.clear();
+        outIndices.clear();
+        for (size_t i = 0; i < vitaResolutions.size(); ++i) {
+            int w = vitaResolutions[i].first;
+            int h = vitaResolutions[i].second;
+            bool include = true;
+            if (mode == 0) { // legacy -> only <= 1280x720
+                if (w > 1280 || h > 720) include = false;
+            }
+            if (include) {
+                outLabels.push_back(resolutions[i]);
+                outIndices.push_back((int)i);
+            }
+        }
+    };
+
+    std::vector<std::string> initialLabels;
+    std::vector<int> initialIndices;
+    buildFiltered(initialRenderMode, initialLabels, initialIndices);
+
+    // Map original currentRes to filtered index
+    int mappedInitial = 0;
+    auto itInit = std::find(initialIndices.begin(), initialIndices.end(), currentRes);
+    if (itInit != initialIndices.end()) mappedInitial = (int)std::distance(initialIndices.begin(), itInit);
+    else {
+        // prefer the 1280x720 option when available
+        int pref = 5;
+        auto itPref = std::find(initialIndices.begin(), initialIndices.end(), pref);
+        if (itPref != initialIndices.end()) mappedInitial = (int)std::distance(initialIndices.begin(), itPref);
+        else mappedInitial = 0;
+    }
+
+    // Use the previously declared shared vector to keep filtered original indices up-to-date for the callback
+    filteredIndicesPtr->assign(initialIndices.begin(), initialIndices.end());
+
+    resolutionSelector->init(brls::getStr("moonlight/settings_tab/resolution/title"), initialLabels, mappedInitial, [this, vitaResolutions, filteredIndicesPtr](int selected) {
         ConfigManager config;
         config.load();
         StreamConfiguration streamConfig = config.getStreamConfig();
-        
-        if (selected >= 0 && selected < (int)vitaResolutions.size()) {
-            streamConfig.width = vitaResolutions[selected].first;
-            streamConfig.height = vitaResolutions[selected].second;
+
+        if (selected >= 0 && selected < (int)filteredIndicesPtr->size()) {
+            int origIndex = (*filteredIndicesPtr)[selected];
+            streamConfig.width = vitaResolutions[origIndex].first;
+            streamConfig.height = vitaResolutions[origIndex].second;
             // Aplicar validación de PS Vita
             streamConfig.validateAndAdjustResolution();
         }
-        
+
         config.setStreamConfig(streamConfig);
         config.save();
         brls::Application::notify(brls::getStr("moonlight/settings_tab/resolution/saved"));

@@ -86,7 +86,11 @@ int main(int argc, char* argv[])
 
     // Leer idioma desde config y forzar variable de entorno antes de inicializar la app
     std::string lang = moonlight::settings::getLanguageFromConfig();
+#if defined(__PSV__)
+    brls::Logger::info("[DEBUG] Idioma forzado desde config: {}", lang);
+#else
     std::cout << "[DEBUG] Idioma forzado desde config: " << lang << std::endl;
+#endif
     if (!lang.empty()) {
         moonlight::settings::applyLanguageEnv(lang); // <-- Forzar el locale solo si hay config
         // Establecer el locale por defecto en la plataforma antes de init
@@ -127,10 +131,18 @@ int main(int argc, char* argv[])
     // Cargar traducciones después de aplicar el idioma desde config
     if (!lang.empty()) {
         brls::loadTranslations();
+#if defined(__PSV__)
+        brls::Logger::info("[DEBUG] Traducciones cargadas para idioma: {}", lang);
+#else
         std::cout << "[DEBUG] Traducciones cargadas para idioma: " << lang << std::endl;
+#endif
     }
 
+#if defined(__PSV__)
+    brls::Logger::info("[DEBUG] Locale detectado por Borealis: {}", brls::Application::getLocale());
+#else
     std::cout << "[DEBUG] Locale detectado por Borealis: " << brls::Application::getLocale() << std::endl;
+#endif
 
     // --- BLOQUE DE PRUEBAS DE LOG ---
     // Imprimir varias formas para comparar comportamiento en consola/Vita
@@ -147,7 +159,11 @@ int main(int argc, char* argv[])
     }
     vita_debug_log("[TEST] vita_debug_log c_str: %s", testName.c_str());
     // Otras salidas para comparar
+#if defined(__PSV__)
+    brls::Logger::info("[TEST] cout skipped on Vita, testName={} testUtf8={}", testName, testUtf8);
+#else
     std::cout << "[TEST] cout: " << testName << " " << testUtf8 << std::endl;
+#endif
     brls::Logger::info("[TEST] brls::Logger: {} {}", testName, testUtf8);
     // Ejecutar pruebas diagnósticas (conectividad / certificados)
     // moonlight::tests::run_cert_checks();
