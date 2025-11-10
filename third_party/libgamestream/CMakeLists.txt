@@ -32,6 +32,8 @@ target_link_libraries(libgamestream PUBLIC
 )
 
 # Definiciones de compilación
-target_compile_definitions(libgamestream PRIVATE
-    USE_OPENSSL_CRYPTO
-)
+if(BUILD_FFMPEG)
+    target_compile_definitions(libgamestream PRIVATE USE_MBEDTLS_CRYPTO)
+else()
+    target_compile_definitions(libgamestream PRIVATE USE_OPENSSL_CRYPTO)
+endif()

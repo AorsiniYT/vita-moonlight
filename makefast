@@ -169,30 +169,12 @@ setup_swap() {
     ' EXIT
 }
 
-# Función para verificar permisos de sudo
-check_sudo() {
-    if ! command -v sudo >/dev/null 2>&1; then
-        echo "[!] sudo no está instalado. No se puede configurar el archivo de intercambio."
-        return 1
-    fi
-    
-    if ! sudo -n true 2>/dev/null; then
-        echo "[!] Se requieren permisos de sudo para configurar el archivo de intercambio."
-        echo "[!] Por favor, ingresa tu contraseña cuando se te solicite."
-        if ! sudo -v; then
-            echo "[!] No se pudo verificar el acceso a sudo. Continuando sin archivo de intercambio."
-            return 1
-        fi
-    fi
-    return 0
-}
-
-# Modo: 'release' (por defecto) o 'debug'
+# Modo: 'release' (por defecto), 'debug', o 'ffmpeg'
 MODE="${1:-${MODE:-release}}"
 MODE=$(echo "$MODE" | tr '[:upper:]' '[:lower:]')
 
-if [ "$MODE" != "debug" ] && [ "$MODE" != "release" ]; then
-    echo "[makefast] Modo inválido: $MODE. Use 'debug' o 'release'."
+if [ "$MODE" != "debug" ] && [ "$MODE" != "release" ] && [ "$MODE" != "ffmpeg" ]; then
+    echo "[makefast] Modo inválido: $MODE. Use 'debug', 'release' o 'ffmpeg'."
     exit 1
 fi
 
@@ -246,35 +228,46 @@ build_project() {
     mkdir -p "$BUILD_DIR"
     
     echo -e "[+] Configurando para PS Vita..."
-    cmake -B "$BUILD_DIR" \
+    local cmake_cmd="cmake -B \"$BUILD_DIR\" \
         -DPLATFORM_PSV=ON \
-        -DCMAKE_BUILD_TYPE=$( [ "$MODE" = "debug" ] && echo Debug || echo Release ) \
+        -DCMAKE_BUILD_TYPE=$( [ \"$MODE\" = \"debug\" ] && echo Debug || echo Release ) \
         -DUSE_SYSTEM_CURL=ON \
         -DUSE_SYSTEM_SDL2=ON \
         -DMPV_NO_FB=ON \
         -DSIMPLE_HIGHLIGHT=ON \
         -DUSE_GXM=ON \
         -DBOREALIS_USE_GXM=ON \
-        -DCMAKE_TOOLCHAIN_FILE="${VITASDK}/share/vita.toolchain.cmake" \
-        -DCMAKE_MAKE_PROGRAM="make" \
-        -DCMAKE_C_COMPILER="${CC}" \
-        -DCMAKE_CXX_COMPILER="${CXX}" \
-        -DCMAKE_AR="${AR}" \
-        -DCMAKE_RANLIB="${RANLIB}" \
-        -DCMAKE_NM="${NM}" \
-        -DCMAKE_STRIP="${STRIP}" \
+        -DCMAKE_TOOLCHAIN_FILE=\"${VITASDK}/share/vita.toolchain.cmake\" \
+        -DCMAKE_MAKE_PROGRAM=\"make\" \
+        -DCMAKE_C_COMPILER=\"${CC}\" \
+        -DCMAKE_CXX_COMPILER=\"${CXX}\" \
+        -DCMAKE_AR=\"${AR}\" \
+        -DCMAKE_RANLIB=\"${RANLIB}\" \
+        -DCMAKE_NM=\"${NM}\" \
+        -DCMAKE_STRIP=\"${STRIP}\" \
         -DCMAKE_C_COMPILER_WORKS=ON \
         -DCMAKE_CXX_COMPILER_WORKS=ON \
-        -DCMAKE_SYSTEM_NAME="Generic" \
-        -DCMAKE_SYSTEM_PROCESSOR="arm" \
-        -DCMAKE_FIND_ROOT_PATH="${VITASDK}/arm-vita-eabi" \
+        -DCMAKE_SYSTEM_NAME=\"Generic\" \
+        -DCMAKE_SYSTEM_PROCESSOR=\"arm\" \
+        -DCMAKE_FIND_ROOT_PATH=\"${VITASDK}/arm-vita-eabi\" \
         -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
         -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
         -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY || {
-            echo "[!] Error al configurar el proyecto con CMake"
-            return 1
-        }
+        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY"
+    
+    # Control explícito de BUILD_FFMPEG: por defecto OFF, activar sólo si se pidió 'ffmpeg'
+    if [ "$MODE" = "ffmpeg" ]; then
+        cmake_cmd="$cmake_cmd -DBUILD_FFMPEG=ON"
+        echo "[+] Habilitando BUILD_FFMPEG=ON"
+    else
+        cmake_cmd="$cmake_cmd -DBUILD_FFMPEG=OFF"
+        echo "[+] BUILD_FFMPEG desactivado (pasado explícitamente -DBUILD_FFMPEG=OFF)"
+    fi
+    
+    eval "$cmake_cmd" || {
+        echo "[!] Error al configurar el proyecto con CMake"
+        return 1
+    }
 
     echo -e "\n[+] Configurando compilación con ${NUM_CORES} núcleos..."
     
@@ -363,7 +356,7 @@ deploy_to_vita() {
     fi
 }
 
-# Ejecutar compilación incremental
+# Ejecutar compilación incremental del proyecto
 if build_project && check_eboot; then
     echo -e "\n[+] Compilación completada. Enviando a PS Vita..."
     deploy_to_vita

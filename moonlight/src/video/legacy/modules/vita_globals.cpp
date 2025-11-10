@@ -24,6 +24,10 @@ bool single_frame_buffer = false; // por defecto doble buffer; se puede activar 
 // Estado de inicialización de vita2d
 bool vita2d_inited = false;
 
+// Screen size (configurable at runtime)
+int SCREEN_WIDTH = 960;
+int SCREEN_HEIGHT = 544;
+
 // Escalado
 image_scaling_settings image_scaling = {0};
 
@@ -152,6 +156,28 @@ void vitavideo_update_scaling_settings(int width, int height) {
     image_scaling.offset_x = offX;
     image_scaling.offset_y = offY;
     image_scaling.enabled = true;
+}
+
+void vitavideo_configure_screen_resolution(int stream_width) {
+    // Configure screen resolution based on incoming stream width.
+    // FFmpeg path does not depend on any "sharpscale" feature, so we pick
+    // sensible defaults for common stream widths and fall back to the
+    // standard Vita resolution otherwise.
+    switch (stream_width) {
+    case 1920:
+        SCREEN_WIDTH = 1920;
+        SCREEN_HEIGHT = 1088; // aligned for decoder
+        break;
+    case 1280:
+        SCREEN_WIDTH = 1280;
+        SCREEN_HEIGHT = 720;
+        break;
+    default:
+        SCREEN_WIDTH = 960;
+        SCREEN_HEIGHT = 544;
+        break;
+    }
+    VITA_DEBUG_LOG("[Video] Configurada resolución de pantalla: %dx%d para stream %d", SCREEN_WIDTH, SCREEN_HEIGHT, stream_width);
 }
 
 void yuv_write_canaries() {

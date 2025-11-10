@@ -1,5 +1,5 @@
 #include "video/VideoFrameHolder.hpp"
-#include "video/legacy/modules/vita_globals.hpp"
+#include "legacy/modules/vita_globals.hpp"
 #include <atomic>
 #include <mutex>
 #include <vita2d.h>

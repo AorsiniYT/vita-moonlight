@@ -5,32 +5,42 @@
 #include <stddef.h>
 #include <Limelight.h>
 
+#include "ffmpeg/modules/ffmpeg_decoder.hpp"
+
 // Forward declarations para evitar incluir libgamestream directamente
 struct Data;
 struct _APP_LIST;
 typedef struct _APP_LIST APP_LIST, *PAPP_LIST;
 
 // Estructuras para el sistema de video FFmpeg
-typedef struct {
-    void *codec_context;
-    void *frame;
-    void *packet;
-    bool initialized;
-} FFmpegVideoDecoder;
+struct SwsContext;
+struct vita2d_texture;
 
 typedef struct {
-    void *texture;
+    vita2d_texture *texture;
     int width;
     int height;
     bool has_frame;
+    bool direct_memory;
 } FFmpegVideoFrame;
 
 typedef struct FFmpegVideoContext {
-    FFmpegVideoDecoder decoder;
+    FFmpegDecoderContext decoder;
     FFmpegVideoFrame current_frame;
+    void *dr_texture;
+    SwsContext *sws_context;
+    vita2d_texture *sw_texture;
+    int sw_texture_width;
+    int sw_texture_height;
+    int sw_texture_stride;
     int frame_rate;
+    int stream_width;
+    int stream_height;
+    uint64_t last_pts_us;
+    bool using_direct_memory;
     bool is_legacy_mode;
     const char *render_mode;
+    bool initialized;
 } FFmpegVideoContext;
 
 // Funciones del sistema de video FFmpeg
