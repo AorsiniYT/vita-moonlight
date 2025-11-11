@@ -28,6 +28,8 @@ public:
 
     // Devuelve true si había frame nuevo; 'out' recibe referencia a la textura
     bool popLatest(GxmFrame& out);
+    // Clear any pending frame and mark none available.
+    void clear();
 
     uint64_t framesPushed() const { return framesPushed_.load(std::memory_order_relaxed); }
     uint64_t framesPopped() const { return framesPopped_.load(std::memory_order_relaxed); }

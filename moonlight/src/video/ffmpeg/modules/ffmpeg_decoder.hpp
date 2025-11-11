@@ -12,6 +12,7 @@ typedef struct FFmpegDecoderContext {
     AVFrame *frame;
     AVPacket *pkt;
     int initialized;
+    bool use_direct_render;
 } FFmpegDecoderContext;
 
 int ffmpeg_decoder_init(FFmpegDecoderContext *ctx);

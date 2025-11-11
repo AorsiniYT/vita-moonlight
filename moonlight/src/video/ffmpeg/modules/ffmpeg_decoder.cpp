@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "legacy/modules/vita_globals.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,11 +38,13 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
 
     memset(ctx, 0, sizeof(*ctx));
 
-    const AVCodec *codec = avcodec_find_decoder_by_name("h264_vita");
+    const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!codec) {
-        codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+        fprintf(stderr, "FFmpeg decoder: could not find H264 decoder\n");
+        return -1;
     }
 
+    VITA_DEBUG_LOG("FFmpeg decoder: using codec %s", codec->name);
     if (!codec) {
         fprintf(stderr, "FFmpeg decoder: could not find H264 decoder\n");
         return -1;
@@ -69,15 +73,26 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
     AVDictionary *opts = NULL;
 
 #ifdef BOREALIS_USE_GXM
-    if (codec->name && strcmp(codec->name, "h264_vita") == 0) {
+    if (codec->id == AV_CODEC_ID_H264) {
+        // Use Vita VRAM-backed buffers by default for H264 on GXM to enable
+        // direct rendering path (zero-copy) similar to the legacy decoder.
+        // This forces the decoder to allocate frame data using get_buffer2_direct
+        // and prefers AVBuffer-backed frames suitable for mapping to GXM.
         av_dict_set(&opts, "vita_h264_dr", "1", 0);
-        ctx->avctx->get_buffer2 = get_buffer2_direct;
+    ctx->avctx->get_buffer2 = get_buffer2_direct;
+    ctx->use_direct_render = true;
+    VITA_DEBUG_LOG("[FFMPEG] ffmpeg_decoder_init: H264 on GXM: enabling get_buffer2_direct and direct render");
+    } else {
+        // Force output pixel format to YUV420P for other decoders and use
+        // default buffer allocation to keep behavior stable.
+        ctx->avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+        ctx->use_direct_render = false;
     }
+#else
+    // Force output pixel format to YUV420P
+    ctx->avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    ctx->use_direct_render = false;
 #endif
-
-    // Force single-threaded decoding to avoid libavcodec threading issues on Vita
-    av_dict_set(&opts, "threads", "1", 0);
-    ctx->avctx->thread_count = 1;
 
     if (avcodec_open2(ctx->avctx, codec, &opts) < 0) {
         av_dict_free(&opts);
