@@ -60,3 +60,13 @@ bool VideoFrameHolder::popLatest(GxmFrame& out) {
         (unsigned long long)framesPopped_.load(std::memory_order_relaxed));
     return true;
 }
+
+void VideoFrameHolder::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    latest_.texture = nullptr;
+    latest_.gxmTexture = nullptr;
+    latest_.w = 0;
+    latest_.h = 0;
+    latest_.ptsMs = 0;
+    hasNew_.store(false, std::memory_order_release);
+}

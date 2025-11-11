@@ -35,6 +35,9 @@ public:
     void startVideo();
     void stopVideo();
 
+    // Instancia singleton
+    static VideoManager* instance();
+
     // Estado
     bool isInitialized() const { return _initialized; }
 
@@ -57,7 +60,4 @@ private:
     static void videoStopCallback(void);
     static void videoCleanupCallback(void);
     static int videoSubmitDecodeUnitCallback(PDECODE_UNIT decodeUnit);
-
-    // Instancia singleton para callbacks
-    static VideoManager* _instance;
 };

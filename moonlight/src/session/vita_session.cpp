@@ -10,6 +10,7 @@
 #include "controller/ControllerInput.hpp"
 #include "ConfigManager.hpp"
 #include "Limelight.h"
+#include "video/VideoManager.hpp"
 #include <cstring>
 #include <thread>
 #include <chrono>
@@ -127,10 +128,14 @@ bool VitaSession::start() {
     m_conn_callbacks.logMessage = connection_log_message;
     m_conn_callbacks.connectionStatusUpdate = connection_status_update;
 
-    // Video callbacks: usamos los del decoder vita ya existentes
+    // Video callbacks: usar VideoManager para elegir entre legacy y FFmpeg
+    if (!VideoManager::instance()->initialize()) {
+        brls::Logger::error("[VitaSession] Fallo al inicializar VideoManager");
+        return false;
+    }
+    brls::Logger::info("[VitaSession] Decodificador inicializado: {}", VideoManager::instance()->getRenderMode());
     LiInitializeVideoCallbacks(&m_video_callbacks);
-    extern DECODER_RENDERER_CALLBACKS decoder_callbacks_vita_new; // forward
-    m_video_callbacks = decoder_callbacks_vita_new;
+    m_video_callbacks = VideoManager::instance()->getDecoderCallbacks();
 
     // Audio callbacks stub por ahora
     LiInitializeAudioCallbacks(&m_audio_callbacks);
@@ -145,18 +150,23 @@ bool VitaSession::start() {
 
 bool VitaSession::internalStart() {
     SERVER_DATA& srv = GameStreamClient::instance().serverData(m_address);
-    int res = LiStartConnection(&srv.serverInfo, &m_config, &m_conn_callbacks, &m_video_callbacks, &m_audio_callbacks, nullptr, 0, nullptr, 0);
+    // Pasar el contexto de renderizado en renderContext
+    void* renderContext = VideoManager::instance()->getRenderContext();
+    int res = LiStartConnection(&srv.serverInfo, &m_config, &m_conn_callbacks, &m_video_callbacks, &m_audio_callbacks, renderContext, 0, nullptr, 0);
     if (res != 0) {
         brls::Logger::error("[VitaSession] LiStartConnection fallo={} ", res);
         LiStopConnection();
         return false;
     }
     brls::Logger::info("[VitaSession] LiStartConnection ok ({}x{}@{} fps bitrate={}K formats=0x{:X})", m_config.width, m_config.height, m_config.fps, m_config.bitrate, m_config.supportedVideoFormats);
+    VideoManager::instance()->startVideo();
+    brls::Logger::info("[VitaSession] Video iniciado con decodificador: {}", VideoManager::instance()->getRenderMode());
     m_is_active = true; m_is_terminated = false; return true;
 }
 
 void VitaSession::stop(bool terminateApp) {
     if (!m_is_active && !m_is_terminated) return;
+    VideoManager::instance()->stopVideo();
     if (terminateApp) GameStreamClient::instance().quitApp(m_address);
     LiStopConnection();
     m_is_active = false; m_is_terminated = true;

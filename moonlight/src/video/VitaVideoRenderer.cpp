@@ -123,8 +123,12 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     
     bool texSizeChanged = ((int)texW != storedW || (int)texH != storedH);
     bool firstTime = (nvgImageId < 0);
+    bool texHandleChanged = (tex != currentTexture);
     
-    if (firstTime || texSizeChanged) {
+    if (firstTime || texSizeChanged || texHandleChanged) {
+        if (texHandleChanged) {
+            VITA_DEBUG_LOG("[Video][DRAW NVG] texture handle changed (old=%p new=%p) -> recreate image", currentTexture, tex);
+        }
         // Destruir imagen vieja si existe (cambio de contexto/resolución)
         if (nvgImageId >= 0) {
             VITA_DEBUG_LOG("[Video][DRAW NVG] Destruyendo imageId=%d (resize de %dx%d a %dx%d)",
@@ -139,12 +143,13 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
             VITA_DEBUG_LOG("[Video][DRAW NVG][ERR] nvgxmCreateImageFromHandle fallo (w=%u h=%u)", texW, texH);
             return;
         }
-        nvgImageId = imageId;
+    nvgImageId = imageId;
+    currentTexture = tex; // track which texture handle the image references
         storedW = (int)texW;
         storedH = (int)texH;
         nvgImageCreateCount++;
         
-        VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d w=%u h=%u (total_creates=%u)",
+    VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d w=%u h=%u (total_creates=%u)",
             nvgImageId, texW, texH, nvgImageCreateCount);
     }
     

@@ -23,7 +23,7 @@ extern "C" {
 }
 
 // Inicializar instancia singleton
-VideoManager* VideoManager::_instance = nullptr;
+// VideoManager* VideoManager::_instance = nullptr;
 
 VideoManager::VideoManager()
     : _ffmpegContext(nullptr)
@@ -32,7 +32,7 @@ VideoManager::VideoManager()
     , _initialized(false)
     , _videoRunning(false)
 {
-    _instance = this;
+    // _instance = this;
 }
 
 VideoManager::~VideoManager() {
@@ -43,7 +43,13 @@ VideoManager::~VideoManager() {
     // No necesitamos cleanup manual ya que el sistema legacy maneja su propio estado
     // a través de los callbacks de Limelight
 
-    _instance = nullptr;
+    // _instance = nullptr;
+}
+
+// Instancia singleton
+VideoManager* VideoManager::instance() {
+    static VideoManager* instance = new VideoManager();
+    return instance;
 }
 
 bool VideoManager::initialize() {
