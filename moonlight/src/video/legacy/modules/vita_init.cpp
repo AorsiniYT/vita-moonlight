@@ -95,7 +95,7 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
             const size_t guardBytes = 32;
             decoder_yuv_raw = (uint8_t*)malloc(payloadBytes + guardBytes);
             if (!decoder_yuv_raw) {
-                VITA_DEBUG_LOG("[Video][ERR] No memoria para buffer YUV (%zu bytes). Revertemos a RGBA", payloadBytes + guardBytes);
+                VITA_DEBUG_LOG("[Video][ERR] No memoria para buffer YUV (%lu bytes). Revertemos a RGBA", (unsigned long)(payloadBytes + guardBytes));
                 decoder_output_mode = 0;
             } else {
                 memset(decoder_yuv_raw, 0, payloadBytes + guardBytes);
@@ -181,7 +181,7 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
             }
 
             if (!linearBuf) {
-                VITA_DEBUG_LOG("[Video][ERR] No se pudo asignar staging RGBA (%zu bytes)", totalAllocBytes);
+                VITA_DEBUG_LOG("[Video][ERR] No se pudo asignar staging RGBA (%lu bytes)", (unsigned long)totalAllocBytes);
             } else {
                 decoder_linear_rgba = linearBuf;
                 decoder_linear_rgba_size = requiredBytes;
