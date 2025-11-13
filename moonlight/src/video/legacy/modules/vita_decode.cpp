@@ -340,10 +340,10 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
             if (rowBytes > 0) {
                 rowsIntoGuard = (float)bytesIntoGuard / (float)rowBytes;
             }
-            VITA_DEBUG_LOG("[Video][GUARD][ERR] Staging RGBA corrupta (frame #%u) head=%s tail=%s overrun=%zuB (~%.2f filas)", vd_submit_counter,
+            VITA_DEBUG_LOG("[Video][GUARD][ERR] Staging RGBA corrupta (frame #%u) head=%s tail=%s overrun=%luB (~%.2f filas)", vd_submit_counter,
                 headOk ? "ok" : "bad",
                 tailOk ? "ok" : "bad",
-                bytesIntoGuard,
+                (unsigned long)bytesIntoGuard,
                 rowsIntoGuard);
         }
     }
@@ -390,7 +390,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         size_t uvPlaneBytes = (size_t)chromaPitch * (size_t)chromaHeight;
         size_t requiredBytes = yPlaneBytes + uvPlaneBytes + uvPlaneBytes;
         if (decoder_yuv_buffer_size < requiredBytes) {
-            VITA_DEBUG_LOG("[Video][YUV][ERR] Buffer YUV insuficiente (tiene=%zu necesita=%zu)", decoder_yuv_buffer_size, requiredBytes);
+            VITA_DEBUG_LOG("[Video][YUV][ERR] Buffer YUV insuficiente (tiene=%lu necesita=%lu)", (unsigned long)decoder_yuv_buffer_size, (unsigned long)requiredBytes);
         } else if (!texBack) {
             VITA_DEBUG_LOG("[Video][YUV][ERR] Textura destino nula, omitiendo conversión");
         } else {
