@@ -13,6 +13,7 @@ typedef struct FFmpegDecoderContext {
     AVPacket *pkt;
     int initialized;
     bool use_direct_render;
+    bool is_vita_hw; // indicates whether h264_vita hw decoder is in use
 } FFmpegDecoderContext;
 
 int ffmpeg_decoder_init(FFmpegDecoderContext *ctx);
