@@ -4,12 +4,15 @@
 #include <vita2d.h>
 #include <borealis/extern/nanovg/nanovg.h>
 #include <borealis/extern/nanovg/nanovg_gxm.h>
+#include <borealis/core/application.hpp>
+#include <borealis/views/label.hpp>
 #include <stdlib.h>
 #include <string.h>
 
 namespace {
     uint32_t s_presentWindowFrames = 0;
     uint64_t s_cachedStatsStart = 0;
+    uint32_t s_prevDecodedCount = 0;
 
     void update_present_stats() {
         uint64_t now = vita_monotonic_ms();
@@ -21,6 +24,8 @@ namespace {
             s_cachedStatsStart = stats_start_ms;
             s_presentWindowFrames = 0;
             last_fps_window_ms = stats_start_ms;
+            // Reset decoding window counter in sync with the present window for easier comparison
+            s_prevDecodedCount = g_stats.frames_decoded;
         }
 
         if (last_fps_window_ms == 0) {
@@ -38,6 +43,11 @@ namespace {
             if (elapsed == 0) elapsed = 1;
             g_stats.current_fps = (uint32_t)((uint64_t)s_presentWindowFrames * 1000ULL / elapsed);
             curr_fps[0] = g_stats.current_fps;
+            // Compute decode FPS using the global decoded frames counter and the same time window
+            uint32_t nowDecCount = g_stats.frames_decoded;
+            uint32_t decInWindow = nowDecCount - s_prevDecodedCount;
+            g_stats.decoded_fps = (uint32_t)((uint64_t)decInWindow * 1000ULL / elapsed);
+            s_prevDecodedCount = nowDecCount;
             last_fps_window_ms = now;
             s_presentWindowFrames = 0;
         }
@@ -124,33 +134,40 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     bool texSizeChanged = ((int)texW != storedW || (int)texH != storedH);
     bool firstTime = (nvgImageId < 0);
     bool texHandleChanged = (tex != currentTexture);
+    const void* gxmDataPtr = sceGxmTextureGetData(const_cast<SceGxmTexture*>(gxmTex));
+    bool texDataChanged = (gxmDataPtr != currentGxmDataPtr);
     
-    if (firstTime || texSizeChanged || texHandleChanged) {
-        if (texHandleChanged) {
-            VITA_DEBUG_LOG("[Video][DRAW NVG] texture handle changed (old=%p new=%p) -> recreate image", currentTexture, tex);
-        }
+    if (firstTime || texSizeChanged || texHandleChanged || texDataChanged) {
+        //if (texHandleChanged) {
+        //    VITA_DEBUG_LOG("[Video][DRAW NVG] texture handle changed (old=%p new=%p) -> recreate image", currentTexture, tex);
+        //}
         // Destruir imagen vieja si existe (cambio de contexto/resolución)
         if (nvgImageId >= 0) {
-            VITA_DEBUG_LOG("[Video][DRAW NVG] Destruyendo imageId=%d (resize de %dx%d a %dx%d)",
-                nvgImageId, storedW, storedH, texW, texH);
+            //VITA_DEBUG_LOG("[Video][DRAW NVG] Destruyendo imageId=%d (resize de %dx%d a %dx%d)",
+            //    nvgImageId, storedW, storedH, texW, texH);
             nvgDeleteImage(vg, nvgImageId);
             nvgImageId = -1;
         }
         
         // Crear nueva imagen NVG desde el handle GXM actual
         int imageId = nvgxmCreateImageFromHandle(vg, const_cast<SceGxmTexture*>(gxmTex));
+        VITA_DEBUG_LOG("[Video][DRAW NVG] nvgxmCreateImageFromHandle returned %d for tex=%p w=%u h=%u (data=%p)", imageId, gxmTex, texW, texH, sceGxmTextureGetData(const_cast<SceGxmTexture*>(gxmTex)));
         if (imageId <= 0) {
             VITA_DEBUG_LOG("[Video][DRAW NVG][ERR] nvgxmCreateImageFromHandle fallo (w=%u h=%u)", texW, texH);
             return;
         }
     nvgImageId = imageId;
+    if (texDataChanged) {
+        VITA_DEBUG_LOG("[Video][DRAW NVG] Recreated NVG image due to GXM data pointer change (new data=%p)", gxmDataPtr);
+    }
     currentTexture = tex; // track which texture handle the image references
+    currentGxmDataPtr = gxmDataPtr; // track which GXM data pointer the image references
         storedW = (int)texW;
         storedH = (int)texH;
         nvgImageCreateCount++;
         
-    VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d w=%u h=%u (total_creates=%u)",
-            nvgImageId, texW, texH, nvgImageCreateCount);
+    //VITA_DEBUG_LOG("[Video][DRAW NVG] creado imageId=%d w=%u h=%u (total_creates=%u)",
+    //        nvgImageId, texW, texH, nvgImageCreateCount);
     }
     
     // Dibujar con la imagen NVG persistente
@@ -180,6 +197,10 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
 
 void VitaVideoRenderer::destroyImage(NVGcontext* vg) {
     if (nvgImageId >= 0 && vg) {
+        // Ensure any GPU rendering referencing the image is finished.
+        if (vita2d_inited) {
+            vita2d_wait_rendering_done();
+        }
         nvgDeleteImage(vg, nvgImageId);
     }
     nvgImageId = -1;

@@ -80,6 +80,7 @@ typedef struct {
     uint32_t idr_count;               // Número de NALs IDR
     uint32_t p_slice_count;           // Número de NALs de tipo slice no-IDR
     uint32_t current_fps;             // FPS medidos última ventana
+    uint32_t decoded_fps;             // FPS de decodificación medidos última ventana
     uint32_t target_fps;              // FPS objetivo (redrawRate negociado)
     uint64_t session_ms;              // Tiempo desde primer frame (ms)
     uint32_t reassembly_time_ms;      // Acumulado de reassembly (si aplica)
