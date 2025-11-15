@@ -170,7 +170,7 @@ target_link_libraries(${PROJECT_NAME}.elf
 	-lScePower_stub
 	-lSceVideodec_stub
 	-lSceCommonDialog_stub
-  -lSceShellSvc_stub
+	-lSceShellSvc_stub
 	-lSceAppMgr_stub
 	-lSceAudio_stub
 	-lSceIme_stub
@@ -191,8 +191,8 @@ add_custom_target(${PROJECT_NAME}.velf ALL
 	COMMAND vita-elf-create ${PROJECT_NAME}.elf ${PROJECT_NAME}.velf
 )
 
-add_custom_target(param.sfo ALL
-  COMMAND vita-mksfoex -s TITLE_ID=${TITLE_ID} -s APP_VER=${APP_VER} "${TITLE}" param.sfo
+add_custom_target(param.sfo ALL   
+	COMMAND vita-mksfoex -s TITLE_ID=${TITLE_ID} -s APP_VER=${APP_VER} "${TITLE}" param.sfo
 )
 
 # Actualizar versión en template.xml automáticamente antes de empaquetar el VPK (solo la línea visual)
@@ -202,7 +202,7 @@ add_custom_target(update_template_version ALL
 )
 
 add_custom_target(${PROJECT_NAME}.vpk ALL
-  COMMAND vita-make-fself -a 0x2800000000000001 -at 0x0E -c ${PROJECT_NAME}.velf eboot.bin
+	COMMAND vita-make-fself -a 0x2800000000000001 -at 0x0E -c ${PROJECT_NAME}.velf eboot.bin
 	COMMAND vita-pack-vpk -s param.sfo -b eboot.bin
 			--add ../sce_sys/icon0.png=sce_sys/icon0.png
 			--add ../sce_sys/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png
