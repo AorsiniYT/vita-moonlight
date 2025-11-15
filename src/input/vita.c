@@ -17,6 +17,8 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <psp2common/ctrl.h>
+#include <psp2/shellutil.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,6 +83,8 @@ static inline void update_touch_points();
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
 double mouse_multiplier;
+
+#define PSBTN_DOUBLETAP_DELAY 250000 // 100ms
 
 #define MOUSE_ACTION_DELAY 100000 // 100ms
 #define MOTION_ACTION_DELAY 200000 // 200ms
@@ -331,6 +335,17 @@ inline void special(uint32_t defined, uint32_t pressed, uint32_t old_pressed) {
   uint32_t dev_val  = defined & INPUT_VALUE_MASK;
 
   if (pressed) {
+    if(dev_val == LEFT_TRIGGER || dev_val == RIGHT_TRIGGER) {
+        switch(dev_val) {
+          case LEFT_TRIGGER:
+            curr.lt = 0xff;
+            return;
+          case RIGHT_TRIGGER:
+            curr.rt = 0xff;
+            return;
+        }
+    }
+
     switch(dev_type) {
       case INPUT_TYPE_SPECIAL:
         // Limpiar input físico ANTES de overlays/eventos modales
@@ -372,16 +387,6 @@ inline void special(uint32_t defined, uint32_t pressed, uint32_t old_pressed) {
         return;
       case INPUT_TYPE_GAMEPAD:
         curr.button |= dev_val;
-        return;
-      case INPUT_TYPE_ANALOG:
-        switch(dev_val) {
-          case LEFT_TRIGGER:
-            curr.lt = 0xff;
-            return;
-          case RIGHT_TRIGGER:
-            curr.rt = 0xff;
-            return;
-        }
         return;
       case INPUT_TYPE_MOUSE:
         if (!old_pressed) {
@@ -510,6 +515,20 @@ inline void check_for_double_click(input_data *curr) {
 }
 
 
+static bool has_specialkey(int key) {
+  if(!config.enable_front_touchzones)
+    return 0;
+
+  switch(key) {
+    case 0: return !!config.special_keys.nw;
+    case 1: return !!config.special_keys.ne;
+    case 2: return !!config.special_keys.sw;
+    case 3: return !!config.special_keys.se;
+  }
+
+  return 0;
+}
+
 // Callback para enviar eventos de mouse absoluto
 // static void send_absolute_mouse_event(int x, int y, bool down) {
 //     if (down) {
@@ -521,40 +540,88 @@ inline void check_for_double_click(input_data *curr) {
 //     }
 // }
 
-inline void vitainput_process(void) {
-  memset(&pad, 0, sizeof(pad));
-  memset(&touch, 0, sizeof(TouchData));
-  memset(&curr, 0, sizeof(input_data));
-  sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
-  sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
-  sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
-  sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
-  // Siempre actualizar los puntos táctiles del frente
-  update_touch_points();
-  // Siempre procesar las esquinas del back (para compatibilidad o futuros usos)
-  read_backscreen();
-  // --- SOLO PROCESAR SPECIAL KEYS Y ESQUINAS DEL FRENTE SI NO HAY MODO TÁCTIL EXCLUSIVO ACTIVO ---
-  if (config.touchscreen_mode == 0) {
-    read_frontscreen();
-    special(config.special_keys.nw,
-            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW),
-            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW));
-    special(config.special_keys.ne,
-            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE),
-            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE));
-    special(config.special_keys.sw,
-            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW),
-            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW));
-    special(config.special_keys.se,
-            is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE),
-            is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE));
-    // Si en el futuro se añade lógica de esquinas/special keys del frente, debe ir aquí dentro
+bool psbutton_locked = 0;
+void lock_psbutton() {
+  if(!psbutton_locked) {
+    sceShellUtilLock((SceShellUtilLockType)SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN | SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN_2);
+    psbutton_locked = 1;
   }
-  // --- FIN BLOQUE SPECIAL KEYS/ESQUINAS DEL FRENTE ---
+}
 
-  sceRtcGetCurrentTick(&current);
+void unlock_psbutton() {
+  if(psbutton_locked) {
+    sceShellUtilUnlock((SceShellUtilLockType)SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN | SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN_2);
+    psbutton_locked = 0;
+  }
+}
 
-  // --- LECTURA DE BOTONES Y STICKS SIEMPRE (antes de los modos táctiles) ---
+SceUInt64 psbutton_pressed_time = 0;
+void handle_psbutton() {
+  SceUInt64 time = sceKernelGetSystemTimeWide();
+
+  if(!config.enable_psbutton_capture) {
+    if(psbutton_locked)
+      unlock_psbutton();
+    return;
+  }
+
+  if(is_pressed(SCE_CTRL_PSBUTTON | INPUT_TYPE_GAMEPAD)) {
+    if(!is_old_pressed(SCE_CTRL_PSBUTTON | INPUT_TYPE_GAMEPAD)) {
+      if(time - psbutton_pressed_time < PSBTN_DOUBLETAP_DELAY)
+        unlock_psbutton();
+      else
+        special(SPECIAL_FLAG | INPUT_TYPE_GAMEPAD, 1, 0);
+    }
+    else {
+      if(psbutton_locked)
+        special(SPECIAL_FLAG | INPUT_TYPE_GAMEPAD, 1, 1);
+      else
+        special(SPECIAL_FLAG | INPUT_TYPE_GAMEPAD, 0, 1);
+    }
+
+    psbutton_pressed_time = time;
+  } else {
+    if(is_old_pressed(SCE_CTRL_PSBUTTON | INPUT_TYPE_GAMEPAD))
+      special(SPECIAL_FLAG | INPUT_TYPE_GAMEPAD, 0, 1);
+
+    if(!psbutton_locked && time - psbutton_pressed_time > PSBTN_DOUBLETAP_DELAY)
+      lock_psbutton();
+  }
+}
+
+bool in_front_touchzone() {
+  for (int i = 0; i < touch.finger; i++) {
+    int x = touch.points[i].x;
+    int y = touch.points[i].y;
+    for (int s = 0; s < 4; s++) {
+      if (has_specialkey(s) && IN_SECTION(FRONT_SECTIONS[s], x, y)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+void process_touchzones() {
+  read_frontscreen();
+  special(config.special_keys.nw,
+          is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW),
+          is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NW));
+  special(config.special_keys.ne,
+          is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE),
+          is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_NE));
+  special(config.special_keys.sw,
+          is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW),
+          is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SW));
+  special(config.special_keys.se,
+          is_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE),
+          is_old_pressed(INPUT_TYPE_TOUCHSCREEN | TOUCHSEC_SPECIAL_SE));
+}
+
+void process_buttons() {
+    // --- LECTURA DE BOTONES Y STICKS SIEMPRE (antes de los modos táctiles) ---
   curr.button |= is_pressed(map.btn_dpad_up)    ? UP_FLAG     : 0;
   curr.button |= is_pressed(map.btn_dpad_left)  ? LEFT_FLAG   : 0;
   curr.button |= is_pressed(map.btn_dpad_down)  ? DOWN_FLAG   : 0;
@@ -565,7 +632,16 @@ inline void vitainput_process(void) {
   curr.button |= is_pressed(map.btn_east)       ? B_FLAG      : 0;
   curr.button |= is_pressed(map.btn_south)      ? A_FLAG      : 0;
   curr.button |= is_pressed(map.btn_west)       ? X_FLAG      : 0;
+  // Zonas inferiores: L3/R3 (nunca swap)
+  if (is_pressed(map.btn_tl2)) {
+    curr.button |= LS_CLK_FLAG; // L3
+  }
+  if (is_pressed(map.btn_tr2)) {
+    curr.button |= RS_CLK_FLAG; // R3
+  }
+}
 
+void process_triggers() {
   // Swap L1<=>L2 y R1<=>R2 correctamente
   if (swap_shoulder_buttons) {
     // Físicos: L1 manda L2 (analógico), rear touch L2 manda L1 (digital)
@@ -612,22 +688,122 @@ inline void vitainput_process(void) {
       // No modificar curr.button aquí
     }
   }
-  // Zonas inferiores: L3/R3 (nunca swap)
-  if (is_pressed(map.btn_tl2)) {
-    curr.button |= LS_CLK_FLAG; // L3
-  }
-  if (is_pressed(map.btn_tr2)) {
-    curr.button |= RS_CLK_FLAG; // R3
-  }
+}
 
-// --- GESTIÓN DE LIMPIEZA DE INPUT AL ABRIR/CERRAR TECLADO VIRTUAL Y PAUSA ---
-static bool keyboard_overlay_active = false;
-static bool pause_overlay_active = false;
-static SceCtrlData pad_snapshot = {0};
-static input_data curr_snapshot = {0};
-
-// Hook para saber si el teclado virtual está abierto
 extern bool keyboardsystem_is_open(void);
+
+void process_touch() {
+  if (config.enable_double_tap_sprint) {
+    check_for_double_click(&curr);
+  }
+
+  if(in_front_touchzone())
+    return;
+
+  // --- PROCESAMIENTO DE MODOS TÁCTILES EXCLUSIVOS ---
+
+  if (config.touchscreen_mode == 1) {
+    touchabsolute_handle_ds4(&touch, &current);
+  } else if (config.touchscreen_mode == 2) {
+    touchabsolute_handle_absolute(&touch, &current, &front_state, &finger_count, &swipe, &touch_old);
+  } else if (config.touchscreen_mode == 3) {
+    touchabsolute_handle_tablet(&touch);
+  } else {
+    static bool mouse_released __attribute__((unused)) = false;
+    mouse_released = false;
+  // mouse y gestos solo si no está en modo touchscreen
+  // Si el toque está en una sección de special key, NO procesar como ratón
+
+    switch (front_state) {
+      case NO_TOUCH_ACTION:
+        if (touch.finger > 0) {
+          front_state = ON_SCREEN_TOUCH;
+          finger_count = touch.finger;
+          sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
+        }
+        break;
+      case ON_SCREEN_TOUCH:
+        if (sceRtcCompareTick(&current, &until) < 0) {
+          if (touch.finger < finger_count) {
+            // TAP
+            if (mouse_click(finger_count, true)) {
+              front_state = SCREEN_TAP;
+              sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
+            } else {
+              front_state = NO_TOUCH_ACTION;
+            }
+          } else if (touch.finger > finger_count) {
+            // finger count changed
+            finger_count = touch.finger;
+          }
+        } else {
+          front_state = SWIPE_START;
+        }
+        break;
+      case SCREEN_TAP:
+        if (sceRtcCompareTick(&current, &until) >= 0) {
+          mouse_click(finger_count, false);
+          front_state = NO_TOUCH_ACTION;
+        }
+        break;
+      case SWIPE_START:
+        memcpy(&swipe, &touch, sizeof(swipe));
+        front_state = ON_SCREEN_SWIPE;
+        break;
+      case ON_SCREEN_SWIPE:
+        if (touch.finger > 0) {
+          switch (touch.finger) {
+            case 1:
+              move_mouse(swipe, touch);
+              break;
+            case 2:
+              move_wheel(swipe, touch);
+              break;
+          }
+          memcpy(&swipe, &touch, sizeof(swipe));
+        } else {
+          front_state = NO_TOUCH_ACTION;
+        }
+        break;
+    }
+  }
+}
+
+inline void vitainput_process(void) {
+  memset(&pad, 0, sizeof(pad));
+  memset(&touch, 0, sizeof(TouchData));
+  memset(&curr, 0, sizeof(input_data));
+  sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
+  sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
+  sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
+  sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
+  // Siempre actualizar los puntos táctiles del frente
+  update_touch_points();
+  // Siempre procesar las esquinas del back (para compatibilidad o futuros usos)
+  read_backscreen();
+
+  sceRtcGetCurrentTick(&current);
+  // analogs: solo asignar si no están activos por rear touch
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tl2))
+    curr.lt = read_analog(map.btn_tl); // l2
+  if (!swap_shoulder_buttons && !is_pressed(map.btn_tr2))
+    curr.rt = read_analog(map.btn_tr); // r2
+  if (config.enable_front_touchzones) {
+    process_touchzones();
+  }
+  // --- FIN BLOQUE SPECIAL KEYS/ESQUINAS DEL FRENTE ---
+
+  process_buttons();
+  handle_psbutton();
+  process_triggers();
+
+  // --- GESTIÓN DE LIMPIEZA DE INPUT AL ABRIR/CERRAR TECLADO VIRTUAL Y PAUSA ---
+  static bool keyboard_overlay_active = false;
+  static bool pause_overlay_active = false;
+  static SceCtrlData pad_snapshot = {0};
+  static input_data curr_snapshot = {0};
+
+  // Hook para saber si el teclado virtual está abierto
 
   bool shortcut_triggered = process_physical_shortcuts(&pad, &pad_old);
   bool keyboard_now = keyboardsystem_is_open();
@@ -686,99 +862,12 @@ extern bool keyboardsystem_is_open(void);
     curr.rt = 0;
   }
 
-  // analogs: solo asignar si no están activos por rear touch
-  if (!swap_shoulder_buttons && !is_pressed(map.btn_tl2))
-    curr.lt = read_analog(map.btn_tl); // l2
-  if (!swap_shoulder_buttons && !is_pressed(map.btn_tr2))
-    curr.rt = read_analog(map.btn_tr); // r2
   curr.lx = read_analog(map.abs_x);
   curr.ly = read_analog(map.abs_y);
   curr.rx = read_analog(map.abs_rx);
   curr.ry = read_analog(map.abs_ry);
 
-  if (config.enable_double_tap_sprint) {
-    check_for_double_click(&curr);
-  }
-
-  // --- PROCESAMIENTO DE MODOS TÁCTILES EXCLUSIVOS ---
-  if (config.touchscreen_mode == 1) {
-    touchabsolute_handle_ds4(&touch, &current);
-  } else if (config.touchscreen_mode == 2) {
-    touchabsolute_handle_absolute(&touch, &current, &front_state, &finger_count, &swipe, &touch_old);
-  } else if (config.touchscreen_mode == 3) {
-    touchabsolute_handle_tablet(&touch);
-  } else {
-    static bool mouse_released __attribute__((unused)) = false;
-    mouse_released = false;
-  // mouse y gestos solo si no está en modo touchscreen
-  // Si el toque está en una sección de special key, NO procesar como ratón
-  bool in_special_key = false;
-  for (int i = 0; i < touch.finger; i++) {
-    int x = touch.points[i].x;
-    int y = touch.points[i].y;
-    for (int s = 0; s < 4; s++) {
-      if (IN_SECTION(FRONT_SECTIONS[s], x, y)) {
-        in_special_key = true;
-        break;
-      }
-    }
-    if (in_special_key) break;
-  }
-  if (!in_special_key) {
-    switch (front_state) {
-      case NO_TOUCH_ACTION:
-        if (touch.finger > 0) {
-          front_state = ON_SCREEN_TOUCH;
-          finger_count = touch.finger;
-          sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
-        }
-        break;
-      case ON_SCREEN_TOUCH:
-        if (sceRtcCompareTick(&current, &until) < 0) {
-          if (touch.finger < finger_count) {
-            // TAP
-            if (mouse_click(finger_count, true)) {
-              front_state = SCREEN_TAP;
-              sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
-            } else {
-              front_state = NO_TOUCH_ACTION;
-            }
-          } else if (touch.finger > finger_count) {
-            // finger count changed
-            finger_count = touch.finger;
-          }
-        } else {
-          front_state = SWIPE_START;
-        }
-        break;
-      case SCREEN_TAP:
-        if (sceRtcCompareTick(&current, &until) >= 0) {
-          mouse_click(finger_count, false);
-          front_state = NO_TOUCH_ACTION;
-        }
-        break;
-      case SWIPE_START:
-        memcpy(&swipe, &touch, sizeof(swipe));
-        front_state = ON_SCREEN_SWIPE;
-        break;
-      case ON_SCREEN_SWIPE:
-        if (touch.finger > 0) {
-          switch (touch.finger) {
-            case 1:
-              move_mouse(swipe, touch);
-              break;
-            case 2:
-              move_wheel(swipe, touch);
-              break;
-          }
-          memcpy(&swipe, &touch, sizeof(swipe));
-        } else {
-          front_state = NO_TOUCH_ACTION;
-        }
-        break;
-    }
-  }
-  }
+  process_touch();
 
   // --- ENVÍO DE EVENTOS DE GAMEPAD SOLO SI NO hay overlay de teclado activo ---
   // O si el overlay está activo pero NO están ambos botones del shortcut presionados
@@ -938,11 +1027,15 @@ void vitainput_start(void) {
 
   LiSendControllerBatteryEvent(0, LI_BATTERY_STATE_FULL, 100);
 
+  if(config.enable_psbutton_capture)
+    lock_psbutton();
+
   active_input_thread = true;
   active_motion_threads = true;
 }
 
 void vitainput_stop(void) {
+  unlock_psbutton();
   active_input_thread = false;
   active_motion_threads = false;
 }

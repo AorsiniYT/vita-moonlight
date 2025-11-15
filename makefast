@@ -27,8 +27,8 @@ if [ -z "$TITLEID" ]; then
 fi
 echo "[makefast] TITLEID: $TITLEID"
 
-BUILD_DIR="cmake-build-psv"
-BIN_FILE="moonlight_vita.self"
+BUILD_DIR="build"
+BIN_FILE="eboot.bin"
 EBOOT_FILE="eboot.bin"
 
 # Permitir argumentos: ./makefast <build_dir> <archivo>
@@ -42,13 +42,43 @@ fi
 SELF_PATH="${BUILD_DIR}/${BIN_FILE}"
 EBOOT_PATH="${BUILD_DIR}/${EBOOT_FILE}"
 
-echo "[makefast] Verificando existencia de $SELF_PATH..."
-if [ ! -f "$SELF_PATH" ]; then
-    echo "[makefast] Error: No se encontró $SELF_PATH. Compila primero."
+# Preferir el eboot dentro del build dir. Si no existe allí, buscar en build/ el archivo más reciente
+echo "[makefast] Buscando eboot: preferir $SELF_PATH..."
+if [ -f "$SELF_PATH" ]; then
+    SELECTED_EBOOT="$SELF_PATH"
+elif [[ "$BIN_FILE" == */* ]] && [ -f "$BIN_FILE" ]; then
+    # If BIN_FILE includes a path (absolute/relative) and file exists, use it
+    echo "[makefast] Se proporcionó un path para eboot: $BIN_FILE, usando $BIN_FILE"
+    SELECTED_EBOOT="$BIN_FILE"
+else
+    # buscar en build/ el archivo más reciente con el mismo nombre
+    SELECTED_EBOOT=$(find "$BUILD_DIR" -maxdepth 2 -type f -name "$BIN_FILE" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{print $2; exit}')
+    if [ -n "$SELECTED_EBOOT" ]; then
+        echo "[makefast] Usando $SELECTED_EBOOT (en $BUILD_DIR)."
+    else
+        # buscar en el repo completo (excluyendo build/.git etc.) y tomar el más reciente
+        echo "[makefast] No se encontró $BIN_FILE en $BUILD_DIR, buscando en el repo..."
+        SELECTED_EBOOT=$(find . -maxdepth 4 -type f -name "$BIN_FILE" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{$1=""; sub(/^ /, ""); print; exit}')
+        if [ -n "$SELECTED_EBOOT" ]; then
+            echo "[makefast] Usando $SELECTED_EBOOT (fallback repo)."
+        fi
+    fi
+fi
+
+if [ -z "$SELECTED_EBOOT" ]; then
+    echo "[makefast] Error: No se encontró ningún $BIN_FILE (ni en $BUILD_DIR ni en el repo). Compila primero."
     exit 1
 fi
-cp "$SELF_PATH" "$EBOOT_PATH"
-echo "[makefast] Copiado $SELF_PATH a $EBOOT_PATH"
+
+# Si el archivo seleccionado no está dentro del BUILD_DIR, lo copiaremos dentro para upload
+if [ "$SELECTED_EBOOT" = "$EBOOT_PATH" ]; then
+    echo "[makefast] EBOOT seleccionado: $SELECTED_EBOOT (ya en $EBOOT_PATH). No se copia."
+else
+    echo "[makefast] Copiando $SELECTED_EBOOT -> $EBOOT_PATH"
+    mkdir -p "$(dirname "$EBOOT_PATH")"
+    cp "$SELECTED_EBOOT" "$EBOOT_PATH"
+    echo "[makefast] Copiado $SELECTED_EBOOT a $EBOOT_PATH"
+fi
 
 # 1. Detener la app si está corriendo
 echo "[makefast] Enviando destroy..."

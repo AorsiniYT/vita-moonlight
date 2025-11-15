@@ -57,6 +57,7 @@ typedef struct _CONFIGURATION {
   bool forcehw;
   bool unsupported_version;
   struct touchscreen_deadzone back_deadzone;
+  bool enable_front_touchzones;
   struct special_keys special_keys;
   bool disable_powersave;
   bool jp_layout;
@@ -70,6 +71,7 @@ typedef struct _CONFIGURATION {
   bool enable_ref_frame_invalidation;
   bool enable_vita_vblank_wait;
   bool enable_motion_controls; //Metalface
+  bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**
   uint32_t double_tap_sprint_step_time; //** -IN MILLISECONDS
   float motion_controls_scalar_x;//**

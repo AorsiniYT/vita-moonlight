@@ -132,6 +132,10 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->enable_vita_vblank_wait = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
+    } else if (strcmp(name, "enable_front_touchzones") == 0) {
+      config->enable_front_touchzones = BOOL(value);
+    } else if(strcmp(name, "enable_psbutton_capture") == 0) {
+      config->enable_psbutton_capture = BOOL(value);
     } else if (strcmp(name, "enable_double_tap_sprint") == 0) {
       config->enable_double_tap_sprint = BOOL(value);
     } else if (strcmp(name, "double_tap_sprint_step_time") == 0) {
@@ -196,12 +200,14 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "jp_layout", config->jp_layout);
   write_config_bool(fd, "show_fps", config->show_fps);
   write_config_bool(fd, "save_debug_log", config->save_debug_log);
+  write_config_bool(fd, "enable_front_touchzones", config->enable_front_touchzones);
 
   write_config_int(fd, "mouse_acceleration", config->mouse_acceleration);
   write_config_bool(fd, "enable_ref_frame_invalidation", config->enable_ref_frame_invalidation);
   write_config_int(fd, "enable_remote_stream_optimization", config->stream.streamingRemotely);
   write_config_bool(fd, "enable_vita_vblank_wait", config->enable_vita_vblank_wait);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
+  write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
   write_config_int(fd, "double_tap_sprint_step_time", config->double_tap_sprint_step_time);
   write_config_float(fd, "motion_controls_scalar_x", config->motion_controls_scalar_x);
@@ -269,6 +275,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->enable_frame_pacer = true;
   config->center_region_only = false;
 
+  config->enable_front_touchzones = false;
   config->special_keys.nw = INPUT_SPECIAL_KEY_PAUSE | INPUT_TYPE_SPECIAL;
   config->special_keys.sw = SPECIAL_FLAG | INPUT_TYPE_GAMEPAD;
   config->special_keys.offset = 0;
@@ -277,6 +284,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->mouse_acceleration = 150;
   config->enable_ref_frame_invalidation = false;
   config->enable_vita_vblank_wait = false;
+  config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 
   config->double_tap_sprint_step_time = 200;
