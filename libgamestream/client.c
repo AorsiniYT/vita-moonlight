@@ -236,10 +236,10 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     goto cleanup;
 
   if (xml_search(data->memory, data->size, "mac", &macText) == GS_OK && macText != NULL) {
-    strncpy(server->serverInfo.mac, macText, sizeof(server->serverInfo.mac) - 1);
-    server->serverInfo.mac[sizeof(server->serverInfo.mac) - 1] = '\0';
+    strncpy(server->mac, macText, sizeof(server->mac) - 1);
+    server->mac[sizeof(server->mac) - 1] = '\0';
   } else {
-    server->serverInfo.mac[0] = '\0';
+    server->mac[0] = '\0';
   }
 
   if (xml_modelist(data->memory, data->size, &server->modes) != GS_OK)
@@ -681,6 +681,18 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   }
 
   server->paired = true;
+  // Attempt to re-query /serverinfo via HTTPS so the server reports PairStatus=1 and
+  // provides the MAC address in the serverinfo payload. Some servers (like Sunshine)
+  // only return PairStatus=1 over HTTPS once the pairing is fully acknowledged.
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    int r = load_serverinfo(server, true);
+    if (r == GS_OK && server->mac[0]) {
+      printf("[gs_pair] Got server MAC after pairing: %s\n", server->mac);
+      break;
+    }
+    // short delay between retries
+    sceKernelDelayThread(200 * 1000); // 200ms
+  }
 
   cleanup:
   if (ret != GS_OK)
@@ -854,4 +866,19 @@ int gs_init(PSERVER_DATA server, char *address, unsigned short httpPort, const c
   server->httpPort = httpPort ? httpPort : 47989;
   server->httpsPort = 0; /* Populated by load_server_status() */
   return load_server_status(server);
+}
+
+int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size) {
+  if (!server || !mac || size == 0) return GS_INVALID;
+  if (!server->mac || !server->mac[0]) {
+    // try to update server info if possible
+    if (load_serverinfo(server, true) != GS_OK) {
+      return GS_INVALID;
+    }
+  }
+  if (!server->mac || !server->mac[0])
+    return GS_INVALID;
+  strncpy(mac, server->mac, size - 1);
+  mac[size - 1] = '\0';
+  return GS_OK;
 }

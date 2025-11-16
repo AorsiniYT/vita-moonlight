@@ -15,6 +15,7 @@
 #include "../debug.h"
 
 #include "client.h"
+#include "errors.h"
 #include "../platform.h"
 
 #include "../power/vita.h"
@@ -163,10 +164,31 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
       sprintf(pin, "%d%d%d%d",
               (uint32_t)rand() % 10, (uint32_t)rand() % 10, (uint32_t)rand() % 10, (uint32_t)rand() % 10);
       flash_message("Please enter the following PIN\non the target PC:\n\n%s", pin);
-
+      vita_debug_log("[UI] gs_pair: calling gs_pair at %u", (unsigned)time(NULL));
       ret = gs_pair(&server, &pin[0]);
+      vita_debug_log("[UI] gs_pair: returned ret=%d at %u", ret, (unsigned)time(NULL));
       if (ret == 0) {
         connection_paired();
+        // After pairing, save server MAC into known device if present
+        device_info_t *dev = find_device_by_address(server.serverInfo.address);
+        if (dev) {
+          dev->paired = true;
+          char mac[18] = {0};
+          if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
+            strncpy(dev->mac, mac, 17);
+            dev->mac[17] = '\0';
+            vita_debug_log("[PAIR] MAC obtenida y guardada en device.ini: %s for device %s", dev->mac, dev->name);
+          } else {
+            vita_debug_log("[PAIR] No se encontró MAC en serverinfo para %s", server.serverInfo.address);
+          }
+          save_device_info(dev);
+          vita_debug_log("[PAIR] After save_device_info(dev) - time: %u", (unsigned)time(NULL));
+          // Notify user pairing succeeded: show a short message so the PIN dialog
+          // (which was drawn earlier) is replaced by a success message.
+          flash_message("Paired: %s", dev->name);
+        } else {
+          vita_debug_log("[PAIR] Dispositivo no encontrado para la IP %s al guardar MAC", server.serverInfo.address);
+        }
         if (connection_terminate()) {
           display_error("Reconnect failed: %d", -2);
           return 0;
@@ -413,6 +435,9 @@ device_info_t* ui_connect_and_pairing(device_info_t *info) {
 
   // connectable address
   save_device_info(info);
+  vita_debug_log("[PAIR] After save_device_info(info) - time: %u", (unsigned)time(NULL));
+  // Notify user pairing succeeded
+  flash_message("Paired: %s", info->name);
 
   if (server.paired) {
     // no more need, move next action
@@ -436,17 +461,14 @@ paired:
 
   info->paired = true;
 
-  // Obtener y guardar la MAC real tras el pairing (requiere certificados y uniqueid)
+  // Preferimos usar la MAC ya obtenida en serverinfo (XML) si está disponible
   char mac[18] = {0};
-  char errbuf[128] = {0};
-  long curl_code = 0;
-  int mac_ok = get_mac_from_device_vita_verbose(info, mac, errbuf, sizeof(errbuf), &curl_code);
-  if (mac_ok && mac[0]) {
+  if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
     strncpy(info->mac, mac, 17);
     info->mac[17] = '\0';
-    vita_debug_log("[PAIR] MAC obtenida tras pairing: %s", mac);
+    vita_debug_log("[PAIR] MAC obtenida tras pairing (serverinfo): %s", info->mac);
   } else {
-    vita_debug_log("[PAIR] No se pudo obtener la MAC tras pairing: %s", errbuf);
+    vita_debug_log("[PAIR] No se encontró MAC en serverinfo; no se guarda MAC automáticamente");
   }
   save_device_info(info);
 

@@ -75,26 +75,16 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     case HOST_MANAGE_CHECK_MAC: {
       vita_debug_log("[UI] Menú gestión: check MAC %s", info->name);
       char mac[18] = {0};
-      // Usar la versión que recibe device_info_t* para que use el key_dir y nombre del host correctos
-      extern int get_mac_from_device_vita_verbose(const device_info_t *info, char *mac_out, char *errbuf, size_t errlen, long *curl_code);
-      char errbuf[128] = {0};
-      long curl_code = 0;
-      int ok = 0;
-      ok = get_mac_from_device_vita_verbose(info, mac, errbuf, sizeof(errbuf), &curl_code);
-      if (ok) {
+      if (info->mac[0]) {
+        strncpy(mac, info->mac, sizeof(mac)-1);
+        mac[sizeof(mac)-1] = '\0';
         char msg[64];
         snprintf(msg, sizeof(msg), "MAC: %s", mac);
         flash_message(msg);
-        vita_debug_log("[UI] MAC obtenida para %s: %s", info->internal, mac);
+        vita_debug_log("[UI] MAC guardada para %s: %s", info->internal, mac);
       } else {
-        char msg[128];
-        if (errbuf[0]) {
-          snprintf(msg, sizeof(msg), "Error MAC: %s", errbuf);
-        } else {
-          snprintf(msg, sizeof(msg), "No se pudo obtener la MAC (curl=%ld)", curl_code);
-        }
-        flash_message(msg);
-        vita_debug_log("[UI] No se pudo obtener la MAC para %s. curl_code=%ld, err=%s", info->internal, curl_code, errbuf);
+        flash_message("No MAC saved for this host");
+        vita_debug_log("[UI] No MAC guardada para %s", info->internal);
       }
       sceKernelDelayThread(2*1000*1000); // Esperar 2 segundos para que el mensaje sea visible
       return 1;
@@ -279,7 +269,6 @@ void ui_host_manage_menu(device_info_t *info) {
   menu[idx++] = (menu_entry){ .name = "Wake on LAN (WOL)", .id = HOST_MANAGE_WAKE };
 // Opción extra para pruebas
 #define HOST_MANAGE_CHECK_MAC 3001
-extern int get_mac_from_ip_vita(const char *ip, char *mac_out);
   menu[idx++] = (menu_entry){ .name = "Force connect", .id = HOST_MANAGE_FORCE_CONNECT };
   menu[idx++] = (menu_entry){ .name = "Delete", .id = HOST_MANAGE_DELETE };
   menu[idx++] = (menu_entry){ .name = "Change IP", .id = HOST_MANAGE_CHANGE_IP };

@@ -38,6 +38,7 @@ typedef struct _SERVER_DATA {
   char* gsVersion;
   PDISPLAY_MODE modes;
   SERVER_INFORMATION serverInfo;
+  char mac[18];
   unsigned short httpPort;
   unsigned short httpsPort;
 } SERVER_DATA, *PSERVER_DATA;
@@ -48,3 +49,4 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST *app_list);
 int gs_unpair(PSERVER_DATA server);
 int gs_pair(PSERVER_DATA server, char* pin);
 int gs_quit_app(PSERVER_DATA server);
+int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size);

@@ -77,6 +77,18 @@ device_info_t* find_device(const char *name) {
   return NULL;
 }
 
+device_info_t* find_device_by_address(const char *address) {
+  if (address == NULL)
+    return NULL;
+  for (int i = 0; i < known_devices.count; i++) {
+    device_info_t *d = &known_devices.devices[i];
+    if (strcmp(d->internal, address) == 0 || strcmp(d->external, address) == 0) {
+      return d;
+    }
+  }
+  return NULL;
+}
+
 void device_file_path(char *out, const char *dir) {
   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
 }

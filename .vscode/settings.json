@@ -22,6 +22,8 @@
         "wake_on_lan.h": "c",
         "inet.h": "c",
         "threadmgr.h": "c",
-        "ctrl.h": "c"
+        "ctrl.h": "c",
+        "device.h": "c",
+        "string.h": "c"
     }
 }

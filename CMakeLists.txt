@@ -63,8 +63,6 @@ add_executable(${PROJECT_NAME}.elf
 	src/device.c
 	src/check_dir.c
 	src/wake_on_lan.c
-	src/get_mac.c
-
 	src/audio/vita.c
 	src/video/vita.c
 	src/input/vita.c
@@ -98,7 +96,6 @@ add_executable(${PROJECT_NAME}.elf
 	third_party/libuuid/src/parse.c
 	third_party/libuuid/src/unpack.c
 	third_party/libuuid/src/unparse.c
-	third_party/libuuid/src/uuid_time.c
 
 	third_party/h264bitstream/h264_nal.c
 	third_party/h264bitstream/h264_sei.c
