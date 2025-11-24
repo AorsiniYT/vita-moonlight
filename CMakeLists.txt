@@ -284,7 +284,6 @@ if(PLATFORM_PSV)
         -lvita2d
         -lSceGxm_stub
         -lScePgf_stub
-        -lSceCommonDialog_stub
         -lfreetype
         -lpng
         -ljpeg
