@@ -132,19 +132,14 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     uint32_t alignedW = (decoder_width > 0 ? decoder_width : image_scaling.texture_width);
     uint32_t baseH = (decoder_height > 0 ? decoder_height : image_scaling.texture_height);
     bool decodeYuv = (decoder_output_mode == 1);
+    // YUV mode check (if implemented)
     if (decodeYuv && (!decoder_yuv_buffer || decoder_yuv_buffer_size == 0)) {
         VITA_DEBUG_LOG("[Video][WARN] Buffer YUV no disponible, volviendo a RGBA");
         decoder_output_mode = 0;
         decodeYuv = false;
     }
-    bool useLinearStaging = false;
-    if (!decodeYuv && decoder_linear_rgba && decoder_linear_rgba_physically_backed &&
-        decoder_linear_rgba_pitch_pixels != 0 && decoder_linear_rgba_height != 0) {
-        size_t expectedBytes = (size_t)decoder_linear_rgba_pitch_pixels * 4 * (size_t)decoder_linear_rgba_height;
-        if (decoder_linear_rgba_size >= expectedBytes) {
-            useLinearStaging = true;
-        }
-    }
+    
+    // La lógica de staging la maneja el pixel processor modular
 
     bool useFallbackBuffer = false;
     uint8_t* fallbackPtr = nullptr;
@@ -237,26 +232,19 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     uint32_t frameHeightForDecoder = baseH;
     if (decodeYuv) {
         frameHeightForDecoder = baseH;
-    } else if (useLinearStaging) {
-        frameHeightForDecoder = decoder_linear_rgba_height ? decoder_linear_rgba_height : baseH;
     } else if (decodeUsesFallback) {
         frameHeightForDecoder = baseH;
-    }
-    // FIX: Forzar 1088 si baseH es 1088 (evitar mismatch con SPS parcheado)
-    if (baseH == 1088 && frameHeightForDecoder == 1080) {
-        frameHeightForDecoder = 1088;
     }
 
     picture.frame.frameHeight = frameHeightForDecoder;
     picture.frame.verticalSize = frameHeightForDecoder;
 
+    // Pixel processor handles target selection
     uint32_t framePitchPixels = 0;
     if (decodeYuv) {
         framePitchPixels = alignedW;
     } else if (decodeUsesFallback) {
         framePitchPixels = fallbackPitchPixels ? fallbackPitchPixels : alignedW;
-    } else if (useLinearStaging) {
-        framePitchPixels = decoder_linear_rgba_pitch_pixels;
     } else {
         framePitchPixels = strideBytes / 4;
         if (framePitchPixels == 0) {
@@ -265,25 +253,9 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     }
     picture.frame.framePitch = framePitchPixels;
 
-    uint8_t* guardBasePtr = nullptr;
-    uint8_t* guardTailPtr = nullptr;
-    size_t guardInteriorSize = 0;
-    if (useLinearStaging && decoder_linear_rgba_guard && decoder_linear_rgba_guard_size >= (2 * sizeof(uint64_t))) {
-        guardBasePtr = decoder_linear_rgba_guard;
-        guardTailPtr = guardBasePtr + decoder_linear_rgba_guard_size - sizeof(uint64_t);
-        guardInteriorSize = decoder_linear_rgba_guard_size - (2 * sizeof(uint64_t));
-        if (guardInteriorSize > 0) {
-            memset(guardBasePtr + sizeof(uint64_t), texture_guard_fill, guardInteriorSize);
-        }
-        *(uint64_t*)guardBasePtr = texture_guard_sig_head;
-        *(uint64_t*)guardTailPtr = texture_guard_sig_tail;
-        if (decoder_linear_rgba_memblock >= 0) {
-            int syncRes = sceKernelSyncVMDomain(decoder_linear_rgba_memblock, guardBasePtr, (SceSize)decoder_linear_rgba_guard_size);
-            if (syncRes < 0) {
-                VITA_DEBUG_LOG("[Video][WARN] Sync guard write failed: 0x%08X", syncRes);
-            }
-        }
-    }
+    // Guard checks removed - pixel processor handles memory safety
+    
+    picture.frame.pixelType = g_pixelProcessor ? g_pixelProcessor->getDecoderPixelFormat() : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
 
     const uint8_t* cpuPushPtr = nullptr;
     uint32_t cpuPushPitchBytes = 0;
@@ -342,39 +314,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     //     texBack,
     //     useLinearStaging ? "yes" : "no");
     ret = sceAvcdecDecode(decoder, &au, &array_picture);
-    if (guardBasePtr) {
-        if (decoder_linear_rgba_memblock >= 0) {
-            int syncRes = sceKernelSyncVMDomain(decoder_linear_rgba_memblock, guardBasePtr, (SceSize)decoder_linear_rgba_guard_size);
-            if (syncRes < 0) {
-                VITA_DEBUG_LOG("[Video][WARN] Sync guard check failed: 0x%08X", syncRes);
-            }
-        }
-        bool headOk = (*(uint64_t*)guardBasePtr == texture_guard_sig_head);
-        bool tailOk = (*(uint64_t*)guardTailPtr == texture_guard_sig_tail);
-        size_t firstCorruption = SIZE_MAX;
-        if (guardInteriorSize > 0) {
-            const uint8_t* interior = guardBasePtr + sizeof(uint64_t);
-            for (size_t i = 0; i < guardInteriorSize; ++i) {
-                if (interior[i] != texture_guard_fill) {
-                    firstCorruption = i;
-                    break;
-                }
-            }
-        }
-        if (!headOk || !tailOk || firstCorruption != SIZE_MAX) {
-            size_t bytesIntoGuard = (firstCorruption == SIZE_MAX) ? 0 : (firstCorruption + 1);
-            float rowsIntoGuard = 0.0f;
-            size_t rowBytes = (size_t)decoder_linear_rgba_pitch_pixels * 4;
-            if (rowBytes > 0) {
-                rowsIntoGuard = (float)bytesIntoGuard / (float)rowBytes;
-            }
-            VITA_DEBUG_LOG("[Video][GUARD][ERR] Staging RGBA corrupta (frame #%u) head=%s tail=%s overrun=%luB (~%.2f filas)", vd_submit_counter,
-                headOk ? "ok" : "bad",
-                tailOk ? "ok" : "bad",
-                (unsigned long)bytesIntoGuard,
-                rowsIntoGuard);
-        }
-    }
+
         // Mapear errores comunes para diagnóstico rápido
         const char* errName = "OK";
         switch ((uint32_t)ret) {
