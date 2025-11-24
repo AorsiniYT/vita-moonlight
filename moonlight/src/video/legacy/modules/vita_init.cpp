@@ -6,6 +6,7 @@
 #include <vita2d.h>
 #include <stdlib.h>
 #include <memory>
+#include "vita_sceAvcInternal.hpp"
 #include <malloc.h>
 #include <algorithm>
 #include <string.h>
@@ -263,18 +264,41 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         init->numOfRefFrames = 4; init->numOfStreams = 1;
         decoder_width = init->horizontal;
         decoder_height = init->vertical;
-        // No need for RGBA buffer, decoding directly to texture
-    // SPS context deshabilitado temporalmente
-        ret = sceVideodecInitLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC, init);
-        if (ret < 0) { VITA_DEBUG_LOG("[Video] Error sceVideodecInitLibrary: 0x%x", ret); ret = 0x80010002; goto cleanup; }
+        
+        // Usar API Internal para resoluciones > 720p (requiere módulos PAF/AVCDEC)
+        if (width > 1280 || height > 720) {
+            VITA_DEBUG_LOG("[Video] Detectada resolución > 720p, usando API Internal");
+            ret = vitavideo_init_1080p_internal_api(width, height, init);
+            if (ret < 0) { 
+                VITA_DEBUG_LOG("[Video] Error en init 1080p: 0x%x", ret); 
+                ret = 0x80010002; 
+                goto cleanup; 
+            }
+        } else {
+            // API estándar para 720p o menos
+            ret = sceVideodecInitLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC, init);
+            if (ret < 0) { 
+                VITA_DEBUG_LOG("[Video] Error sceVideodecInitLibrary: 0x%x", ret); 
+                ret = 0x80010002; 
+                goto cleanup; 
+            }
+        }
+        
         video_status = VITA_VIDEO_INIT_AVC_LIB;
     }
     if (video_status == VITA_VIDEO_INIT_AVC_LIB) {
         if (!decoder_info) { decoder_info = (SceAvcdecQueryDecoderInfo*)calloc(1, sizeof(*decoder_info)); if (!decoder_info) { ret = 0x80010001; goto cleanup; } }
         decoder_info->horizontal = init->horizontal; decoder_info->vertical = init->vertical; decoder_info->numOfRefFrames = init->numOfRefFrames;
         SceAvcdecDecoderInfo decoder_info_out = {0};
-        ret = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
-        if (ret < 0) { VITA_DEBUG_LOG("[Video] Error sceAvcdecQueryDecoderMemSize: 0x%x", ret); ret = 0x80010003; goto cleanup; }
+        
+        // Usar API Internal para 1080p
+        if (width > 1280 || height > 720) {
+            ret = sceAvcdecQueryDecoderMemSizeInternal(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
+        } else {
+            ret = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
+        }
+        
+        if (ret < 0) { VITA_DEBUG_LOG("[Video] Error QueryDecoderMemSize: 0x%x", ret); ret = 0x80010003; goto cleanup; }
         decoder = (SceAvcdecCtrl*)calloc(1, sizeof(SceAvcdecCtrl));
         if (!decoder) { ret = 0x80010001; goto cleanup; }
         size_t sz = (decoder_info_out.frameMemSize + 0xFFFFF) & ~0xFFFFF;
@@ -287,8 +311,15 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
     }
     if (video_status == VITA_VIDEO_INIT_DECODER_MEMBLOCK) {
         VITA_DEBUG_LOG("[Video] Creando decoder AVC...");
-        ret = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
-        if (ret < 0) { VITA_DEBUG_LOG("[Video] Error sceAvcdecCreateDecoder: 0x%x", ret); ret = 0x80010006; goto cleanup; }
+        
+        // Usar API Internal para 1080p
+        if (width > 1280 || height > 720) {
+            ret = sceAvcdecCreateDecoderInternal(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
+        } else {
+            ret = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
+        }
+        
+        if (ret < 0) { VITA_DEBUG_LOG("[Video] Error CreateDecoder: 0x%x", ret); ret = 0x80010006; goto cleanup; }
         video_status = VITA_VIDEO_INIT_AVC_DEC;
     }
     if (video_status == VITA_VIDEO_INIT_AVC_DEC) {
