@@ -13,7 +13,11 @@
 #include <stdio.h>
 #include "network/NetworkOptimizations.hpp"
 #include <borealis/core/application.hpp>
+#include "video/pixel_format/pixel_format.hpp"
 // #include "libgamestream/sps.h" // deshabilitado (SPS context temporalmente fuera)
+
+// External pixel processor from vita_decode.cpp
+extern PixelFormat::IPixelProcessor* g_pixelProcessor;
 
 static inline size_t align_up_size(size_t value, size_t alignment) {
     if (alignment == 0) {
@@ -85,6 +89,30 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         if (decoder_output_mode != 0 && decoder_output_mode != 1) {
             VITA_DEBUG_LOG("[Video][INIT] pixel_format_mode desconocido=%d -> forzando RGBA", decoder_output_mode);
             decoder_output_mode = 0;
+        }
+
+        // Inicializar procesador de píxeles modular
+        if (g_pixelProcessor) {
+            PixelFormat::destroyProcessor(g_pixelProcessor);
+            g_pixelProcessor = nullptr;
+        }
+        
+        g_pixelProcessor = PixelFormat::createProcessor(decoder_output_mode);
+        if (!g_pixelProcessor) {
+            VITA_DEBUG_LOG("[Video][ERR] No se pudo crear procesador de píxeles, fallback a RGBA");
+            decoder_output_mode = 0;
+            g_pixelProcessor = PixelFormat::createProcessor(0);
+        }
+        
+        if (g_pixelProcessor) {
+            int initRet = g_pixelProcessor->init(width, height, alignedW, alignedH);
+            if (initRet < 0) {
+                VITA_DEBUG_LOG("[Video][ERR] Error al inicializar procesador: 0x%x", initRet);
+                PixelFormat::destroyProcessor(g_pixelProcessor);
+                g_pixelProcessor = nullptr;
+            } else {
+                VITA_DEBUG_LOG("[Video][INIT] Procesador inicializado: %s", g_pixelProcessor->getName());
+            }
         }
 
         if (decoder_output_mode == 1) {

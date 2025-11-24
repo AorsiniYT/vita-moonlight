@@ -21,7 +21,11 @@ extern gs::SpsContext* g_sps_ctx;
 #include "Limelight.h"
 #include "network/NetworkOptimizations.hpp"
 #include "video/render_mode_cache.hpp"
+#include "video/pixel_format/pixel_format.hpp"
 #include "vita_sceAvcInternal.hpp"
+
+// Global pixel format processor (modular RGBA/YUV handling)
+PixelFormat::IPixelProcessor* g_pixelProcessor = nullptr;
 
 typedef struct ScePafInit {
     SceSize global_heap_size;
@@ -101,43 +105,6 @@ static inline uint64_t monotonicMs_local() {
 static bool decoder_phys_fallback_permanent_disable = false; // si true no volver a intentar alloc físico
 static int decoder_phys_fallback_fail_count = 0;
 
-static inline uint8_t clamp_byte(int value) {
-    if (value < 0) return 0;
-    if (value > 255) return 255;
-    return (uint8_t)value;
-}
-
-static void convert_yuv420_to_rgba(const uint8_t* yPlane, const uint8_t* uPlane, const uint8_t* vPlane,
-                                   uint32_t width, uint32_t height,
-                                   uint32_t yPitch, uint32_t uvPitch,
-                                   uint8_t* dst, uint32_t dstStrideBytes) {
-    if (!yPlane || !uPlane || !vPlane || !dst || !yPitch || !uvPitch || !dstStrideBytes) {
-        return;
-    }
-
-    for (uint32_t row = 0; row < height; ++row) {
-        const uint8_t* yRow = yPlane + (size_t)yPitch * row;
-        const uint8_t* uRow = uPlane + (size_t)uvPitch * (row / 2);
-        const uint8_t* vRow = vPlane + (size_t)uvPitch * (row / 2);
-        uint8_t* out = dst + (size_t)dstStrideBytes * row;
-
-        for (uint32_t col = 0; col < width; ++col) {
-            int C = (int)yRow[col] - 16;
-            if (C < 0) C = 0;
-            int D = (int)uRow[col / 2] - 128;
-            int E = (int)vRow[col / 2] - 128;
-
-            int R = (298 * C + 409 * E + 128) >> 8;
-            int G = (298 * C - 100 * D - 208 * E + 128) >> 8;
-            int B = (298 * C + 516 * D + 128) >> 8;
-
-            out[4 * col + 0] = clamp_byte(B);
-            out[4 * col + 1] = clamp_byte(G);
-            out[4 * col + 2] = clamp_byte(R);
-            out[4 * col + 3] = 0xFF;
-        }
-    }
-}
 
 extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     static uint32_t vd_submit_counter = 0;
@@ -237,42 +204,36 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
             }
         }
     }
-    picture.frame.pixelType = decodeYuv ? SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
-    picture.frame.frameWidth = alignedW;
-    picture.frame.horizontalSize = alignedW;
-    picture.frame.frameCropLeftOffset = 0;
-    picture.frame.frameCropRightOffset = 0;
-    picture.frame.frameCropTopOffset = 0;
-    picture.frame.frameCropBottomOffset = 0;
-    picture.frame.opt.rgba.alpha = 0xFF;
-    picture.frame.opt.rgba.cscCoefficient = 0;
-
-    // Destino directo: textura FRONT (single buffer) o BACK (si más adelante se reactiva doble buffer)
-    // Para single_frame_buffer ambos índices apuntan al mismo.
+    
+    // === Usar procesador de píxeles modular para configurar decoder ===
     bool decodeUsesFallback = false;
     uint8_t* decodeTarget = nullptr;
-    if (decodeYuv) {
-        decodeTarget = decoder_yuv_buffer;
-    } else if (useFallbackBuffer && fallbackPtr) {
-        decodeTarget = fallbackPtr;
-        decodeUsesFallback = true;
-    } else if (useLinearStaging) {
-        decodeTarget = decoder_linear_rgba;
+    if (g_pixelProcessor) {
+        // El procesador determina el formato de píxel
+        picture.frame.pixelType = g_pixelProcessor->getDecoderPixelFormat();
+        
+        // El procesador determina el buffer de destino
+        void* frontTex = frame_textures[frame_front_idx];
+        void* backTex = frame_textures[frame_back_idx];
+        decodeTarget = g_pixelProcessor->getDecodeTarget(frontTex, backTex);
+        
+        if (!decodeTarget) {
+            VITA_DEBUG_LOG("[Video][ERR] Procesador no pudo proporcionar buffer de destino");
+            return DR_NEED_IDR;
+        }
     } else {
-        decodeTarget = texBack;
-    }
-    if (!decodeTarget && texBack) {
-        VITA_DEBUG_LOG("[Video][WARN] Destino YUV inválido, usando textura RGBA");
-        decodeTarget = texBack;
-        decodeYuv = false;
-        decoder_output_mode = 0;
+        // Fallback si no hay procesador: RGBA directo a textura
         picture.frame.pixelType = SCE_AVCDEC_PIXELFORMAT_RGBA8888;
-        useLinearStaging = false;
+        decodeTarget = texBack;
+        
+        if (!decodeTarget) {
+            VITA_DEBUG_LOG("[Video][ERR] No hay destino válido para decodificar (sin procesador)");
+            return DR_NEED_IDR;
+        }
     }
-    if (!decodeTarget) {
-        VITA_DEBUG_LOG("[Video][ERR] No hay destino válido para decodificar (decodeYuv=%d)", decodeYuv ? 1 : 0);
-        return DR_NEED_IDR;
-    }
+    
+    picture.frame.frameWidth = alignedW;
+    picture.frame.horizontalSize = alignedW;
     uint32_t frameHeightForDecoder = baseH;
     if (decodeYuv) {
         frameHeightForDecoder = baseH;
@@ -445,106 +406,19 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         syntheticFrameIndex++; vd_submit_counter++; return DR_OK;
     }
 
-    if (decodeYuv) {
-        if (!yuv_check_canaries()) {
-            VITA_DEBUG_LOG("[Video][YUV][WARN] Canarios YUV dañados tras decode");
-        }
-        uint32_t framePitch = picture.frame.framePitch ? picture.frame.framePitch : alignedW;
-        uint32_t frameHeightAligned = picture.frame.frameHeight ? picture.frame.frameHeight : baseH;
-        size_t yPlaneBytes = (size_t)framePitch * (size_t)frameHeightAligned;
-        uint32_t chromaPitch = framePitch / 2;
-        uint32_t chromaHeight = frameHeightAligned / 2;
-        size_t uvPlaneBytes = (size_t)chromaPitch * (size_t)chromaHeight;
-        size_t requiredBytes = yPlaneBytes + uvPlaneBytes + uvPlaneBytes;
-        if (decoder_yuv_buffer_size < requiredBytes) {
-            VITA_DEBUG_LOG("[Video][YUV][ERR] Buffer YUV insuficiente (tiene=%lu necesita=%lu)", (unsigned long)decoder_yuv_buffer_size, (unsigned long)requiredBytes);
-        } else if (!texBack) {
-            VITA_DEBUG_LOG("[Video][YUV][ERR] Textura destino nula, omitiendo conversión");
-        } else {
-            uint32_t outWidth = decoder_src_width > 0 ? (uint32_t)decoder_src_width : alignedW;
-            uint32_t outHeight = decoder_src_height > 0 ? (uint32_t)decoder_src_height : baseH;
-            if (outWidth > framePitch) outWidth = framePitch;
-            if (outHeight > frameHeightAligned) outHeight = frameHeightAligned;
-            if (outWidth == 0 || outHeight == 0) {
-                VITA_DEBUG_LOG("[Video][YUV][WARN] Dimensiones inválidas %ux%u para conversión", outWidth, outHeight);
-            } else {
-                const uint8_t* yPlane = decoder_yuv_buffer;
-                const uint8_t* uPlane = yPlane + yPlaneBytes;
-                const uint8_t* vPlane = uPlane + uvPlaneBytes;
-                static bool loggedCpuConvert = false;
-                if (!loggedCpuConvert) {
-                    VITA_DEBUG_LOG("[Video][YUV] Convirtiendo YUV420 -> RGBA en CPU (%ux%u)", outWidth, outHeight);
-                    loggedCpuConvert = true;
-                }
-                convert_yuv420_to_rgba(yPlane, uPlane, vPlane,
-                    outWidth, outHeight,
-                    framePitch, chromaPitch,
-                    texBack, strideBytes);
-                cpuPushPtr = texBack;
-                cpuPushPitchBytes = strideBytes;
-            }
-        }
-        yuv_write_canaries();
-    } else if (useLinearStaging && texBack) {
-        uint32_t effectivePitchPx = decoder_linear_rgba_pitch_pixels ? decoder_linear_rgba_pitch_pixels : alignedW;
-        size_t stagingPitchBytes = (size_t)effectivePitchPx * 4;
-        if (stagingPitchBytes > 0) {
-            uint32_t copyWidth = decoder_src_width > 0 ? (uint32_t)decoder_src_width : alignedW;
-            if (copyWidth > effectivePitchPx) copyWidth = effectivePitchPx;
-            uint32_t copyHeight = decoder_src_height > 0 ? (uint32_t)decoder_src_height : baseH;
-            uint32_t maxHeightByPitch = decoder_linear_rgba_height ? decoder_linear_rgba_height : baseH;
-            size_t maxRowsBySize = stagingPitchBytes ? (decoder_linear_rgba_size / stagingPitchBytes) : 0;
-            if (maxRowsBySize > 0 && maxRowsBySize < maxHeightByPitch) {
-                maxHeightByPitch = (uint32_t)maxRowsBySize;
-            }
-            if (copyHeight > maxHeightByPitch) copyHeight = maxHeightByPitch;
-            size_t copyRowBytes = (size_t)copyWidth * 4;
-            size_t stagingBytesUsed = stagingPitchBytes * copyHeight;
-            if (stagingBytesUsed > decoder_linear_rgba_size) {
-                stagingBytesUsed = decoder_linear_rgba_size;
-            }
-            if (copyRowBytes > 0 && copyHeight > 0 && stagingBytesUsed > 0) {
-                if (decoder_linear_rgba_memblock >= 0) {
-                    int syncRes = sceKernelSyncVMDomain(decoder_linear_rgba_memblock, decoder_linear_rgba, stagingBytesUsed);
-                    if (syncRes < 0) {
-                        VITA_DEBUG_LOG("[Video][WARN] Sync staging read failed: 0x%08X", syncRes);
-                    }
-                }
-                for (uint32_t row = 0; row < copyHeight; ++row) {
-                    memcpy(texBack + (size_t)strideBytes * row,
-                           decoder_linear_rgba + stagingPitchBytes * row,
-                           copyRowBytes);
-                }
-                cpuPushPtr = decoder_linear_rgba;
-                cpuPushPitchBytes = (uint32_t)stagingPitchBytes;
-            }
-        }
-    } else if (decodeUsesFallback && fallbackPtr && texBack) {
-        uint32_t effectivePitchPx = fallbackPitchPixels ? fallbackPitchPixels : alignedW;
-        size_t fallbackPitchBytes = (size_t)effectivePitchPx * 4;
-        if (fallbackPitchBytes > 0) {
-            uint32_t copyWidth = decoder_src_width > 0 ? (uint32_t)decoder_src_width : alignedW;
-            if (copyWidth > effectivePitchPx) copyWidth = effectivePitchPx;
-            uint32_t copyHeight = decoder_src_height > 0 ? (uint32_t)decoder_src_height : baseH;
-            uint32_t maxHeightByPitch = frameHeightForDecoder ? frameHeightForDecoder : baseH;
-            if (copyHeight > maxHeightByPitch) copyHeight = maxHeightByPitch;
-            size_t copyRowBytes = (size_t)copyWidth * 4;
-            size_t fallbackBytesUsed = fallbackPitchBytes * copyHeight;
-            if (fallbackBytesUsed > 0) {
-                if (decoder_output_phys_block >= 0) {
-                    int syncRes = sceKernelSyncVMDomain(decoder_output_phys_block, fallbackPtr, (SceSize)fallbackBytesUsed);
-                    if (syncRes < 0) {
-                        VITA_DEBUG_LOG("[Video][FB_PHY] Sync fallback read failed: 0x%08X", syncRes);
-                    }
-                }
-                for (uint32_t row = 0; row < copyHeight; ++row) {
-                    memcpy(texBack + (size_t)strideBytes * row,
-                           fallbackPtr + fallbackPitchBytes * row,
-                           copyRowBytes);
-                }
-                cpuPushPtr = fallbackPtr;
-                cpuPushPitchBytes = (uint32_t)fallbackPitchBytes;
-            }
+    // === Post-procesamiento modular ===
+    if (g_pixelProcessor) {
+        // El procesador maneja cualquier conversión o copia necesaria
+        void* outputTex = frame_textures[frame_back_idx];
+        
+        // Si el decoder escribió en un buffer intermedio (ej. YUV), el procesador lo procesa aquí
+        // Si escribió directo (RGBA hardware), esto puede ser no-op o sincronización
+        g_pixelProcessor->postProcess(decodeTarget, outputTex);
+        
+        // Configurar punteros para debug/dump si es necesario
+        if (g_pixelProcessor->getDecoderPixelFormat() == SCE_AVCDEC_PIXELFORMAT_RGBA8888) {
+             cpuPushPtr = decodeTarget;
+             cpuPushPitchBytes = strideBytes;
         }
     }
 
