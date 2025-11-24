@@ -7,7 +7,7 @@ namespace PixelFormat {
 /**
  * Procesador RGBA basado en decodificación hardware
  * El decoder Vita produce RGBA directamente en hardware (rápido).
- * Este procesador solo maneja la copia de memoria.
+ * Sin downscale - rendimiento máximo del decoder.
  */
 class RGBAHardwareProcessor : public IPixelProcessor {
 private:
@@ -62,11 +62,11 @@ public:
     }
     
     const char* getName() const override {
-        return "RGBA Hardware Decoder";
+        return "RGBA Hardware Direct (No Downscale)";
     }
     
     bool requiresStagingBuffer() const override {
-        // Puede usar staging buffer si está disponible
+        // No requiere staging, escribe directo a textura
         return false;
     }
 };

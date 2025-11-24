@@ -1,17 +1,21 @@
 #include "pixel_format.hpp"
 #include <psp2/gxm.h>
+#include <vita2d.h>
 #include <cstring>
+
+extern "C" {
+#include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+}
 
 namespace PixelFormat {
 
 /**
- * Procesador YUV basado en GPU (GLES2/GXM)
- * El decoder produce YUV420 en hardware.
- * Este procesador sube los planos a GPU y hace conversión RGB con shader.
- * 
- * TODO: Implementar rendering YUV con shaders GXM para mejor rendimiento
+ * Procesador YUV optimizado con FFmpeg swscale
+ * Usa swscale con NEON para conversión YUV420→RGBA acelerada por CPU.
+ * Más rápido que conversión naive pero más lento que GPU shaders.
  */
-class YUVGpuRenderer : public IPixelProcessor {
+class YUVSwscaleRenderer : public IPixelProcessor {
 private:
     int m_width;
     int m_height;
@@ -22,21 +26,33 @@ private:
     uint8_t* m_yuvBuffer;
     size_t m_yuvBufferSize;
     
-    // Texturas GXM para los 3 planos YUV (futuro)
-    // TODO: Implementar texturas y shaders
+    // FFmpeg swscale context
+    SwsContext* m_swsContext;
+    
+    // Buffers para frames FFmpeg
+    uint8_t* m_srcData[4];      // YUV planes
+    int m_srcLinesize[4];       // YUV strides
+    
+    uint8_t* m_dstData[4];      // RGBA output
+    int m_dstLinesize[4];       // RGBA stride
     
 public:
-    YUVGpuRenderer()
+    YUVSwscaleRenderer()
         : m_width(0)
         , m_height(0)
         , m_alignedWidth(0)
         , m_alignedHeight(0)
         , m_yuvBuffer(nullptr)
         , m_yuvBufferSize(0)
+        , m_swsContext(nullptr)
     {
+        memset(m_srcData, 0, sizeof(m_srcData));
+        memset(m_srcLinesize, 0, sizeof(m_srcLinesize));
+        memset(m_dstData, 0, sizeof(m_dstData));
+        memset(m_dstLinesize, 0, sizeof(m_dstLinesize));
     }
     
-    ~YUVGpuRenderer() override {
+    ~YUVSwscaleRenderer() override {
         cleanup();
     }
     
@@ -56,14 +72,43 @@ public:
             return -1;
         }
         
-        // TODO: Crear texturas GXM para Y, U, V planes
-        // TODO: Compilar shader YUV→RGB
+        // Setup source NV12 planes (Y planar + UV interleaved)
+        m_srcData[0] = m_yuvBuffer;                     // Y plane
+        m_srcData[1] = m_srcData[0] + ySize;            // UV interleaved
+        m_srcData[2] = nullptr;                         // No separate V
+        m_srcData[3] = nullptr;
+        
+        m_srcLinesize[0] = alignedWidth;                // Y stride
+        m_srcLinesize[1] = alignedWidth;                // UV stride (interleaved, full width)
+        m_srcLinesize[2] = 0;
+        m_srcLinesize[3] = 0;
+        
+        // Destination RGBA stride (will point to vita2d texture)
+        m_dstLinesize[0] = alignedWidth * 4;            // RGBA = 4 bytes/pixel
+        m_dstLinesize[1] = 0;
+        m_dstLinesize[2] = 0;
+        m_dstLinesize[3] = 0;
+        
+        // Create swscale context with NEON optimizations
+        // Source: NV12 (what Vita decoder produces)
+        m_swsContext = sws_getContext(
+            alignedWidth, alignedHeight, AV_PIX_FMT_NV12,        // src (NV12 = YUV420 RASTER)
+            alignedWidth, alignedHeight, AV_PIX_FMT_RGBA,        // dst
+            SWS_FAST_BILINEAR,                                   // flags (fast)
+            nullptr, nullptr, nullptr
+        );
+        
+        if (!m_swsContext) {
+            delete[] m_yuvBuffer;
+            m_yuvBuffer = nullptr;
+            return -1;
+        }
         
         return 0;
     }
     
     uint32_t getDecoderPixelFormat() const override {
-        // El decoder debe producir YUV420 en hardware
+        // El decoder debe producir YUV420
         return SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER;
     }
     
@@ -73,35 +118,54 @@ public:
     }
     
     int postProcess(uint8_t* decodedBuffer, void* outputTexture) override {
-        // TODO: Subir YUV planes a texturas GXM
-        // TODO: Renderizar usando shader YUV→RGB
+        if (!m_swsContext || !decodedBuffer || !outputTexture) {
+            return -1;
+        }
         
-        // Por ahora stub (no implementado)
-        return 0;
+        // Get vita2d texture data pointer
+        vita2d_texture* tex = static_cast<vita2d_texture*>(outputTexture);
+        m_dstData[0] = static_cast<uint8_t*>(vita2d_texture_get_datap(tex));
+        
+        if (!m_dstData[0]) {
+            return -1;
+        }
+        
+        // Perform YUV→RGBA conversion with swscale (uses NEON automatically)
+        int ret = sws_scale(
+            m_swsContext,
+            m_srcData, m_srcLinesize,
+            0, m_alignedHeight,
+            m_dstData, m_dstLinesize
+        );
+        
+        return (ret > 0) ? 0 : -1;
     }
     
     void cleanup() override {
+        if (m_swsContext) {
+            sws_freeContext(m_swsContext);
+            m_swsContext = nullptr;
+        }
+        
         if (m_yuvBuffer) {
             delete[] m_yuvBuffer;
             m_yuvBuffer = nullptr;
         }
         m_yuvBufferSize = 0;
-        
-        // TODO: Liberar texturas GXM y shader resources
     }
     
     const char* getName() const override {
-        return "YUV GPU Renderer (Stub)";
+        return "YUV FFmpeg swscale (NEON)";
     }
     
     bool requiresStagingBuffer() const override {
-        return false; // YUV no necesita staging, va directo a GPU
+        return false; // YUV buffer interno
     }
 };
 
 // Factory implementation para YUV
 IPixelProcessor* createYUVProcessor() {
-    return new YUVGpuRenderer();
+    return new YUVSwscaleRenderer();
 }
 
 } // namespace PixelFormat

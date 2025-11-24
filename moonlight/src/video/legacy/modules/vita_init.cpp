@@ -115,119 +115,8 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
             }
         }
 
-        if (decoder_output_mode == 1) {
-            VITA_DEBUG_LOG("[Video][INIT] Modo Pixel=YUV420 (experimental, conversión CPU)");
-            size_t ySize = (size_t)alignedW * (size_t)alignedH;
-            size_t uvSize = ySize / 4;
-            size_t rawSize = ySize + 2 * uvSize;
-            decoder_yuv_raw = (uint8_t*)malloc(rawSize);
-            decoder_yuv_buffer_size = ySize + 2 * uvSize;
-            decoder_yuv_buffer = (uint8_t*)memalign(0x1000, decoder_yuv_buffer_size + 4096);
-            decoder_yuv_total_alloc = decoder_yuv_buffer_size + 4096;
-            if (!decoder_yuv_raw || !decoder_yuv_buffer) {
-                VITA_DEBUG_LOG("[Video][ERR] YUV alloc failed");
-                decoder_output_mode = 0;
-            }
-        }
-
-        if (decoder_output_mode == 0) {
-            VITA_DEBUG_LOG("[Video][INIT] Modo Pixel=RGBA directo");
-
-            // Reinicializar staging RGBA
-            if (decoder_linear_rgba_memblock >= 0) {
-                sceKernelFreeMemBlock(decoder_linear_rgba_memblock);
-                decoder_linear_rgba_memblock = -1;
-            }
-            if (decoder_linear_rgba_guard) {
-                free(decoder_linear_rgba_guard);
-                decoder_linear_rgba_guard = nullptr;
-                decoder_linear_rgba_guard_size = 0;
-            }
-            if (decoder_linear_rgba && decoder_linear_rgba_total_alloc > 0 && decoder_linear_rgba_memblock < 0) {
-                free(decoder_linear_rgba);
-            }
-            decoder_linear_rgba = nullptr;
-            decoder_linear_rgba_size = 0;
-            decoder_linear_rgba_total_alloc = 0;
-            decoder_linear_rgba_pitch_pixels = 0;
-            decoder_linear_rgba_height = 0;
-            decoder_linear_rgba_physically_backed = false;
-            decoder_linear_rgba_memblock = -1;
-
-            size_t requiredBytes = (size_t)alignedH * rowBytesAligned;
-            size_t guardBytes = 4096 + rowBytesAligned * 16;
-            size_t totalAllocBytes = requiredBytes + guardBytes;
-
-            uint8_t* linearBuf = nullptr;
-            SceKernelMemBlockType stagingMemblockType = (SceKernelMemBlockType)0;
-            
-            if (requiredBytes > 0) {
-                const SceKernelMemBlockType types[] = {
-                    SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
-                    SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW,
-                    SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_RW
-                };
-                
-                SceKernelAllocMemBlockOpt opt;
-                memset(&opt, 0, sizeof(opt));
-                opt.size = sizeof(opt);
-                opt.attr = 4;
-                opt.alignment = 0x1000;
-                for (unsigned ti = 0; ti < sizeof(types)/sizeof(types[0]) && !linearBuf; ++ti) {
-                    SceUID blk = sceKernelAllocMemBlock("dec_rgba_staging", types[ti], (SceSize)totalAllocBytes, &opt);
-                    if (blk < 0) {
-                        VITA_DEBUG_LOG("[Video][WARN] memblock staging type=0x%X err=0x%08X", types[ti], blk);
-                        continue;
-                    }
-                    void* base = nullptr;
-                    int baseRes = sceKernelGetMemBlockBase(blk, &base);
-                    if (baseRes >= 0 && base) {
-                        decoder_linear_rgba_memblock = blk;
-                        linearBuf = static_cast<uint8_t*>(base);
-                        stagingMemblockType = types[ti];
-                    } else {
-                        VITA_DEBUG_LOG("[Video][WARN] GetMemBlockBase staging err=0x%08X", baseRes);
-                        sceKernelFreeMemBlock(blk);
-                    }
-                }
-            }
-
-            if (!linearBuf) {
-                VITA_DEBUG_LOG("[Video][WARN] Staging RGBA usando heap no físico (%lu bytes)", (unsigned long)totalAllocBytes);
-                linearBuf = (uint8_t*)memalign(0x1000, totalAllocBytes);
-                if (!linearBuf) {
-                    VITA_DEBUG_LOG("[Video][ERR] No se pudo asignar staging RGBA (%lu bytes)", (unsigned long)totalAllocBytes);
-                }
-            }
-
-            if (linearBuf) {
-                decoder_linear_rgba = linearBuf;
-                decoder_linear_rgba_size = requiredBytes;
-                decoder_linear_rgba_total_alloc = totalAllocBytes;
-                decoder_linear_rgba_physically_backed = (decoder_linear_rgba_memblock >= 0);
-                decoder_linear_rgba_pitch_pixels = alignedW;
-                decoder_linear_rgba_height = alignedH;
-                decoder_linear_rgba_guard = linearBuf + requiredBytes;
-                decoder_linear_rgba_guard_size = guardBytes;
-                if (decoder_linear_rgba_memblock >= 0) {
-                    int syncRes = sceKernelSyncVMDomain(decoder_linear_rgba_memblock, linearBuf, (SceSize)totalAllocBytes);
-                    if (syncRes < 0) {
-                        VITA_DEBUG_LOG("[Video][WARN] sceKernelSyncVMDomain staging init: 0x%08X", syncRes);
-                    }
-                }
-                VITA_DEBUG_LOG("[Video][INIT] Buffer staging RGBA asignado (%ux%u pitchBytes=%u backing=%s type=0x%X guard=%lu total=%lu)",
-                    alignedW,
-                    alignedH,
-                    (unsigned)rowBytesAligned,
-                    decoder_linear_rgba_physically_backed ? "físico" : "heap",
-                    stagingMemblockType,
-                    (unsigned long)guardBytes,
-                    (unsigned long)totalAllocBytes);
-                if (!decoder_linear_rgba_physically_backed) {
-                    VITA_DEBUG_LOG("[Video][WARN] Staging RGBA no es físico; se omitirá staging durante decode");
-                }
-            }
-        }
+        // El sistema modular de pixel format maneja todos los buffers internamente
+        // No se necesita allocación legacy de staging buffers
 
         video_fullscreen_stretch = g_video_settings_snapshot.fullscreen;
         if (g_stats.target_fps == 0 && redrawRate > 0) {
@@ -290,14 +179,24 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         
         // CRÍTICO: Reutilizar decoderblock si ya existe (evita fragmentación en CDRAM)
         if (decoderblock >= 0) {
-            // Reutilizar decoder existente de sesión previa
-            ret = sceKernelGetMemBlockBase(decoderblock, &decoder->frameBuf.pBuf);
-            if (ret >= 0 && decoder->frameBuf.pBuf) {
-                VITA_DEBUG_LOG("[Video] Reutilizando decoder existente (blk=0x%X size=%uMB)", decoderblock, (unsigned)(sz >> 20));
-            } else {
-                // Si falló GetBase, liberar y asignar nuevo
+            // Verificar si el tamaño es suficiente
+            if (decoder_block_size < sz) {
+                VITA_DEBUG_LOG("[Video] Decoder existente insuficiente (size=%uMB req=%uMB), liberando...", 
+                    (unsigned)(decoder_block_size >> 20), (unsigned)(sz >> 20));
                 sceKernelFreeMemBlock(decoderblock);
                 decoderblock = -1;
+                decoder_block_size = 0;
+            } else {
+                // Reutilizar decoder existente de sesión previa
+                ret = sceKernelGetMemBlockBase(decoderblock, &decoder->frameBuf.pBuf);
+                if (ret >= 0 && decoder->frameBuf.pBuf) {
+                    VITA_DEBUG_LOG("[Video] Reutilizando decoder existente (blk=0x%X size=%uMB)", decoderblock, (unsigned)(decoder_block_size >> 20));
+                } else {
+                    // Si falló GetBase, liberar y asignar nuevo
+                    sceKernelFreeMemBlock(decoderblock);
+                    decoderblock = -1;
+                    decoder_block_size = 0;
+                }
             }
         }
         
@@ -320,6 +219,7 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
                 ret = 0x80010005; 
                 goto cleanup; 
             }
+            decoder_block_size = sz;
         }
         video_status = VITA_VIDEO_INIT_DECODER_MEMBLOCK;
     }
@@ -364,22 +264,19 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         if (!reusingTextures) {
             // Crear nuevas texturas
             auto prevTexMemType = vita2d_texture_get_alloc_memblock_type();
+            // Crear nuevas texturas a resolución nativa del stream
             vita2d_texture_set_alloc_memblock_type(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW);
-            int numBuffers = 2; // Doble buffer
-            for (int i=0;i<numBuffers;i++) {
+            for (int i = 0; i < 2; i++) {
                 frame_textures[i] = vita2d_create_empty_texture_format(
-                    width,
-                    height,
-                    SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR);
-                if (!frame_textures[i]) { 
-                    VITA_DEBUG_LOG("[Video] Error: No hay memoria para frame_texture %d", i); 
-                    ret = 0x80010001; 
-                    texturesOk = false; 
-                    break; 
+                    width, height,
+                    SCE_GXM_TEXTURE_FORMAT_A8B8G8R8
+                );
+                if (!frame_textures[i]) {
+                    VITA_DEBUG_LOG("[Video][ERR] No se pudo crear textura %d (%dx%d)", i, width, height);
+                    ret = 0x80010005; goto cleanup;
                 }
-                uint8_t* datap = (uint8_t*)vita2d_texture_get_datap(frame_textures[i]);
-                if (datap) memset(datap, 0, (size_t)width * (size_t)height * 4);
             }
+            VITA_DEBUG_LOG("[Video][INIT] Creadas texturas %dx%d para rendering", width, height);
             vita2d_texture_set_alloc_memblock_type(prevTexMemType);
             if (!texturesOk) {
                 goto cleanup;
