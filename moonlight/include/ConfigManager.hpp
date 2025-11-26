@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include "../../third_party/libmoonmic/moonmic.h"  // For MOONMIC_DEFAULT_* constants
 
 #include "controller/input_types.hpp"
 #include "controller/special_inputs.hpp"
@@ -101,6 +102,14 @@ struct VideoSettings {
     
     // Nueva opción: tipo de gamepad
     GamepadType gamepad_type = GAMEPAD_TYPE_XBOX; // 0=Xbox, 1=PS4 (para emular controlador)
+    
+    // Microphone settings
+    bool enable_microphone = false;         // Enable/disable microphone transmission
+    std::string microphone_host_ip = "";    // Host IP (empty = use stream host)
+    int microphone_port = MOONMIC_DEFAULT_PORT;            // UDP port for mic transmission
+    int microphone_sample_rate = MOONMIC_DEFAULT_SAMPLE_RATE;     // Sample rate (Hz) - Vita hardware native
+    int microphone_channels = MOONMIC_DEFAULT_CHANNELS;            // 1=mono, 2=stereo
+    int microphone_bitrate = MOONMIC_DEFAULT_BITRATE;         // Opus bitrate (bps) - optimal for 16kHz mono VOIP
 
     RearTouchSettings rear_touch;
 };
