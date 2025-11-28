@@ -70,8 +70,10 @@ bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& 
     fprintf(f, "port=%d\n", port);
     // prefer_external: por defecto false
     fprintf(f, "prefer_external=false\n");
+    // microphone_port: puerto del micrófono (default MoonMic)
+    fprintf(f, "microphone_port=48100\n");
 
-    // mac: escribir solo si se pasó un valor válido
+    // mac: escribir solo si se pasó un válor válido
     if (mac != nullptr) {
         std::string macs(mac);
         // Evitar escribir placeholder conocido o cadenas vacías
@@ -87,10 +89,6 @@ bool HostStorage::writeDeviceIni(const std::string& hostDir, const std::string& 
     fclose(f);
     return true;
 }
-// Nota: la lógica para actualizar la línea `mac=` se ha consolidado en los
-// puntos de persistencia y en `writeDeviceIni`/`savePairedHost`. La función
-// antigua `updateDeviceIniMac` fue eliminada porque ya no es necesaria y su
-// responsabilidad se maneja durante los flujos de emparejamiento normales.
 // Guarda un host tras pairing exitoso
 bool HostStorage::savePairedHost(const std::string& name, const std::string& ip, int port, bool paired, const std::string& mac) {
     HostInfo host;
@@ -176,6 +174,10 @@ std::vector<HostInfo> HostStorage::loadHosts() {
             } else if (line.find("paired=") == 0) {
                 std::string val = line.substr(strlen("paired="));
                 host.paired = (val == "true");
+            } else if (line.find("microphone_port=") == 0) {
+                try {
+                    host.microphone_port = std::stoi(line.substr(strlen("microphone_port=")));
+                } catch (...) { host.microphone_port = 48100; }
             }
         }
         hosts.push_back(host);

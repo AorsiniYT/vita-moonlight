@@ -20,6 +20,7 @@
 #include "ConfigManager.hpp"
 #include "tab/rear_touch_settings_tab.hpp"
 #include "tab/trackpad_settings_tab.hpp"
+#include "tab/microphone_settings_tab.hpp"
 #include "controller/ControllerInput.hpp"
 #include <cstdlib>
 #include <memory>
@@ -34,6 +35,7 @@
 #include "settings.hpp"
 #include "video/render_mode_cache.hpp"
 #include "network/NetworkOptimizations.hpp"
+#include "audio/MicrophoneTester.hpp"
 
 using namespace brls::literals;  // for _i18n
 
@@ -610,10 +612,10 @@ SettingsTab::SettingsTab()
         brls::Application::notify(brls::getStr("moonlight/settings_tab/keyboard_layout/saved"));
     });
     
-    // Microphone toggle
+    // Enable Microphone toggle
     microphoneToggle->init(
-        brls::getStr("moonlight/settings_tab/microphone_title"), 
-        videoSettings.enable_microphone, 
+        brls::getStr("moonlight/settings_tab/microphone_enabled_title"),
+        videoSettings.enable_microphone,
         [this](bool value) {
             ConfigManager config;
             config.load();
@@ -633,6 +635,17 @@ SettingsTab::SettingsTab()
             return true;  // Return true to indicate successful save
         }
     );
+
+    // Configure Microphone button (opens dedicated settings view)
+    microphoneConfigureCell->registerClickAction([](brls::View* view) {
+        auto* micView = new MicrophoneSettingsTab();
+        // Wrap in AppletFrame to show standard header/footer (like rear touch settings)
+        auto* frame = new brls::AppletFrame(micView);
+        frame->setTitle(brls::getStr("moonlight/microphone/title"));
+        auto* act = new brls::Activity(frame);
+        brls::Application::pushActivity(act);
+        return true;
+    });
 
     // Configurar opciones del sistema (originales)
     radio->title->setText("Radio cell");
