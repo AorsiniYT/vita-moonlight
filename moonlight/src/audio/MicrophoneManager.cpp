@@ -15,6 +15,7 @@
 */
 
 #include "MicrophoneManager.hpp"
+#include "ConfigManager.hpp"
 #include <borealis.hpp>
 
 MicrophoneManager& MicrophoneManager::getInstance() {
@@ -46,6 +47,14 @@ bool MicrophoneManager::start(const std::string& hostIp, int port, int sampleRat
     
     brls::Logger::info("[MicrophoneManager] Starting microphone ({}:{}, {}Hz, {}ch, {}bps)", 
                        host_ip_, port_, sample_rate_, channels_, bitrate_);
+    
+    brls::Logger::warning("[MicrophoneManager] Delaying microphone start by 3 seconds to avoid port conflict...");
+    
+    // WORKAROUND: Delay microphone start to avoid conflict with Moonlight audio initialization
+    // The streaming audio (sceAudioOut) seems to interfere with microphone (sceAudioIn) if started simultaneously
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    
+    brls::Logger::info("[MicrophoneManager] Delay complete, attempting to start microphone...");
     
     // Try to start immediately
     if (startInternal()) {
@@ -116,6 +125,20 @@ bool MicrophoneManager::startInternal() {
         last_error_.clear();
     }
     
+    // Load compression mode from config
+    ConfigManager cfg;
+    cfg.load();
+    VideoSettings settings = cfg.getVideoSettings();
+    
+    // raw_mode is INVERSE of enable_microphone_compression
+    // Opus compression ON (true) → raw_mode = false (use Opus)
+    // Opus compression OFF (false) → raw_mode = true (use RAW PCM)
+    bool raw_mode = !settings.enable_microphone_compression;
+    
+    brls::Logger::info("[MicrophoneManager] Compression mode: {} (raw_mode={})", 
+                       settings.enable_microphone_compression ? "Opus" : "RAW PCM", 
+                       raw_mode);
+    
     // Configure libmoonmic
     moonmic_config_t config = {
         .host_ip = host_ip_.c_str(),
@@ -123,7 +146,9 @@ bool MicrophoneManager::startInternal() {
         .sample_rate = static_cast<uint32_t>(sample_rate_),
         .channels = static_cast<uint8_t>(channels_),
         .bitrate = static_cast<uint32_t>(bitrate_),
-        .auto_start = true  // Start capturing immediately
+        .raw_mode = raw_mode,  // Set based on UI toggle
+        .auto_start = true,  // Start capturing immediately
+        .gain = settings.microphone_gain  // Gain multiplier from config
     };
     
     // Create client
@@ -184,4 +209,20 @@ void MicrophoneManager::errorCallback(const char* error, void* userData) {
     
     brls::Logger::error("[MicrophoneManager] libmoonmic error: {}", 
                         error ? error : "Unknown error");
+}
+
+void MicrophoneManager::setGain(float gain) {
+    // Update gain for future startInternal() calls
+    ConfigManager config;
+    config.load();
+    VideoSettings settings = config.getVideoSettings();
+    settings.microphone_gain = gain;
+    config.setVideoSettings(settings);
+    config.save();
+    
+    // If currently running, update the client's gain immediately
+    if (running_ && client_) {
+        moonmic_set_gain(client_, gain);
+        brls::Logger::info("[MicrophoneManager] Updated gain to {:.1f}x during transmission", gain);
+    }
 }
