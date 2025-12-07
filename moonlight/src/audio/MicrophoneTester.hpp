@@ -58,6 +58,12 @@ public:
     void setOpusMode(bool enabled);
     
     /**
+     * @brief Set microphone gain (1.0 - 50.0)
+     * Applies immediately during loopback test
+     */
+    void setGain(float gain);
+
+    /**
      * @brief Check if loopback is currently active
      * @return true if running
      */
@@ -80,5 +86,6 @@ private:
     // State
     std::atomic<bool> running_{false};
     std::atomic<bool> use_opus_{false};  // Test with Opus compression?
+    std::atomic<float> gain_{1.0f};  // Atomic for thread-safe dynamic updates
     std::thread loopback_thread_;
 };
