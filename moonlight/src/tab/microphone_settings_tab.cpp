@@ -40,8 +40,9 @@ MicrophoneSettingsTab::MicrophoneSettingsTab() {
         cfg.setVideoSettings(settings);
         cfg.save();
         
-        // Apply gain immediately (works even during transmission!)
+        // Apply gain to BOTH remote (MicrophoneManager) AND local (MicrophoneTester)
         MicrophoneManager::getInstance().setGain(gain);
+        MicrophoneTester::getInstance().setGain(gain);  // Also apply to local test
         
         gainLabel->setText(getGainText(gain));
     });
@@ -68,10 +69,16 @@ MicrophoneSettingsTab::MicrophoneSettingsTab() {
     testMicrophoneToggle->init(
         brls::getStr("moonlight/microphone/test_toggle"),
         false,  // Always start disabled
-        [](bool value) {
+        [this](bool value) {
             auto& tester = MicrophoneTester::getInstance();
             
             if (value) {
+                // Initialize gain from config before starting
+                ConfigManager cfg;
+                cfg.load();
+                VideoSettings settings = cfg.getVideoSettings();
+                tester.setGain(settings.microphone_gain);
+                
                 // Start test
                 if (tester.start()) {
                     brls::Application::notify(brls::getStr("moonlight/microphone/notify_local_started"));
@@ -126,28 +133,30 @@ MicrophoneSettingsTab::MicrophoneSettingsTab() {
     // Test microphone remote toggle (connects to moonmic-host)
     testMicrophoneRemoteToggle->init(
         brls::getStr("moonlight/microphone/test_remote_toggle"),
-        false,  // Always start disabled
+        false,
         [this](bool value) {
-            auto& mgr = MicrophoneManager::getInstance();
-            
             if (value) {
-                // Check if host is selected
-                if (currentHostAddress.empty()) {
-                    brls::Application::notify(brls::getStr("moonlight/microphone/notify_no_host"));
-                    return false;  // Revert toggle
-                }
+                // Start remote test
+                auto& mgr = MicrophoneManager::getInstance();
+                mgr.start(currentHostAddress, currentHostPort);
+                brls::Application::notify(brls::getStr("moonlight/microphone/notify_remote_started"));
                 
-                // Start remote test with selected host
-                if (mgr.start(currentHostAddress, currentHostPort)) {
-                    brls::Application::notify(brls::getStr("moonlight/microphone/notify_remote_started"));
-                    return true;
-                } else {
-                    brls::Application::notify(brls::getStr("moonlight/microphone/notify_remote_connecting"));
-                    return true;  // Keep toggle ON, auto-retry is enabled
-                }
+                // Enable status monitoring (will be checked in frame())
+                monitoringConnection = true;
+                
+                return true;
             } else {
                 // Stop remote test
+                auto& mgr = MicrophoneManager::getInstance();
                 mgr.stop();
+                
+                // Disable monitoring
+                monitoringConnection = false;
+                
+                // Reset LED to red
+                connectionLED->setColor(nvgRGBA(255, 0, 0, 255));
+                hostStatusLabel->setText(currentHostAddress + " (Disconnected)");
+                
                 brls::Application::notify(brls::getStr("moonlight/microphone/notify_remote_stopped"));
                 return true;
             }
@@ -179,6 +188,21 @@ MicrophoneSettingsTab::~MicrophoneSettingsTab() {
     auto& mgr = MicrophoneManager::getInstance();
     if (mgr.isRunning() || mgr.isRetrying()) {
         mgr.stop();
+    }
+}
+
+void MicrophoneSettingsTab::updateConnectionStatus() {
+    auto& mgr = MicrophoneManager::getInstance();
+    bool connected = mgr.isConnected();
+    
+    if (connected) {
+        // Green LED
+        connectionLED->setColor(nvgRGBA(0, 255, 0, 255));
+        hostStatusLabel->setText(currentHostAddress + " (Connected)");
+    } else {
+        // Red LED
+        connectionLED->setColor(nvgRGBA(255, 0, 0, 255));
+        hostStatusLabel->setText(currentHostAddress + " (Disconnected)");
     }
 }
 

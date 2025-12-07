@@ -83,6 +83,15 @@ void MicrophoneTester::setOpusMode(bool enabled) {
     brls::Logger::info("[MicrophoneTester] Opus mode: {}", enabled ? "ENABLED" : "DISABLED");
 }
 
+void MicrophoneTester::setGain(float gain) {
+    // Clamp to valid range
+    if (gain < 1.0f) gain = 1.0f;
+    if (gain > 50.0f) gain = 50.0f;
+    
+    gain_ = gain;
+    brls::Logger::info("[MicrophoneTester] Gain set to: {:.1f}x", gain);
+}
+
 #ifdef __vita__
 void MicrophoneTester::loopbackThreadFunc() {
     brls::Logger::info("[MicrophoneTester] Loopback thread started");
@@ -312,10 +321,22 @@ void MicrophoneTester::loopbackThreadFunc() {
             audio_source = opus_decoded;  // Use decoded audio (might be larger than GRAIN)
         }
         
-        // Duplicate mono to stereo (L=R)
+        // Apply gain (read atomic value once per loop iteration)
+        float current_gain = gain_.load();
+        
+        // Duplicate mono to stereo (L=R) and apply gain
         for (int i = 0; i < GRAIN; i++) {
-            output_buffer[i * 2] = audio_source[i];      // Left channel
-            output_buffer[i * 2 + 1] = audio_source[i];  // Right channel
+            // Apply gain and clamp to int16 range
+            int32_t sample = static_cast<int32_t>(audio_source[i] * current_gain);
+            
+            // Clamp to prevent overflow/distortion
+            if (sample > 32767) sample = 32767;
+            if (sample < -32768) sample = -32768;
+            
+            int16_t amplified = static_cast<int16_t>(sample);
+            
+            output_buffer[i * 2] = amplified;      // Left channel
+            output_buffer[i * 2 + 1] = amplified;  // Right channel
         }
         
         // Play to speakers/headphones
