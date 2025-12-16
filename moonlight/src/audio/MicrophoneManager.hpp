@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "moonmic.h"
+#include "../moonmic/MoonmicBridge.hpp"
 #include <string>
 #include <thread>
 #include <atomic>
@@ -50,6 +50,7 @@ public:
                int sampleRate = MOONMIC_DEFAULT_SAMPLE_RATE,
                int channels = MOONMIC_DEFAULT_CHANNELS,
                int bitrate = MOONMIC_DEFAULT_BITRATE);
+
     
     /**
      * @brief Stop microphone transmission and retry thread
@@ -121,6 +122,7 @@ private:
      * @brief Error callback from libmoonmic
      */
     static void errorCallback(const char* error, void* userData);
+
     
     // libmoonmic client instance
     moonmic_client_t* client_ = nullptr;
