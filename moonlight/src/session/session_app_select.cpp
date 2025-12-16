@@ -12,11 +12,17 @@
 #include "session/vita_session.hpp"
 #include "ConfigManager.hpp"
 #include "GameStreamClient.hpp"
+#include "audio/MicrophoneManager.hpp"
+#include "moonmic/MoonmicBridge.hpp"
+#include "moonmic/MoonmicPrep.hpp"
 #include "client.h"
 #include "Limelight.h"
 #include <cstdlib>  // Para malloc/free
 #include <cstring>  // Para strcpy
+#include <cstdio>   // Para snprintf
 #include <string>   // Para std::string
+#include <chrono>
+#include <thread>
 #include <borealis/core/application.hpp>
 #include <borealis/core/logger.hpp>
 #include <borealis/core/thread.hpp>
@@ -113,6 +119,8 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
         brls::Logger::error("[SessionAppSelect] No se encontró el host '%s' en HostStorage", hostName.c_str());
         // Dejar host vacío, mostrará error en populateAppList
     }
+
+    // Ya no notificamos estado de Moonmic en ctor para evitar falsos negativos.
 
     this->inflateFromXMLRes("xml/views/session_app_select.xml");
 
@@ -289,6 +297,68 @@ void SessionAppSelect::onLayout() {
 void SessionAppSelect::populateAppList() {
     brls::Logger::info("[SessionAppSelect] populateAppList llamado para host: {} (ip: {})", host.name, host.ip);
 
+    // Esperar a que Moonmic confirme/prepare Sunshine antes de pedir la lista de apps
+    if (!sunshineReady) {
+        if (sunshineCheckInFlight) {
+            brls::Logger::info("[SessionAppSelect] Esperando señal de Moonmic/Sunshine (spinner activo)");
+            return;
+        }
+
+        HostInfo hostCopy = this->host;
+
+        ConfigManager cfg;
+        cfg.load();
+        VideoSettings vs = cfg.getVideoSettings();
+        StreamConfiguration sc = cfg.getStreamConfig();
+
+        moonmic::PrepCallbacks callbacks;
+        callbacks.onStart = [this]() {
+            sunshineCheckInFlight = true;
+            if (spinner) spinner->setVisibility(brls::Visibility::VISIBLE);
+            if (gridView) gridView->setVisibility(brls::Visibility::INVISIBLE);
+            if (app_select_empty) app_select_empty->setVisibility(brls::Visibility::GONE);
+        };
+
+        callbacks.onDone = [this](bool ok) {
+            sunshineCheckInFlight = false;
+            if (!ok) {
+                sunshineReady = true; // Mark check as fully handled (don't retry endlessly)
+                if (!moonmicNotified) {
+                    brls::Application::notify(brls::getStr("moonlight/session/app_select/moonmic_not_connected"));
+                    moonmicLastStatus = false;
+                    moonmicNotified = true;
+                }
+                if (spinner) spinner->setVisibility(brls::Visibility::GONE);
+                
+                // Fallback: Proceed even if Moonmic is not active
+                brls::Logger::warning("[SessionAppSelect] Moonmic handshake failed, proceeding with normal connection...");
+                this->populateAppList();
+                return;
+            }
+
+            sunshineReady = true;
+            if (!moonmicNotified) {
+                brls::Application::notify(brls::getStr("moonlight/session/app_select/moonmic_host_active"));
+                moonmicLastStatus = true;
+                moonmicNotified = true;
+            }
+
+            auto [currentTargetW, currentTargetH] = moonmic::MoonmicBridge::getInstance().getTargetResolution();
+            brls::Logger::info("[SessionAppSelect] Moonmic handshake OK (target {}x{})", currentTargetW, currentTargetH);
+
+            this->populateAppList();
+        };
+
+        callbacks.onCancel = [this]() {
+            sunshineCheckInFlight = false;
+            brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_app"));
+            brls::Application::popActivity();
+        };
+
+        moonmic::ensureSunshineReadyWithPrompt(hostCopy, sc, vs, resolutionPromptShown, callbacks);
+        return;
+    }
+
     // Mostrar spinner y ocultar contenido
     if (spinner) spinner->setVisibility(brls::Visibility::VISIBLE);
     if (gridView) gridView->setVisibility(brls::Visibility::INVISIBLE);
@@ -358,6 +428,9 @@ void SessionAppSelect::populateAppList() {
 void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     brls::Logger::info("App seleccionada: {} (ID: {})", app.name, app.id);
 
+    // Flujo de inicio encapsulado para poder confirmarlo antes
+    auto startFlow = [this, app, forceStart]() {
+
     // Preparar configuración de streaming para PS Vita
     STREAM_CONFIGURATION streamConfig;
     memset(&streamConfig, 0, sizeof(streamConfig));
@@ -370,6 +443,19 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     
     StreamConfiguration streamSettings = configManager.getStreamConfig();
     VideoSettings videoSettings = configManager.getVideoSettings();
+
+    // Enviar handshake Moonmic para configurar remapping Sunshine solo después de confirmación
+    {
+        std::string micHost = videoSettings.microphone_host_ip.empty() ? this->host.ip : videoSettings.microphone_host_ip;
+        int micPort = videoSettings.microphone_port > 0 ? videoSettings.microphone_port : MOONMIC_DEFAULT_PORT;
+        auto& bridge = moonmic::MoonmicBridge::getInstance();
+        bridge.loadConfig();
+        if (streamSettings.width > 0 && streamSettings.height > 0) {
+            bridge.setTargetResolution(static_cast<uint16_t>(streamSettings.width), static_cast<uint16_t>(streamSettings.height));
+        }
+        auto hsResult = bridge.sendResolutionHandshake(micHost, micPort);
+        brls::Logger::info("[SessionAppSelect] Moonmic handshake {} ({}:{})", hsResult.success ? "OK" : "FAIL", micHost, micPort);
+    }
     
     // Debug: mostrar valores leídos de configuración
     brls::Logger::info("[SessionAppSelect] Configuración leída:");
@@ -384,11 +470,9 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     streamConfig.height = VITA_STREAM_HEIGHT;
     streamConfig.fps = streamSettings.fps > 0 ? streamSettings.fps : VITA_STREAM_DEFAULT_FPS;
     
-    // Save display resolution hint for passing to gs_start_app
-    // If width/height from settings is 0 (Auto), Sunshine uses current host display
-    // Otherwise, Sunshine will change host display to these dimensions before streaming
-    int displayWidth = streamSettings.width;   // Host monitor width
-    int displayHeight = streamSettings.height; // Host monitor height
+    // Build RTSP launch URL without displayWidth/displayHeight
+    // Display resolution is now controlled via moonmic protocol handshake
+    // which configures Sunshine's mode_remapping before streaming starts:
     
     // Calcular bitrate: si es automático (-1), usar fórmula basada en resolución y fps
     if (streamSettings.bitrate == -1) {
@@ -442,13 +526,11 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     HostInfo hostCopy = this->host;
     RemoteAppInfo appCopy = app;
     STREAM_CONFIGURATION cfgCopy = streamConfig;
-    int displayW = displayWidth;
-    int displayH = displayHeight;
-            std::thread([hostCopy, appCopy, cfgCopy, displayW, displayH, loadingDialog, this, prevGridVis, forceStart]() mutable {
+    std::thread([hostCopy, appCopy, cfgCopy, loadingDialog, this, prevGridVis, forceStart]() mutable {
         brls::Logger::info("[SessionAppSelect][async] Iniciando conexión en hilo de fondo para {}", hostCopy.ip);
         bool connected = GameStreamClient::instance().connect(hostCopy);
         // Actualizar UI en hilo principal
-    brls::sync([connected, hostCopy, appCopy, cfgCopy, displayW, displayH, loadingDialog, prevGridVis, forceStart, this]() mutable {
+        brls::sync([connected, hostCopy, appCopy, cfgCopy, loadingDialog, prevGridVis, forceStart, this]() mutable {
             // Nota: no cerramos inmediatamente el diálogo de 'connecting' si
             // estamos conectados — lo reutilizaremos cambiando su texto a
             // 'starting'. Solo cerramos si la conexión falló.
@@ -479,14 +561,14 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
             // continuamos con startApp.
 
             // Ejecutar startApp y VitaSession en un hilo para no bloquear UI
-            std::thread([hostCopy, appCopy, cfgCopy, displayW, displayH, loadingDialog, this, prevGridVis, forceStart]() mutable {
+            std::thread([hostCopy, appCopy, cfgCopy, loadingDialog, this, prevGridVis, forceStart]() mutable {
                 bool started = false;
                 if (forceStart) {
                     // Si se forzó (Resume), intentar resume explícito
-                    started = GameStreamClient::instance().startApp(hostCopy.ip, cfgCopy, std::stoi(appCopy.id), GameStreamClient::StartMode::RESUME_ONLY, displayW, displayH);
+                    started = GameStreamClient::instance().startApp(hostCopy.ip, cfgCopy, std::stoi(appCopy.id), GameStreamClient::StartMode::RESUME_ONLY);
                 } else {
                     // Normal: permitir auto behavior (resume o launch según servidor)
-                    started = GameStreamClient::instance().startApp(hostCopy.ip, cfgCopy, std::stoi(appCopy.id), GameStreamClient::StartMode::AUTO, displayW, displayH);
+                    started = GameStreamClient::instance().startApp(hostCopy.ip, cfgCopy, std::stoi(appCopy.id), GameStreamClient::StartMode::AUTO);
                 }
                 brls::sync([started, hostCopy, appCopy, loadingDialog, this, prevGridVis]() {
                     if (loadingDialog) loadingDialog->close();
@@ -522,5 +604,7 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
             }).detach();
         });
     }).detach();
-    return;
+    };
+
+    startFlow();
 }

@@ -14,7 +14,7 @@ GridView::GridView() {
 }
 
 void GridView::setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons) {
-    brls::Logger::info("[GridView] setItems llamado, names.size()=%lu", (unsigned long)names.size());
+    brls::Logger::info("[GridView] setItems llamado, names.size()={}", names.size());
     this->itemNames = names;
     this->itemIcons = icons;
     reload();
@@ -25,7 +25,7 @@ void GridView::setOnItemSelect(ItemSelectCallback cb) {
 }
 
 void GridView::reload() {
-    brls::Logger::info("[GridView] reload llamado, itemNames.size()=%lu", (unsigned long)itemNames.size());
+    brls::Logger::info("[GridView] reload llamado, itemNames.size()={}", itemNames.size());
 
     // Limpiar vistas existentes
     this->clearViews();
@@ -54,7 +54,7 @@ void GridView::reload() {
 
         // Configurar acción de clic
         card->setClickAction([this, i]() {
-            brls::Logger::info("[GridView] Elemento seleccionado idx=%lu", (unsigned long)i);
+            brls::Logger::info("[GridView] Elemento seleccionado idx={}", i);
             if (onItemSelect) onItemSelect(i);
         });
 
@@ -70,11 +70,11 @@ void GridView::reload() {
         currentRowBox->addView(card);
         itemViews.push_back(card);
 
-    brls::Logger::info("[GridView] Elemento añadido: '%s' en fila %lu, columna %lu",
-              itemNames[i].c_str(), (unsigned long)currentRow, (unsigned long)((i % columns) + 1));
+    brls::Logger::info("[GridView] Elemento añadido: '{}' en fila {}, columna {}",
+              itemNames[i], currentRow, (i % columns) + 1);
     }
 
-    brls::Logger::info("[GridView] reload finalizado, %lu filas creadas", (unsigned long)currentRow);
+    brls::Logger::info("[GridView] reload finalizado, {} filas creadas", currentRow);
 }
 
 brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* currentView) {
