@@ -1,4 +1,5 @@
 #include "session/overlay/vita_stream_overlay_view.hpp"
+#include "audio/MicrophoneManager.hpp"
 #include <borealis.hpp>
 #include <cstdio>
 #include <cstring>
@@ -58,6 +59,15 @@ void VitaStreamOverlayView::draw(NVGcontext* vg, float x, float y, float width, 
     }
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "DroppedNet: %u Pacer: %u\n", (unsigned)cached.frames_dropped_network, (unsigned)cached.frames_dropped_pacer);
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "IDR: %u P: %u\n", (unsigned)cached.idr_count, (unsigned)cached.p_slice_count);
+    
+    // MICROPHONE LATENCY STATS
+    int mic_rtt = MicrophoneManager::getInstance().getRTT();
+    if (mic_rtt >= 0) {
+        off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Mic Latency: %d ms\n", mic_rtt);
+    } else if (MicrophoneManager::getInstance().isTransmitting()) {
+        off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Mic Latency: ...\n");
+    }
+
     off += snprintf(statsBuf+off, sizeof(statsBuf)-off, "Session(ms): %u\n", (unsigned)cached.session_ms);
     statsBuf[sizeof(statsBuf)-1] = '\0';
 
