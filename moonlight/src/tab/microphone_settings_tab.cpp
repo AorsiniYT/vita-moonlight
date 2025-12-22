@@ -215,3 +215,55 @@ std::string MicrophoneSettingsTab::getGainText(float gain) {
 brls::View* MicrophoneSettingsTab::create() {
     return new MicrophoneSettingsTab();
 }
+
+void MicrophoneSettingsTab::loadHostsAsync() {
+    // Capture aliveToken by value (shared_ptr copy)
+    std::shared_ptr<bool> token = this->aliveToken;
+    
+    std::thread([this, token]() {
+        // Heavy I/O work in background thread
+        std::vector<HostInfo> hosts = HostStorage::loadHosts();
+        
+        // Sort hosts alphabetically by name
+        std::sort(hosts.begin(), hosts.end(), [](const HostInfo& a, const HostInfo& b) {
+            return a.name < b.name;
+        });
+        
+        // Update UI on main thread
+        brls::sync([this, token, hosts]() {
+            // Check if tab is still alive
+            if (!(*token)) return;
+            
+            std::vector<std::string> hostNames;
+            
+            if (hosts.empty()) {
+                hostNames.push_back(brls::getStr("moonlight/microphone/no_hosts"));
+                // Update internal state safely
+                currentHostAddress = "";
+                currentHostPort = 48100;
+            } else {
+                for (const auto& host : hosts) {
+                    hostNames.push_back(host.name + " (" + host.ip + ")");
+                }
+                // Set first host as default (if nothing previously selected, or just overwrite)
+                 if (!hosts.empty()) {
+                    currentHostAddress = hosts[0].ip;
+                    currentHostPort = hosts[0].microphone_port;
+                }
+            }
+            
+            // Re-init the selector with real data
+            hostSelector->init(
+                brls::getStr("moonlight/microphone/host_selector_title"),
+                hostNames,
+                0,
+                [this, hosts](int selected) {
+                    if (!hosts.empty() && selected >= 0 && selected < (int)hosts.size()) {
+                        currentHostAddress = hosts[selected].ip;
+                        currentHostPort = hosts[selected].microphone_port;
+                    }
+                }
+            );
+        });
+    }).detach();
+}

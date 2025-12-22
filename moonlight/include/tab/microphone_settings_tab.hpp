@@ -35,6 +35,11 @@ private:
     std::chrono::steady_clock::time_point lastConnectionCheck;
     static constexpr int CONNECTION_CHECK_INTERVAL_MS = 500;  // Check every 500ms
     
+    // Async loading safety
+    std::shared_ptr<bool> aliveToken = std::make_shared<bool>(true);
+    void loadHostsAsync();
+
+    
     // Override frame to check connection status periodically
     void frame(brls::FrameContext* ctx) override {
         brls::Box::frame(ctx);
