@@ -47,7 +47,11 @@ inline uint32_t makeAnalogBinding(AnalogBinding binding) {
 ControllerInputManager* g_controllerInput = nullptr;
 
 // Constructor
-ControllerInputManager::ControllerInputManager() : inputEnabled(true), inputDropped(false), touchscreenMode(0), touchManager(nullptr), rearTouchManager(nullptr), pauseCallback(nullptr) {
+ControllerInputManager::ControllerInputManager() 
+    : inputEnabled(true), inputDropped(false), touchscreenMode(0), 
+      touchManager(nullptr), rearTouchManager(nullptr), pauseCallback(nullptr),
+      activeKeyboard(nullptr) {
+
     memset(&lastGamepadState, 0, sizeof(GamepadState));
     memset(&lastMouseState, 0, sizeof(VitaMouseState));
     memset(&lastCtrlData, 0, sizeof(SceCtrlData));
@@ -150,6 +154,24 @@ void ControllerInputManager::handleInput() {
 
     // Manejar táctil basado en modo
     touchManager->handleTouch(touchscreenMode);
+
+    // Keyboard Polling
+    if (activeKeyboard) {
+        static KeyboardState oldKeyboardState;
+        KeyboardState keyboardState = activeKeyboard->getKeyboardState();
+        
+        for (int i = 0; i < 256; ++i) {
+            if (keyboardState.keys[i] != oldKeyboardState.keys[i]) {
+                oldKeyboardState.keys[i] = keyboardState.keys[i];
+                LiSendKeyboardEvent(
+                    (short)i,
+                    keyboardState.keys[i] ? KEY_ACTION_DOWN : KEY_ACTION_UP,
+                    0);
+                vita_debug_log("[ControllerInput] Keyboard VK 0x%02X -> %s", 
+                    i, keyboardState.keys[i] ? "DOWN" : "UP");
+            }
+        }
+    }
 
     // Medir tiempo total de handleInput y loggear periódicamente para detectar bloqueos
     auto t_end = high_resolution_clock::now();

@@ -6,6 +6,8 @@
 #include <psp2/ctrl.h>
 #include "controller/TouchInput.hpp"
 #include "controller/RearTouchInput.hpp"
+#include "controller/keyboard/keyboard.hpp"
+#include "debug.hpp"
 #include "controller/GamepadState.hpp"
 #include "ConfigManager.hpp"
 
@@ -56,6 +58,13 @@ public:
     // Cambiar tipo de gamepad sin reiniciar sesión
     void setGamepadType(GamepadType type);
 
+    // Keyboard integration
+    void setActiveKeyboard(KeyboardOverlay* kb) { 
+        vita_debug_log("[ControllerInput] setActiveKeyboard: %p", kb);
+        activeKeyboard = kb; 
+    }
+    KeyboardOverlay* getActiveKeyboard() const { return activeKeyboard; }
+
 private:
     bool inputEnabled;
     bool inputDropped;
@@ -72,6 +81,9 @@ private:
 
     // Hotkey state
     std::function<void()> pauseCallback;
+
+    // Active keyboard for polling
+    KeyboardOverlay* activeKeyboard = nullptr;
 
     // Tipo de gamepad actual
     GamepadType currentGamepadType = GAMEPAD_TYPE_XBOX;

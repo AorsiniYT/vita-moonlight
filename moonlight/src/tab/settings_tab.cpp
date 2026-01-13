@@ -21,6 +21,7 @@
 #include "tab/rear_touch_settings_tab.hpp"
 #include "tab/trackpad_settings_tab.hpp"
 #include "tab/microphone_settings_tab.hpp"
+#include "tab/keyboard_settings_tab.hpp" // NUEVO
 #include "controller/ControllerInput.hpp"
 #include <cstdlib>
 #include <memory>
@@ -609,17 +610,18 @@ SettingsTab::SettingsTab()
         }
     });
 
-    // Configurar selector de layout de teclado
-    std::vector<std::string> keyboardLayouts = {"EN-US", "ES-ES", "ES-LATAM"};
-    keyboardLayoutSelector->init(brls::getStr("moonlight/settings_tab/keyboard_layout/title"), keyboardLayouts, videoSettings.keyboard_layout, [this](int selected) {
-        ConfigManager config;
-        config.load();
-        VideoSettings settings = config.getVideoSettings();
-        settings.keyboard_layout = selected;
-        config.setVideoSettings(settings);
-        config.save();
-        brls::Application::notify(brls::getStr("moonlight/settings_tab/keyboard_layout/saved"));
-    });
+    // NUEVO: Configure Keyboard button
+    if (keyboardConfigureCell) {
+        keyboardConfigureCell->setDetailText(brls::getStr("moonlight/keyboard/configure_detail"));
+        keyboardConfigureCell->registerClickAction([](brls::View*) {
+            auto* keyboardView = new KeyboardSettingsTab();
+            auto* frame = new brls::AppletFrame(keyboardView);
+            frame->setTitle(brls::getStr("moonlight/keyboard/title"));
+            auto* act = new brls::Activity(frame);
+            brls::Application::pushActivity(act);
+            return true;
+        });
+    }
     
     // Enable Microphone toggle
     microphoneToggle->init(
