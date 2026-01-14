@@ -27,6 +27,7 @@
 #include "utils/dialog_utils.h"
 #include <borealis/views/edit_text_dialog.hpp>
 #include <borealis/views/label.hpp>
+#include <borealis/views/applet_frame.hpp>
 
 #include <borealis/core/application.hpp>
 #include <borealis/core/logger.hpp>
@@ -214,7 +215,10 @@ void HostsTab::refreshHostsList() {
                         VITALOG("[Dropdown] Opción seleccionada: %d para host: %s\n", selected, host.name.c_str());
                         if (selected == 0) {
                             brls::sync([this, host]() {
-                                brls::Application::pushActivity(new brls::Activity(EditHostTab::create(host)));
+                                auto* editView = EditHostTab::create(host);
+                                auto* frame = new brls::AppletFrame(editView);
+                                frame->setTitle(brls::getStr("host_dialog/edit_host_title"));
+                                brls::Application::pushActivity(new brls::Activity(frame));
                             });
                         } else if (selected == 1) {
                             // Confirm delete with spinner and background removal to avoid UI jank
