@@ -223,6 +223,9 @@ int main(int argc, char* argv[])
     brls::Application::registerXMLView("HostsTab", HostsTab::create);
 
 #if defined(__PSV__)
+    // CapUnlocker deshabilitado: evitamos el cambio de afinidad/prioridad y cualquier comportamiento
+    // que dependa de módulos externos para ampliar límites (reduce consumo/fragmentación de RAM).
+    /*
     int search_unk[2];
     if(_vshKernelSearchModuleByName("CapUnlocker", search_unk) >= 0) {
         brls::Logger::info("[CapUnlocker] ¡CapUnlocker detectado por _vshKernelSearchModuleByName!");
@@ -235,6 +238,7 @@ int main(int argc, char* argv[])
     } else {
         brls::Logger::info("[CapUnlocker] CapUnlocker NO detectado. Solo 1-2 núcleos y RAM limitada disponibles.");
     }
+    */
 #endif
 
     // El estilo visual de los labels de "about" (fuente y color) se aplica en el controlador de la vista correspondiente
