@@ -4,8 +4,8 @@
 #include <functional>
 #include <borealis.hpp>
 
-// GridView mejorado para Moonlight PSVita/Windows
-// Inspirado en Moonlight-Switch, con navegación por foco y columnas limitadas
+// Improved GridView for Moonlight PSVita/Windows
+// Moonlight-Switch inspired, with focus navigation and limited columns
 
 class GridView : public brls::Box {
 public:
@@ -16,16 +16,16 @@ public:
     // Factory para XMLView
     static brls::View* create() { return new GridView(); }
 
-    // Configura los elementos a mostrar (nombre, icono opcional)
+    // Configure the elements to display (name, optional icon)
     void setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons = {});
 
-    // Callback cuando se selecciona un elemento
+    // Callback when an item is selected
     void setOnItemSelect(ItemSelectCallback cb);
 
-    // Configurar número de columnas
+    // Set number of columns
     void setColumns(int cols) { this->columns = cols; }
 
-    // Navegación por foco mejorada
+    // Improved focus navigation
     brls::View* getNextFocus(brls::FocusDirection direction, brls::View* currentView) override;
 
 private:

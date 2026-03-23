@@ -20,7 +20,7 @@ inline float clamp01(float value) {
 }
 
 RearTouchInputManager::RearTouchInputManager() {
-    // Valores por defecto
+    // Default values
     updateSettings(currentSettings);
     setEnabled(true);
 }

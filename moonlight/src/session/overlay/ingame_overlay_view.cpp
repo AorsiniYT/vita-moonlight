@@ -5,8 +5,8 @@
 
 IngameOverlayView::IngameOverlayView(VitaSession* session)
 : m_session(session) {
-    // TabFrame no tiene título interno como AppletFrame; podemos mostrar un notify inicial si se desea
-    // Agregar tabs usando lambdas
+    // TabFrame has no internal title like AppletFrame; we can show an initial notify if desired
+    // Add tabs using lambdas
     this->addTab("Sesión", [this]() -> brls::View* {
         auto box = new brls::Box();
         box->setAxis(brls::Axis::COLUMN);
@@ -20,7 +20,7 @@ IngameOverlayView::IngameOverlayView(VitaSession* session)
             if (m_session) m_session->stop(true);
             brls::Application::notify("Sesión terminada");
             brls::Application::popActivity(); // overlay
-            brls::Application::popActivity(); // vista sesión
+            brls::Application::popActivity(); // session view
             return true;
         });
         box->addView(disconnect);
@@ -47,7 +47,7 @@ IngameOverlayView::IngameOverlayView(VitaSession* session)
         box->addView(bitrate);
         return box;
     });
-    // Acción cerrar con START
+    // Action close with START
     this->registerAction("Cerrar", brls::ControllerButton::BUTTON_START, [this](brls::View*) {
         brls::Application::popActivity();
         return true;

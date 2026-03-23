@@ -6,7 +6,7 @@
 #include <string>
 #include <cstdint>
 
-// Clase dummy para foco sin indicador visual
+// Dummy class for focus without visual indicator
 class FocusDummy : public brls::View {
 public:
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
@@ -14,31 +14,31 @@ public:
     void drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx);
 };
 
-// Clase base para overlays reutilizables
+// Base class for reusable overlays
 class BaseOverlay : public brls::Box {
 public:
     BaseOverlay();
     ~BaseOverlay() override;
 
-    // Configurar botones
+    // Configure buttons
     void setButtons(const std::vector<std::string>& labels);
 
-    // Navegación
+    // Navigation
     void moveFocus(int delta);
     void activateFocused(int index = -1);
 
-    // Callback para cuando se activa un botón
+    // Callback for when a button is activated
     void setActivateCallback(std::function<void(int index)> callback);
 
-    // Configurar header y footer opcionales
+    // Configure optional header and footer
     void setHeaderText(const std::string& text);
     void setFooterText(const std::string& text);
 
-    // Configurar posición y tamaño del panel
+    // Configure panel position and size
     void setPanelPosition(float x, float y);
     void setPanelSize(float w, float h);
 
-    // Configurar transparencia del panel (0.0 = transparente, 1.0 = opaco)
+    // Set panel transparency (0.0 = transparent, 1.0 = opaque)
     void setPanelAlpha(float alpha);
 
     // Dibujo
@@ -50,13 +50,13 @@ public:
     bool isTranslucent() override { return true; }
 
 protected:
-    // Dimensiones del panel
+    // Panel dimensions
     float panelW = 480.0f;
     float panelH = 544.0f;
-    float panelX = 800.0f; // Posición X del panel
+    float panelX = 800.0f; // Panel X Position
     float panelY = 0.0f;
 
-    // Dimensiones de botones
+    // Button dimensions
     float btnW = 424.0f;
     float btnH = 56.0f;
     float btnXOffset = 28.0f;

@@ -13,10 +13,10 @@ public:
     void setEnabled(bool enabled);
     bool isEnabled() const { return enabled; }
 
-    // Procesa el panel trasero y actualiza el estado del gamepad
+    // Process the back panel and update the gamepad status
     void process(GamepadState& state, bool isPstvModel);
 
-    // Resetea cualquier estado interno
+    // Reset any internal state
     void dropState();
 
     const RearTouchSettings& getSettings() const { return currentSettings; }

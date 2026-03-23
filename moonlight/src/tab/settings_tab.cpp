@@ -59,7 +59,7 @@ SettingsTab::SettingsTab()
     // Inflate the tab from the XML file
     this->inflateFromXMLRes("xml/tabs/settings.xml");
 
-    // Cargar configuración actual
+    // Load current configuration
     ConfigManager config;
     config.load();
     StreamConfiguration streamConfig = config.getStreamConfig();
@@ -70,14 +70,14 @@ SettingsTab::SettingsTab()
         config.save();
     }
 
-    // Inicializar flag global para debug logs
+    // Initialize global flag for debug logs
     extern bool g_debug_log_enabled;
     g_debug_log_enabled = videoSettings.save_debug_log;
 
-    // Inicializar optimizaciones de red
+    // Initialize network optimizations
     vita_netopt_set_enabled(videoSettings.enable_network_optimizations ? 1 : 0);
 
-    // Selector de modo de render (Direct GXM eliminado): 0=Legacy, 1=FFmpeg (futuro)
+    // Render mode selector (Direct GXM removed): 0=Legacy, 1=FFmpeg (future)
     std::vector<std::string> renderModes;
     renderModes.push_back(brls::getStr("moonlight/settings_tab/render_mode/legacy_option"));
 #ifdef BUILD_FFMPEG
@@ -104,7 +104,7 @@ SettingsTab::SettingsTab()
     };
 
     int initialRenderMode = videoSettings.render_mode;
-    if (initialRenderMode < 0 || initialRenderMode >= (int)renderModes.size()) initialRenderMode = 0; // clamp si config tiene valor desconocido
+    if (initialRenderMode < 0 || initialRenderMode >= (int)renderModes.size()) initialRenderMode = 0; // clamp if config has unknown value
     // Shared container to keep the mapping from visible selector indices to original vitaResolutions
     auto filteredIndicesPtr = std::make_shared<std::vector<int>>();
     renderModeSelector->init(brls::getStr("moonlight/settings_tab/render_mode/title"), renderModes, initialRenderMode, [this, updatePixelSelectorVisibility, filteredIndicesPtr, streamConfig](int selected) {
@@ -123,7 +123,7 @@ SettingsTab::SettingsTab()
         }
         config.setVideoSettings(settings);
         config.save();
-        // Actualizar cache atómico sin relectura posterior
+        // Update atomic cache without subsequent re-reading
         set_render_mode_cached(chosen);
         updatePixelSelectorVisibility(chosen, true);
         // Also update available resolution options depending on render mode
@@ -210,7 +210,7 @@ SettingsTab::SettingsTab()
             brls::getStr(modeNameKey)));
     });
 
-    // Selector de formato de pixel (para pruebas RGBA vs YUV)
+    // Pixel format selector (for RGBA vs YUV tests)
     std::vector<std::string> pixelFormats = {
         brls::getStr("moonlight/settings_tab/pixel_format/rgba"),
         brls::getStr("moonlight/settings_tab/pixel_format/yuv")
@@ -228,7 +228,7 @@ SettingsTab::SettingsTab()
     });
     updatePixelSelectorVisibility(initialRenderMode, false);
 
-    // Configurar selectores de resolución con valores permitidos para PS Vita
+    // Set resolution selectors with allowed values ​​for PS Vita
     std::vector<std::string> resolutions = {
         brls::getStr("moonlight/settings_tab/resolution/options/0"),  // Auto (host current)
         brls::getStr("moonlight/settings_tab/resolution/options/1"),  // 960x544 recommended
@@ -241,7 +241,7 @@ SettingsTab::SettingsTab()
         brls::getStr("moonlight/settings_tab/resolution/options/8")   // 1920x1080
     };
     
-    // Resoluciones permitidas para PS Vita / HOST control
+    // Resolutions allowed for PS Vita / HOST control
     std::vector<std::pair<int, int>> vitaResolutions = {
         {0, 0},       // Auto (host keeps current resolution)
         {960, 544},   // Vita native (recommended for best quality)
@@ -312,7 +312,7 @@ SettingsTab::SettingsTab()
             int origIndex = (*filteredIndicesPtr)[selected];
             streamConfig.width = vitaResolutions[origIndex].first;
             streamConfig.height = vitaResolutions[origIndex].second;
-            // Aplicar validación de PS Vita
+            // Apply PS Vita validation
             streamConfig.validateAndAdjustResolution();
         }
 
@@ -321,7 +321,7 @@ SettingsTab::SettingsTab()
         brls::Application::notify(brls::getStr("moonlight/settings_tab/resolution/saved"));
     });
 
-    // Configurar selector de FPS con valores del legacy
+    // Configure FPS selector with legacy values
     std::vector<std::string> fpsOptions = {
         brls::getStr("moonlight/settings_tab/fps/options/0"),
         brls::getStr("moonlight/settings_tab/fps/options/1"),
@@ -329,7 +329,7 @@ SettingsTab::SettingsTab()
         brls::getStr("moonlight/settings_tab/fps/options/3"),
         brls::getStr("moonlight/settings_tab/fps/options/4")
     };
-    int currentFps = 4; // Default 60 FPS (índice 4)
+    int currentFps = 4; // Default 60 FPS (index 4)
     if (streamConfig.fps == 24) currentFps = 0;
     else if (streamConfig.fps == 30) currentFps = 1;
     else if (streamConfig.fps == 40) currentFps = 2;
@@ -342,7 +342,7 @@ SettingsTab::SettingsTab()
         
         switch (selected) {
             case 0: streamConfig.fps = 24; break; // Cine
-            case 1: streamConfig.fps = 30; break; // Estándar
+            case 1: streamConfig.fps = 30; break; // Standard
             case 2: streamConfig.fps = 40; break;
             case 3: streamConfig.fps = 50; break; // PAL
             case 4: streamConfig.fps = 60; break; // NTSC
@@ -352,7 +352,7 @@ SettingsTab::SettingsTab()
         brls::Application::notify(brls::getStr("moonlight/settings_tab/fps/saved"));
     });
 
-    // Configurar selector de bitrate con valores apropiados para PS Vita
+    // Configure bitrate selector with appropriate values ​​for PS Vita
     std::vector<std::string> bitrateOptions = {
         brls::getStr("moonlight/settings_tab/bitrate/options/0"),
         brls::getStr("moonlight/settings_tab/bitrate/options/1"),
@@ -365,7 +365,7 @@ SettingsTab::SettingsTab()
         brls::getStr("moonlight/settings_tab/bitrate/options/8")
     };
     
-    int currentBitrate = 0; // Auto por defecto
+    int currentBitrate = 0; // Auto by default
     if (streamConfig.bitrate == 2000) currentBitrate = 1;
     else if (streamConfig.bitrate == 5000) currentBitrate = 2;
     else if (streamConfig.bitrate == 8000) currentBitrate = 3;
@@ -418,7 +418,7 @@ SettingsTab::SettingsTab()
     });
     */
 
-    // Toggle para optimizaciones de red (IDR smart, pacing, etc.)
+    // Toggle for network optimizations (IDR smart, pacing, etc.)
     networkOptimizationsToggle->init(brls::getStr("moonlight/settings_tab/network_opt_title"), videoSettings.enable_network_optimizations, [this](bool value) {
         ConfigManager config;
         config.load();
@@ -426,7 +426,7 @@ SettingsTab::SettingsTab()
         settings.enable_network_optimizations = value;
         config.setVideoSettings(settings);
         config.save();
-        // Aplicar inmediatamente
+        // Apply immediately
         vita_netopt_set_enabled(value ? 1 : 0);
         brls::Application::notify(brls::getStr(value ? "moonlight/settings_tab/network_opt_enabled" : "moonlight/settings_tab/network_opt_disabled"));
     });
@@ -449,7 +449,7 @@ SettingsTab::SettingsTab()
         config.save();
     });
 
-    // Low Latency eliminado: toggle suprimido
+    // Low Latency removed: toggle removed
 
     framePacerToggle->init(brls::getStr("moonlight/settings_tab/frame_pacer_title"), videoSettings.enable_frame_pacer, [this](bool value) {
         ConfigManager config;
@@ -476,7 +476,7 @@ SettingsTab::SettingsTab()
         settings.show_fps = value;
         config.setVideoSettings(settings);
         config.save();
-        // Actualizar snapshot global para cambios inmediatos
+        // Update global snapshot for immediate changes
         extern VideoSettings g_video_settings_snapshot;
         g_video_settings_snapshot.show_fps = value;
     });
@@ -488,7 +488,7 @@ SettingsTab::SettingsTab()
         settings.save_debug_log = value;
         config.setVideoSettings(settings);
         config.save();
-        // Actualizar flag global para debug logs
+        // Update global flag for debug logs
         extern bool g_debug_log_enabled;
         g_debug_log_enabled = value;
     });
@@ -562,7 +562,7 @@ SettingsTab::SettingsTab()
         });
     }
 
-    // Configurar selector de modo touchscreen
+    // Configure touchscreen mode selector
     std::vector<std::string> touchscreenModes = {
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/0"),
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/1"),
@@ -571,14 +571,14 @@ SettingsTab::SettingsTab()
         brls::getStr("moonlight/settings_tab/touchscreen_mode/options/4")
     };
     touchscreenModeSelector->init(brls::getStr("moonlight/settings_tab/touchscreen_mode/title"), touchscreenModes, videoSettings.touchscreen_mode, [this, touchscreenModes](int selected) {
-        // Cambiar modo touch en tiempo de ejecución (igual que gamepad type)
+        // Change touch mode at runtime (same as gamepad type)
         if (g_controllerInput && g_controllerInput->setTouchscreenModeRuntime(selected)) {
-            // Éxito: mostrar notificación con el modo seleccionado
+            // Success: Show notification with mode selected
             std::string message = brls::getStr("moonlight/settings_tab/touchscreen_mode/changed") + 
                                   " " + touchscreenModes.at(selected);
             brls::Application::notify(message);
         } else {
-            // Error: mostrar notificación de incompatibilidad
+            // Error: show incompatibility notification
             if (selected == 2) { // TOUCHSCREEN_MODE_DS4_TOUCHPAD
                 brls::Application::notify("⚠ DS4 Touchpad solo compatible con PlayStation");
             } else {
@@ -587,7 +587,7 @@ SettingsTab::SettingsTab()
         }
     });
 
-    // Configurar selector de tipo de gamepad (Xbox vs PS4)
+    // Configure gamepad type selector (Xbox vs PS4)
     std::vector<std::string> gamepadTypes = {
         brls::getStr("moonlight/settings_tab/gamepad_type/options/xbox"),
         brls::getStr("moonlight/settings_tab/gamepad_type/options/ps4")
@@ -601,7 +601,7 @@ SettingsTab::SettingsTab()
         config.setVideoSettings(settings);
         config.save();
         
-        // Cambiar tipo de gamepad en vivo sin reiniciar sesión
+        // Change gamepad type live without restarting session
         if (g_controllerInput) {
             g_controllerInput->setGamepadType(newType);
             std::string message = brls::getStr("moonlight/settings_tab/gamepad_type/notify_prefix") + 
@@ -658,7 +658,7 @@ SettingsTab::SettingsTab()
         return true;
     });
 
-    // Configurar opciones del sistema (originales)
+    // Configure system options (original)
     radio->title->setText("Radio cell");
     radio->setSelected(radioSelected);
     radio->registerClickAction([this](brls::View* view) {
@@ -744,12 +744,12 @@ SettingsTab::SettingsTab()
         return true;
     });
 
-    // Idiomas disponibles
+    // Available languages
     std::vector<std::string> languages = {
         brls::getStr("moonlight/settings_tab/languages/es"),
         brls::getStr("moonlight/settings_tab/languages/en")
     };
-    int currentLang = 1; // 0: es, 1: en-US
+    int currentLang = 1; // 0: is, 1: en-US
     std::string currentLocale = brls::Application::getLocale();
     if (currentLocale == "es" || currentLocale == "es-ES") currentLang = 0;
     languageSelector->init(brls::getStr("moonlight/settings/language"), languages, currentLang, [this](int selected) {
@@ -762,10 +762,10 @@ SettingsTab::SettingsTab()
         setenv("BOREALIS_LANG", locale.c_str(), 1);
 #endif
         
-        // Recargar traducciones
+        // Reload translations
         brls::loadTranslations();
         
-        // Crear directorio si no existe
+        // Create directory if it does not exist
         std::string configPath = ConfigManager::getConfigPath();
         size_t pos = configPath.find_last_of("/\\");
         if (pos != std::string::npos) {
@@ -777,7 +777,7 @@ SettingsTab::SettingsTab()
 #endif
         }
         
-        // Guardar el idioma seleccionado directamente
+        // Save the selected language directly
         ConfigManager config;
         config.set("general", "language", locale);
         config.save();

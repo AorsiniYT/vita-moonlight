@@ -38,12 +38,12 @@ public:
     }
     
     uint32_t getDecoderPixelFormat() const override {
-        // El decoder debe producir RGBA directamente en hardware
+        // The decoder must produce RGBA directly in hardware
         return SCE_AVCDEC_PIXELFORMAT_RGBA8888;
     }
     
     uint8_t* getDecodeTarget(void* frontBuffer, void* backBuffer) override {
-        // Decodificar directamente en el back buffer de la textura
+        // Decode directly into the texture back buffer
         vita2d_texture* backTex = static_cast<vita2d_texture*>(backBuffer);
         if (backTex) {
             return static_cast<uint8_t*>(vita2d_texture_get_datap(backTex));
@@ -52,13 +52,13 @@ public:
     }
     
     int postProcess(uint8_t* decodedBuffer, void* outputTexture) override {
-        // Para RGBA directo no hay post-procesamiento necesario
-        // El decoder ya escribió directamente en la textura
+        // For direct RGBA there is no post-processing necessary
+        // The decoder already wrote directly to the texture
         return 0;
     }
     
     void cleanup() override {
-        // Nada que limpiar, las texturas se manejan externamente
+        // Nothing to clean, textures are handled externally
     }
     
     const char* getName() const override {
@@ -66,7 +66,7 @@ public:
     }
     
     bool requiresStagingBuffer() const override {
-        // No requiere staging, escribe directo a textura
+        // Does not require staging, writes directly to texture
         return false;
     }
 };

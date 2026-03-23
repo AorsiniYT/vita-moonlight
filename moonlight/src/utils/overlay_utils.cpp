@@ -5,9 +5,9 @@
 BaseOverlay::BaseOverlay() {
     this->setFocusable(true);
     this->setHideHighlight(true);
-    // No establecer background color para mantener transparencia
+    // Do not set background color to maintain transparency
 
-    // Crear focusDummy
+    // Create focusDummy
     focusDummy = new FocusDummy();
     focusDummy->setFocusable(true);
     focusDummy->setWidth(1);
@@ -15,7 +15,7 @@ BaseOverlay::BaseOverlay() {
     focusDummy->setHideHighlight(true);
     this->addView(focusDummy);
 
-    // Registrar acciones en focusDummy
+    // Register actions in focusDummy
     if (focusDummy) {
         focusDummy->registerAction("", brls::BUTTON_NAV_UP, [this](brls::View*) {
             this->moveFocus(-1);
@@ -30,31 +30,31 @@ BaseOverlay::BaseOverlay() {
             return true;
         });
         focusDummy->registerAction(brls::getStr("global/back"), brls::BUTTON_B, [this](brls::View*) {
-            // Por defecto, activar como si fuera resume (índice 0)
+            // By default, activate as if it were resume (index 0)
             if (activateCallback) activateCallback(0);
             return true;
         });
         focusDummy->registerAction("Cerrar", brls::BUTTON_START, [this](brls::View*) {
-            // Por defecto, activar como si fuera resume
+            // By default, activate as if it were resume
             if (activateCallback) activateCallback(0);
             return true;
         });
     }
 
-    // Agregar gesture recognizer para toques táctiles en botones
+    // Add gesture recognizer for haptic touches on buttons
     brls::TapGestureRecognizer* tapRecognizer = new brls::TapGestureRecognizer([this](brls::TapGestureStatus status, brls::Sound* sound) {
         if (status.state == brls::GestureState::END) {
             float tapX = status.position.x;
             float tapY = status.position.y;
-            // Verificar si el tap está dentro del panel
+            // Check if the tap is inside the panel
             if (tapX >= this->panelX && tapX <= this->panelX + this->panelW &&
                 tapY >= this->panelY && tapY <= this->panelY + this->panelH) {
-                // Calcular en qué botón cayó el tap
+                // Calculate which button the tap landed on
                 float btnStartY = this->panelY + this->btnYStart;
                 for (size_t i = 0; i < this->buttonLabels.size(); ++i) {
                     float btnY = btnStartY + i * (this->btnH + this->btnMargin);
                     if (tapY >= btnY && tapY <= btnY + this->btnH) {
-                        // Activar el botón correspondiente
+                        // Activate the corresponding button
                         this->activateFocused(i);
                         break;
                     }
@@ -64,12 +64,12 @@ BaseOverlay::BaseOverlay() {
     });
     this->addGestureRecognizer(tapRecognizer);
 
-    // No usar brls::sync aquí - focusDummy puede no ser válido más tarde
-    // Dejar que willAppear() maneje el foco inicial
+    // Don't use brls::sync here - focusDummy may not be valid later
+    // Let willAppear() handle initial focus
 }
 
 BaseOverlay::~BaseOverlay() {
-    // focusDummy se elimina automáticamente por ser hijo
+    // focusDummy is automatically removed because it is a child
 }
 
 void BaseOverlay::setButtons(const std::vector<std::string>& labels) {
@@ -123,7 +123,7 @@ void BaseOverlay::willAppear(bool resetState) {
     Box::willAppear(resetState);
     focusedIndex = 0;
     
-    // Dar foco seguramente si focusDummy existe
+    // Give focus surely if focusDummy exists
     if (focusDummy) {
         brls::Application::giveFocus(focusDummy);
     }
@@ -140,7 +140,7 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     nvgFillColor(vg, bgColor);
     nvgFill(vg);
 
-    // Dibujar header si está configurado
+    // Draw header if configured
     if (!headerText.empty()) {
         nvgFontSize(vg, 28.0f);
         nvgFontFaceId(vg, 0);
@@ -148,21 +148,21 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
         nvgText(vg, panelX + btnXOffset, panelY + 50.0f, headerText.c_str(), nullptr);
     }
 
-    // Dibujar botones
+    // Draw buttons
     float btnY = panelY + btnYStart;
     nvgFontSize(vg, 22.0f);
-    nvgFontFaceId(vg, 0); // Usar font ID como en test
+    nvgFontFaceId(vg, 0); // Use font ID as in test
     for (size_t i = 0; i < buttonLabels.size(); ++i) {
         float btnX = panelX + btnXOffset;
 
-        // Fondo del botón
+        // button background
         nvgBeginPath(vg);
         nvgRoundedRect(vg, btnX, btnY, btnW, btnH, 10.0f);
         NVGcolor bgColor = (i == (size_t)focusedIndex) ? btnBgColorFocused : btnBgColorNormal;
         nvgFillColor(vg, bgColor);
         nvgFill(vg);
 
-        // Borde tenue para todos
+        // Embroider tenue for everyone
         nvgStrokeColor(vg, borderColor);
         nvgStrokeWidth(vg, 1.5f);
         nvgStroke(vg);
@@ -174,11 +174,11 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
         btnY += btnH + btnMargin;
     }
 
-    // Dibujar footer si está configurado
+    // Draw footer if configured
     if (!footerText.empty()) {
         nvgFontSize(vg, 18.0f);
         nvgFontFaceId(vg, 0);
-        nvgFillColor(vg, nvgRGBA(200, 200, 200, 255)); // Color más tenue para footer
+        nvgFillColor(vg, nvgRGBA(200, 200, 200, 255)); // Softer color for footer
         nvgText(vg, panelX + btnXOffset, btnY + 20.0f, footerText.c_str(), nullptr);
     }
 
@@ -187,21 +187,21 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     uint64_t now_ms = duration_cast<milliseconds>(t_end.time_since_epoch()).count();
     if (now_ms - this->lastDrawLogMs > 500) {
         this->lastDrawLogMs = now_ms;
-        // Opcional: log draw time, pero por ahora silencioso
+        // Optional: log draw time, but silent for now
     }
 
-    // Dibujar hijos
+    // Draw children
     Box::draw(vg, x, y, width, height, style, ctx);
 }
 
 void BaseOverlay::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
-    // No dibujar el foco por defecto de Borealis
+    // Do not draw the default focus of Borealis
 }
 
 void FocusDummy::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
-    // No dibujar nada
+    // Don't draw anything
 }
 
 void FocusDummy::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
-    // No dibujar foco
+    // Don't draw focus
 }

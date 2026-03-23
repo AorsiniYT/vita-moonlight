@@ -221,7 +221,7 @@ static void _generate_cert(mbedtls_x509write_cert* cert,
                                        "20300101000000");
     mbedtls_x509write_crt_set_serial(cert, &serial);
 
-    // Extensiones X.509 deshabilitadas para máxima compatibilidad (Legacy style)
+    // X.509 extensions disabled for maximum compatibility (Legacy style)
     // mbedtls_x509write_crt_set_key_usage(cert, MBEDTLS_X509_KU_DIGITAL_SIGNATURE | MBEDTLS_X509_KU_KEY_ENCIPHERMENT);
     // mbedtls_x509write_crt_set_basic_constraints(cert, 0, -1);
 
@@ -263,7 +263,7 @@ static bool _generate_new_cert_key_pair(const std::string& keyDir) {
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
     
-    // Guardar archivos de certificado y clave
+    // Save certificate and key files
     m_cert.write_to_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
     m_key.write_to_file(keyDir + "/" + KEY_FILE_NAME);
     

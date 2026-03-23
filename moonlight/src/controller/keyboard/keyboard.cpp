@@ -3,10 +3,10 @@
 #include <sstream>
 #include <iostream>
 #include <sys/stat.h>
-// Limelight API para envío de teclado
+// Limelight API for keyboard submission
 #include "Limelight.h"
 
-// Mapeos char -> VK
+// Char mappings -> VK
 #include "keyboardkeys.hpp"
 #include <cwchar>
 #include <algorithm>
@@ -24,18 +24,18 @@ KeyboardOverlay::KeyboardOverlay(const std::string& cssPath)
     // Initialize key states
     memset(keyStates, 0, sizeof(keyStates));
 
-    // Valores por defecto neutrales; `willAppear()` ajusta el panel
-    // al ancho/pantalla y posición en tiempo de aparición.
+    // Neutral default values; `willAppear()` wraps the panel
+    // to width/screen and position at appearance time.
     panelW = 0.0f;
     panelH = 240.0f;
     panelX = 0.0f;
     panelY = 0.0f;
     loadCss(cssPath);
-    // Inicializar layout por defecto
+    // Initialize default layout
     initDefaultLayout();
 
-    // Registrar recognizer para taps que mapee a la rejilla de teclas
-    // Tap gesture para detectar teclas en grid
+    // Register recognizer for taps that maps to the key grid
+    // Tap gesture to detect keys in grid
     this->addGestureRecognizer(new brls::TapGestureRecognizer([this](brls::TapGestureStatus status, brls::Sound* sound) {
         if (status.state == brls::GestureState::END) {
             float tapX = status.position.x;
@@ -44,7 +44,7 @@ KeyboardOverlay::KeyboardOverlay(const std::string& cssPath)
             brls::Logger::info("[KeyboardOverlay] Tap detected at X={}, Y={}", tapX, tapY);
             brls::Logger::info("[KeyboardOverlay] Panel rect: X={}, Y={}, W={}, H={}", panelX, panelY, panelW, panelH);
 
-            // Calcular base Y
+            // Calculate base Y
             float startY = this->panelY + this->btnYStart;
             for (size_t row = 0; row < keyRows.size(); ++row) {
                 float rowY = startY + row * (this->btnH + this->btnMargin);
@@ -60,7 +60,7 @@ KeyboardOverlay::KeyboardOverlay(const std::string& cssPath)
                     for (size_t c = 0; c < colsCount; ++c) {
                         float keyX = startX + c * (this->btnW + this->btnMargin);
                         if (tapX >= keyX && tapX <= keyX + this->btnW) {
-                            // Activar tecla
+                            // Activate key
                             brls::Logger::info("[KeyboardOverlay] Hit key: {}", cols[c]);
                             this->sendKeyByLabel(cols[c]);
                             return;
@@ -137,7 +137,7 @@ void KeyboardOverlay::hide() {
 void KeyboardOverlay::willAppear(bool resetState) {
     BaseOverlay::willAppear(resetState);
     if (!loaded) return;
-    // Aplicar algunas propiedades básicas si están definidas
+    // Apply some basic properties if they are defined
     auto it = properties.find("transparent");
     if (it != properties.end()) {
         std::string v = it->second;
@@ -163,26 +163,26 @@ void KeyboardOverlay::willAppear(bool resetState) {
     }
     it = properties.find("background-image");
     if (it != properties.end() && !it->second.empty()) {
-        // Not implemented: cargar imagen de fondo para el keyboard overlay.
-        // Placeholder: simplemente loguear.
+        // Not implemented: load background image for keyboard overlay.
+        // Placeholder: simply log in.
         brls::Logger::info("[KeyboardOverlay] background-image specified: {}", it->second);
     }
 
-    // Ajustar panel para que ocupe todo el ancho y quede en la parte inferior
+    // Adjust panel so that it fills the entire width and is at the bottom
     try {
         float screenW = (float)this->getWidth();
         float screenH = (float)this->getHeight();
-        // Si el CSS especifica panel-height, usarlo
+        // If the CSS specifies panel-height, use it
         auto pit = properties.find("panel-height");
         if (pit != properties.end()) {
             try { panelH = std::stof(pit->second); } catch(...) {}
         }
         panelW = screenW;
         panelX = 0.0f;
-        // Colocar en la parte inferior
+        // Place at the bottom
         panelY = std::max(0.0f, screenH - panelH);
 
-        // Recalcular btnW para que las teclas llenen el ancho disponible
+        // Recalculate btnW so that keys fill available width
         size_t maxCols = 0;
         for (auto &r : keyRows) if (r.size() > maxCols) maxCols = r.size();
         if (maxCols > 0) {
@@ -191,7 +191,7 @@ void KeyboardOverlay::willAppear(bool resetState) {
             if (computedBtnW > 8.0f) btnW = computedBtnW;
         }
 
-        // Ajustar btnYStart para empezar con algo de padding dentro del panel
+        // Set btnYStart to start some padding inside the panel
         btnYStart = 12.0f;
     } catch(...) {}
 }
@@ -199,16 +199,16 @@ void KeyboardOverlay::willAppear(bool resetState) {
 // Inicializa un layout QWERTY simple
 void KeyboardOverlay::initDefaultLayout() {
     keyRows.clear();
-    // Layout QWERTY en minúsculas, segunda fila con 'ñ'
+    // Lowercase QWERTY layout, second row with 'n tilde'
     keyRows.push_back({"q","w","e","r","t","y","u","i","o","p"});
     keyRows.push_back({"a","s","d","f","g","h","j","k","l","ñ"});
     keyRows.push_back({"z","x","c","v","b","n","m"});
-    // Fila de funciones (Shift, espacio, enter, borrar, cerrar)
+    // Function row (Shift, space, enter, delete, close)
     keyRows.push_back({"Shift","Space","Enter","Backspace","Close"});
 }
 
-// Enviar key event según label
-// Enviar key event según label
+// Send key event according to label
+// Send key event according to label
 void KeyboardOverlay::sendKeyByLabel(const std::string& label) {
     if (label == "Close") {
         // Pop activity to close the keyboard overlay properly
@@ -217,7 +217,7 @@ void KeyboardOverlay::sendKeyByLabel(const std::string& label) {
     }
 
     if (label == "Shift") {
-        // Toggle persistent shift (mayúsculas)
+        // Toggle persistent shift (uppercase)
         this->shiftActive = !this->shiftActive;
         // Update Shift VK state for polling
         keyStates[0x10] = this->shiftActive;
@@ -244,21 +244,21 @@ void KeyboardOverlay::sendKeyByLabel(const std::string& label) {
         return;
     }
 
-    // Letras y símbolos de 1 carácter
+    // 1 character letters and symbols
     if (label.size() == 1) {
         wchar_t wch = 0;
         // Support ASCII basic
         unsigned char c = label[0];
         wch = (wchar_t)c;
 
-        // Buscar en el diccionario EN_US por defecto
+        // Search in the default EN_US dictionary
         int count = 0;
         const CharVKMap* dict = get_char_vk_dict(KB_LAYOUT_EN_US, &count);
         if (!dict || count == 0) return;
 
         const CharVKMap* found = nullptr;
 
-        // Si Shift está activo, intentar buscar la mayúscula primero
+        // If Shift is active, try to find the capital letter first
         if (this->shiftActive) {
             wchar_t up = (wchar_t)std::toupper((unsigned char)c);
             for (int i = 0; i < count; ++i) {
@@ -266,14 +266,14 @@ void KeyboardOverlay::sendKeyByLabel(const std::string& label) {
             }
         }
 
-        // Si no se encontró (o Shift no estaba activo), buscar por el carácter actual
+        // If not found (or Shift was not active), search by current character
         if (!found) {
             for (int i = 0; i < count; ++i) {
                 if (dict[i].ch == wch) { found = &dict[i]; break; }
             }
         }
 
-        // Intentar la alternativa de mayúscula/minúscula si no encontrado
+        // Try uppercase/lowercase alternative if not found
         if (!found) {
             if (isalpha(c)) {
                 wchar_t alt = isupper(c) ? towlower(c) : towupper(c);
@@ -309,15 +309,15 @@ void KeyboardOverlay::sendKeyByLabel(const std::string& label) {
     }
 }
 
-// Dibujado custom: grid de teclas
+// Custom drawn: key grid
 void KeyboardOverlay::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
-    // Llamar al draw base para fondo/header/footer
-    // Evitar que el BaseOverlay dibuje botones (no usamos buttonLabels)
+    // Call base draw for background/header/footer
+    // Prevent BaseOverlay from drawing buttons (we don't use buttonLabels)
     BaseOverlay::draw(vg, x, y, width, height, style, ctx);
 
     if (keyRows.empty()) return;
 
-    // Dibujar cada tecla
+    // Draw each key
     nvgFontSize(vg, 20.0f);
     nvgFontFaceId(vg, 0);
     float startY = this->panelY + this->btnYStart;
@@ -340,17 +340,17 @@ void KeyboardOverlay::draw(NVGcontext* vg, float x, float y, float width, float 
             nvgStrokeColor(vg, nvgRGBA(80, 80, 80, 255));
             nvgStrokeWidth(vg, 1.0f);
             nvgStroke(vg);
-            // Texto centrado
+            // Centered text
             nvgFillColor(vg, nvgRGBA(220,220,220,255));
             const std::string &label = cols[c];
             std::string display = label;
-            // Si es una tecla de 1 carácter y Shift está activo, mostrar mayúscula
+            // If it is a 1 character key and Shift is active, show uppercase
             if (label.size() == 1 && this->shiftActive) {
                 unsigned char ch = (unsigned char)label[0];
                 display[0] = (char)std::toupper(ch);
             }
 
-            // Color especial para Shift cuando está activo
+            // Special color for Shift when active
             if (label == "Shift") {
                 NVGcolor sbg = this->shiftActive ? nvgRGBA(100,140,220,(int)(this->localPanelAlpha*255)) : nvgRGBA(40,44,52,(int)(this->localPanelAlpha*255));
                 nvgFillColor(vg, sbg);

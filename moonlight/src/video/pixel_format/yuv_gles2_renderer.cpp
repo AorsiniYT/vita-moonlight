@@ -22,7 +22,7 @@ private:
     uint32_t m_alignedWidth;
     uint32_t m_alignedHeight;
     
-    // Buffer para YUV del decoder
+    // Buffer for YUV of the decoder
     uint8_t* m_yuvBuffer;
     size_t m_yuvBufferSize;
     
@@ -67,7 +67,7 @@ public:
         size_t uvSize = ySize / 4;
         m_yuvBufferSize = ySize + 2 * uvSize;
         
-        m_yuvBuffer = new uint8_t[m_yuvBufferSize + 4096]; // extra para alignment
+        m_yuvBuffer = new uint8_t[m_yuvBufferSize + 4096]; // extra for alignment
         if (!m_yuvBuffer) {
             return -1;
         }
@@ -108,12 +108,12 @@ public:
     }
     
     uint32_t getDecoderPixelFormat() const override {
-        // El decoder debe producir YUV420
+        // The decoder must produce YUV420
         return SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER;
     }
     
     uint8_t* getDecodeTarget(void* frontBuffer, void* backBuffer) override {
-        // Decodificar en el buffer YUV interno
+        // Decode to internal YUV buffer
         return m_yuvBuffer;
     }
     

@@ -4,11 +4,11 @@
 #include <cstdint>
 #include <functional>
 
-// Establecer callback para pausa
+// Set callback for pause
 void set_pause_callback(const std::function<void()>& cb);
 
-// Devuelve true si se ejecutó un acceso directo y se debe limpiar el input
+// Returns true if a shortcut was executed and the input should be cleared
 bool process_physical_shortcuts(const SceCtrlData* pad, const SceCtrlData* pad_old);
 
-// Ejecuta un acceso directo virtual asociado a un código especial (por ejemplo, pause menu).
+// Executes a virtual shortcut associated with a special code (for example, pause menu).
 bool trigger_virtual_shortcut(std::uint32_t specialKey);

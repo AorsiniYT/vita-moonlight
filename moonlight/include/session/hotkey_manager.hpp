@@ -4,21 +4,21 @@
 #include <vector>
 #include <chrono>
 
-// HotkeyManager: gestiona combinaciones de botones para acciones globales (ej: abrir overlay de pausa).
-// Diseño inicial: hardcode START+L+R; luego se ampliará a configuración dinámica y persistencia.
-// Uso previsto: instancia singleton ligera; registrar callback para "pauseCombo".
+// HotkeyManager: manages button combinations for global actions (ex: open pause overlay).
+// Initial design: hardcode START+L+R; it will later be expanded to dynamic configuration and persistence.
+// Intended use: lightweight singleton instance; register callback for "pauseCombo".
 
 class HotkeyManager {
 public:
     static HotkeyManager& instance();
 
-    // Registra callback que se dispara cuando se detecta la combinación de pausa.
+    // Registers callback that fires when the pause combination is detected.
     void setPauseCallback(const std::function<void()>& cb) { pauseCallback = cb; }
 
-    // Llamado desde un hook central de input (por ahora se invocará manualmente desde vistas).
+    // Called from a central input hook (for now it will be invoked manually from views).
     void onButtonEvent(brls::ControllerButton button, bool pressed);
 
-    // Config futura: establecer ventana máxima ms para detección simultánea (default 220ms)
+    // Future config: set maximum ms window for simultaneous detection (default 220ms)
     void setComboWindowMs(int ms) { comboWindowMs = ms; }
 
 private:
@@ -29,7 +29,7 @@ private:
     std::function<void()> pauseCallback;
     std::function<void()> menuCallback;
 
-    // Estado de botones relevantes
+    // Status of relevant buttons
     bool btnStart = false;
     bool btnL = false;
     bool btnR = false;
@@ -39,7 +39,7 @@ private:
     Clock::time_point lastL{};
     Clock::time_point lastR{};
 
-    int comboWindowMs = 220; // ventana para considerar combinación
+    int comboWindowMs = 220; // window to consider combination
 
     void tryTrigger();
 };

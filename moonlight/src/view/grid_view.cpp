@@ -2,12 +2,12 @@
 #include <borealis/views/label.hpp>
 #include <borealis/views/image.hpp>
 #include <borealis/views/button.hpp>
-#include "view/pccard.hpp"  // Añadir include para PCCard
+#include "view/pccard.hpp"  // Add include for PCCard
 
 GridView::GridView() {
     brls::Logger::info("[GridView] Constructor llamado");
-    this->setAxis(brls::Axis::COLUMN);  // Cambiar a columna para filas
-    this->columns = 4;  // 4 columnas por defecto para PS Vita
+    this->setAxis(brls::Axis::COLUMN);  // Switch to column for rows
+    this->columns = 4;  // 4 columns by default for PS Vita
     this->itemNames.clear();
     this->itemIcons.clear();
     this->onItemSelect = nullptr;
@@ -27,7 +27,7 @@ void GridView::setOnItemSelect(ItemSelectCallback cb) {
 void GridView::reload() {
     brls::Logger::info("[GridView] reload llamado, itemNames.size()={}", itemNames.size());
 
-    // Limpiar vistas existentes
+    // Clean existing views
     this->clearViews();
     itemViews.clear();
 
@@ -36,12 +36,12 @@ void GridView::reload() {
         return;
     }
 
-    // Crear contenedores de fila según el número de columnas
+    // Create row containers based on number of columns
     size_t currentRow = 0;
     brls::Box* currentRowBox = nullptr;
 
     for (size_t i = 0; i < itemNames.size(); ++i) {
-        // Crear nueva fila si es necesario
+        // Create new row if necessary
         if (i % columns == 0) {
             currentRowBox = new brls::Box(brls::Axis::ROW);
             currentRowBox->setAlignItems(brls::AlignItems::STRETCH);
@@ -49,24 +49,24 @@ void GridView::reload() {
             currentRow++;
         }
 
-        // Crear PCCard para cada elemento
+        // Create PCCard for each item
         auto* card = new PCCard(itemNames[i], itemIcons.empty() ? "img/moonlight/pc.png" : itemIcons[i]);
 
-        // Configurar acción de clic
+        // Set click action
         card->setClickAction([this, i]() {
             brls::Logger::info("[GridView] Elemento seleccionado idx={}", i);
             if (onItemSelect) onItemSelect(i);
         });
 
-        // Hacer focusable y configurar navegación
+        // Make focusable and configure navigation
         card->setFocusable(true);
 
-        // Añadir márgenes para separación
+        // Add margins for separation
         if (i % columns != 0) {
-            card->setMarginLeft(12);  // Separación horizontal entre elementos
+            card->setMarginLeft(12);  // Horizontal separation between elements
         }
 
-        // Añadir a la fila actual
+        // Add to current row
         currentRowBox->addView(card);
         itemViews.push_back(card);
 
@@ -81,7 +81,7 @@ brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* c
     if (!currentView || itemViews.empty())
         return nullptr;
 
-    // Encontrar el índice del elemento actual
+    // Find the index of the current element
     auto it = std::find(itemViews.begin(), itemViews.end(), currentView);
     if (it == itemViews.end())
         return nullptr;
@@ -113,7 +113,7 @@ brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* c
                 if (nextRowIndex < (int)totalItems) {
                     nextView = itemViews[nextRowIndex];
                 } else {
-                    // Si no hay elemento en esta columna, ir al último de la fila
+                    // If there is no element in this column, go to the last in the row
                     int lastInRow = std::min((int)totalItems - 1, (currentRow + 1) * columns + columns - 1);
                     nextView = itemViews[lastInRow];
                 }

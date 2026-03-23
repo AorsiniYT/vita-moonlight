@@ -21,41 +21,41 @@ struct VitaMouseState {
     short rightStickY;
 };
 
-// Clase para manejar input en PS Vita
+// Class to handle input on PS Vita
 class ControllerInputManager {
 public:
     ControllerInputManager();
     ~ControllerInputManager();
 
-    // Procesar input y enviar eventos
+    // Process input and send events
     void handleInput();
 
-    // Resetear estados de input (al desconectar)
+    // Reset input states (when disconnecting)
     void dropInput();
 
-    // Habilitar/deshabilitar procesamiento/envío de input (útil para overlays/menus)
+    // Enable/disable input processing/sending (useful for overlays/menus)
     void setInputEnabled(bool enabled);
 
     // Set touchscreen mode
     void setTouchscreenMode(int mode) { touchscreenMode = mode; }
 
-    // Validar y cambiar modo touch (con compatibilidad de gamepad)
+    // Validate and change touch mode (with gamepad compatibility)
     bool setTouchscreenModeWithValidation(int newMode);
 
-    // Cambiar modo touch en tiempo de ejecución (como setGamepadType)
-    // Valida compatibilidad, actualiza config y notifica cambio
+    // Change touch mode at runtime (like setGamepadType)
+    // Validate compatibility, update config and notify change
     bool setTouchscreenModeRuntime(int newMode);
 
-    // Enviar estado de gamepad
+    // Send gamepad status
     void sendGamepadState(const GamepadState& state);
 
-    // Callback para hotkey de pausa (START+L1+R1)
+    // Callback for pause hotkey (START+L1+R1)
     void setPauseCallback(const std::function<void()>& cb);
 
     void applyRearTouchSettings(const RearTouchSettings& settings);
     void setRearTouchEnabled(bool enabled);
     
-    // Cambiar tipo de gamepad sin reiniciar sesión
+    // Change gamepad type without restarting session
     void setGamepadType(GamepadType type);
 
     // Keyboard integration
@@ -69,7 +69,7 @@ private:
     bool inputEnabled;
     bool inputDropped;
 
-    // Estados anteriores para detectar cambios
+    // Previous states to detect changes
     GamepadState lastGamepadState;
     VitaMouseState lastMouseState;
     SceCtrlData lastCtrlData;
@@ -85,7 +85,7 @@ private:
     // Active keyboard for polling
     KeyboardOverlay* activeKeyboard = nullptr;
 
-    // Tipo de gamepad actual
+    // Current gamepad type
     GamepadType currentGamepadType = GAMEPAD_TYPE_XBOX;
 
     struct ButtonMapping {

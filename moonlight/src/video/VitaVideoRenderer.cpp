@@ -1,4 +1,4 @@
-// VitaVideoRenderer.cpp - Versión mínima sin zero-copy ni VideoPlane
+// VitaVideoRenderer.cpp - Minimum version without zero-copy or VideoPlane
 #include "VitaVideoRenderer.hpp"
 #include "legacy/modules/vita_globals.hpp"
 #include <vita2d.h>
@@ -54,7 +54,7 @@ namespace {
     }
 }
 
-// Implementación
+// Implementation
 
 VitaVideoRenderer& VitaVideoRenderer::instance() { static VitaVideoRenderer inst; return inst; }
 
@@ -183,7 +183,7 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
         return;
     }
     
-    // Dibujar con la imagen NVG persistente
+    // Draw with persistent NVG image
     int dw = fullscreenStretch ? (int)viewportW : image_scaling.display_width;
     int dh = fullscreenStretch ? (int)viewportH : image_scaling.display_height;
     int ox = fullscreenStretch ? 0 : image_scaling.offset_x;
@@ -198,7 +198,7 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     g_stats.frames_presented++;
     update_present_stats();
     
-    // Sincronizar GPU de manera explícita cada N frames para evitar acumulación de trabajo
+    // Explicitly synchronize GPU every N frames to avoid backlog
     static uint32_t gpuSyncCounter = 0;
     if (++gpuSyncCounter % 30 == 0) { // Cada 30 frames (~500ms a 60fps)
         if (vita2d_inited) {

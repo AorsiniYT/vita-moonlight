@@ -3,39 +3,39 @@
 #include <stdint.h>
 #include <psp2/touch.h>
 
-// Enumeración de modos de touch
+// Enumeration of touch modes
 enum TouchscreenMode {
-    TOUCHSCREEN_MODE_OFF = 0,              // Sin input táctil
-    TOUCHSCREEN_MODE_TRACKPAD = 1,         // Trackpad (movimiento relativo)
-    TOUCHSCREEN_MODE_DS4_TOUCHPAD = 2,     // DS4 touchpad (solo con PS4 gamepad)
+    TOUCHSCREEN_MODE_OFF = 0,              // No touch input
+    TOUCHSCREEN_MODE_TRACKPAD = 1,         // Trackpad (relative movement)
+    TOUCHSCREEN_MODE_DS4_TOUCHPAD = 2,     // DS4 touchpad (only with PS4 gamepad)
     TOUCHSCREEN_MODE_MOUSE_ABSOLUTE = 3,   // Mouse absoluto
     TOUCHSCREEN_MODE_TABLET = 4            // Tablet/Sunshine
 };
 
-// Clase para manejar input táctil en PS Vita
+// Class to handle touch input on PS Vita
 class TouchInputManager {
 public:
     TouchInputManager();
     ~TouchInputManager();
 
-    // Procesar input táctil basado en modo
+    // Process touch input based on mode
     void handleTouch(int touchscreenMode);
 
-    // Resetear estados de touch
+    // Reset touch states
     void dropTouch(int touchscreenMode);
 
-    // Validar que el modo sea compatible con el gamepad actual
+    // Validate that the mode is compatible with the current gamepad
     bool isModeSupportedByGamepad(int touchscreenMode, int gamepadType);
 
-    // Cambiar modo con validación
+    // Change mode with validation
     bool setTouchMode(int newMode, int gamepadType);
 
-    // Métodos para cambios instantáneos de configuración del trackpad
+    // Methods for Instant Trackpad Settings Changes
     void setTrackpadSettings(int pointerSpeed, int deadZone, bool tapToClick, 
                             bool twoFingerRightClick, bool twoFingerScroll, 
                             bool invertScroll, bool multiTouch, int edgeZone);
     
-    // Getters para la configuración actual del trackpad
+    // Getters for current trackpad settings
     int getPointerSpeed() const;
     int getDeadZone() const;
     bool isTapToClickEnabled() const;
@@ -51,7 +51,7 @@ private:
     SceTouchData lastTouchData;
     int currentMode;
 
-    // Configuración del trackpad (para cambios instantáneos)
+    // Trackpad settings (for instant changes)
     int trackpadPointerSpeed = 100;        // 0-200
     int trackpadDeadZone = 50;             // 0-200px
     bool trackpadTapToClick = true;
@@ -61,14 +61,14 @@ private:
     bool trackpadMultiTouch = true;
     int trackpadEdgeZone = 15;             // 0-50%
 
-    // Estado de la máquina de estados del trackpad
+    // Trackpad state machine state
     int trackpadState = 0;
     int trackpadFingerCount = 0;
     uint64_t trackpadStateStartTime = 0;
     SceTouchReport trackpadInitialTouch = {0};
     SceTouchReport trackpadSwipeStart = {0};
 
-    // Estados para cada modo
+    // States for each mode
     struct {
         bool lastMouseDown;
         int lastAbsX, lastAbsY;
@@ -93,13 +93,13 @@ private:
         uint8_t prevFingerActive[10];
     } tabletState;
 
-    // Funciones específicas de cada modo
+    // Specific functions of each mode
     void handleTrackpad();      // Modo 1: Trackpad (relative mouse)
     void handleDS4Touch();      // Modo 2: DS4 touchpad (PS4 only)
-    void handleMouseAbsolute(); // Modo 3: Mouse absoluto
+    void handleMouseAbsolute(); // Mode 3: Absolute mouse
     void handleTabletTouch();   // Modo 4: Tablet/Sunshine
 
-    // Funciones auxiliares
+    // Auxiliary functions
     void resetTrackpadState();
     void resetDS4State();
     void resetAbsoluteState();

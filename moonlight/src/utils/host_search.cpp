@@ -33,7 +33,7 @@
 #endif
 
 #ifdef __PSV__
-// Implementación Vita: loadHostsVita() con struct HostInfoVita (char[])
+// Vita implementation: loadHostsVita() with struct HostInfoVita (char[])
 std::vector<HostInfoVita> loadHostsVita() {
     std::vector<HostInfoVita> hosts;
     VITALOG("[loadHostsVita] Dirección de hosts vector: %p\n", (void*)&hosts);
@@ -66,13 +66,13 @@ std::vector<HostInfoVita> loadHostsVita() {
         std::string line;
         while (std::getline(ini, line)) {
             VITALOG("[loadHostsVita] Línea INI: '%s'\n", line.c_str());
-            // Permitir tanto 'internal = ...' como 'internal=...'
+            // Allow both 'internal = ...' and 'internal=...'
             std::string key, value;
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
                 key = line.substr(0, eqPos);
                 value = line.substr(eqPos + 1);
-                // Eliminar espacios alrededor
+                // Remove spaces around
                 key.erase(0, key.find_first_not_of(" \t"));
                 key.erase(key.find_last_not_of(" \t") + 1);
                 value.erase(0, value.find_first_not_of(" \t"));
@@ -101,7 +101,7 @@ std::vector<HostInfoVita> loadHostsVita() {
     return hosts;
 }
 #else
-// Implementación multiplataforma (no Vita): loadHosts() con std::string
+// Cross-platform implementation (non-Vita): loadHosts() with std::string
 std::vector<SearchHostInfo> loadHosts() {
     std::vector<SearchHostInfo> hosts;
     std::string baseDir = "devices/";

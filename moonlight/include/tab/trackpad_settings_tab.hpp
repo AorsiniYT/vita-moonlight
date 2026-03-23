@@ -34,6 +34,6 @@ class TrackpadSettingsTab : public brls::Box
     static brls::View* create();
 
 private:
-    // Método auxiliar para aplicar cambios instantáneos del trackpad
+    // Helper method to apply instant trackpad changes
     void applyTrackpadSettingsLive();
 };

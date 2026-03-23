@@ -7,12 +7,12 @@
 
 #include "ffmpeg/modules/ffmpeg_decoder.hpp"
 
-// Forward declarations para evitar incluir libgamestream directamente
+// Forward declarations to avoid including libgamestream directly
 struct Data;
 struct _APP_LIST;
 typedef struct _APP_LIST APP_LIST, *PAPP_LIST;
 
-// Estructuras para el sistema de video FFmpeg
+// Structures for FFmpeg video system
 struct SwsContext;
 struct vita2d_texture;
 
@@ -45,20 +45,20 @@ typedef struct FFmpegVideoContext {
     bool initialized;
 } FFmpegVideoContext;
 
-// Funciones del sistema de video FFmpeg
+// FFmpeg Video System Features
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Inicialización y cleanup
+// Initialization and cleanup
 int ffmpeg_video_init(FFmpegVideoContext *context, int width, int height, int frame_rate);
 void ffmpeg_video_cleanup(FFmpegVideoContext *context);
 
-// Control del video
+// Video control
 void ffmpeg_video_start(FFmpegVideoContext *context);
 void ffmpeg_video_stop(FFmpegVideoContext *context);
 
-// Decodificación de frames
+// Frame decoding
 int ffmpeg_video_decode(FFmpegVideoContext *context, unsigned char *data, int size, int frame_type);
 void ffmpeg_video_render(FFmpegVideoContext *context);
 

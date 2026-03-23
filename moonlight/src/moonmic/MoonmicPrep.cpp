@@ -165,7 +165,7 @@ void startHandshake(const HostInfo hostCopy,
     } else {
         // Failed handshake completely
         brls::sync([callbacks]() {
-            if (callbacks.onDone) callbacks.onDone(false); // Or true if we want to allow continue anyway? 
+            if (callbacks.onDone) callbacks.onDone(false); // Or true if we want to allow continue anyway?
             // Better to fail safely or try anyway? Original logic implied fail.
             // Let's try anyway if it was just handshake fail.
              if (callbacks.onDone) callbacks.onDone(true); // Let session check apps

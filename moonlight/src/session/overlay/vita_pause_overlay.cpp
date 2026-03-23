@@ -106,21 +106,21 @@ void returnToMainMenuAsync(int retries = 8)
 VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo& hostInfo)
     : BaseOverlay(), onClose(std::move(onClose)), host(hostInfo) {
 
-    // Configurar header
+    // Configure header
     setHeaderText(brls::getStr("moonlight/session/pause/title"));
 
-    // Configurar botones
+    // Configure buttons
     std::vector<std::string> labels = {
         brls::getStr("moonlight/session/pause/resume"),
         brls::getStr("moonlight/tabs/settings"),
-        // Opción para abrir el teclado overlay
+        // Option to open keyboard overlay
         brls::getStr("moonlight/session/pause/keyboard"),
         brls::getStr("moonlight/session/pause/disconnect"),
         brls::getStr("moonlight/session/pause/close_app")
     };
     setButtons(labels);
 
-    // Configurar callback de activación
+    // Configure activation callback
     setActivateCallback([this](int index) {
         switch (index) {
             case 0: // Resume
@@ -137,7 +137,7 @@ VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo
                 break;
             case 2: // Keyboard
                 {
-                    // Cerrar el pause overlay invocando onClose para reanudar sesión
+                    // Close the pause overlay by invoking onClose to resume session
                     if (this->onClose) {
                         try {
                             auto cb = std::move(this->onClose);
@@ -152,7 +152,7 @@ VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo
                     std::string cfgDir = (p != std::string::npos) ? cfgPath.substr(0, p) : std::string(".");
                     std::string cssPath = cfgDir + "/keyboard/style.css";
 
-                    // Crear y mostrar el overlay del teclado
+                    // Create and display the keyboard overlay
                     KeyboardOverlay* kb = new KeyboardOverlay(cssPath);
                     auto* activity = new brls::Activity(kb);
                     brls::Application::pushActivity(activity);
@@ -169,7 +169,7 @@ VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo
     });
 
     vita_debug_log("[VitaPauseOverlay] opened for host=%s", host.ip.c_str());
-    // Instrumentación: registrar FPS y estado de video al abrir el overlay
+    // Instrumentation: Record FPS and video status when opening overlay
     try {
         int fps_i = (int)std::lround(brls::Application::getFPS());
         bool fpsStatus = brls::Application::getFPSStatus();
@@ -187,7 +187,7 @@ void VitaPauseOverlay::resume() {
         VitaVideoStats vstats{}; vitavideo_get_stats(&vstats);
         vita_debug_log("[VitaPauseOverlay][INST] resume FPS=%d video_presented=%u decoded=%u target=%u", fps_i, vstats.frames_presented, vstats.frames_decoded, vstats.target_fps);
     } catch(...) {}
-    // Cerrar con animación y notificar al llamador
+    // Close with animation and notify caller
     using namespace std::chrono;
     auto tstart = high_resolution_clock::now();
     if (onClose) {
@@ -204,14 +204,14 @@ void VitaPauseOverlay::resume() {
 
 void VitaPauseOverlay::disconnect() {
     vita_debug_log("[VitaPauseOverlay] disconnect pressed");
-    // Instrumentación: registrar FPS/estado antes de iniciar la secuencia de stop
+    // Instrumentation: record FPS/state before starting stop sequence
     try {
         int fps_i = (int)std::lround(brls::Application::getFPS());
         VitaVideoStats vstats{}; vitavideo_get_stats(&vstats);
         vita_debug_log("[VitaPauseOverlay][INST] disconnect start FPS=%d video_last_frame=%u presented=%u decoded=%u target=%u",
                        fps_i, vstats.last_frame_number, vstats.frames_presented, vstats.frames_decoded, vstats.target_fps);
     } catch(...) {}
-    // Ejecutar la destrucción de la sesión en background
+    // Run session destruction in background
     std::string addr = this->host.ip;
     auto storedOnClose = std::move(onClose);
     onClose = nullptr;

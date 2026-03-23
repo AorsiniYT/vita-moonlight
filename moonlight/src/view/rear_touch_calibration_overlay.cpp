@@ -163,7 +163,7 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     nvgFillColor(vg, nvgRGBA(30, 30, 35, 220));
     nvgFill(vg);
 
-    // Área activa
+    // Active area
     nvgBeginPath(vg);
     nvgRoundedRect(vg, activeLeft, activeTop, activeRight - activeLeft, activeBottom - activeTop, 8.0f);
     nvgFillColor(vg, current.enabled ? nvgRGBA(70, 160, 250, 80) : nvgRGBA(180, 60, 60, 60));
@@ -179,7 +179,7 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 60));
     nvgStroke(vg);
 
-    // Resaltar borde seleccionado
+    // Highlight selected border
     nvgBeginPath(vg);
     nvgStrokeWidth(vg, 4.0f);
     NVGcolor highlight = nvgRGBA(255, 215, 0, current.enabled ? 220 : 120);
@@ -204,7 +204,7 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     nvgStrokeColor(vg, highlight);
     nvgStroke(vg);
 
-    // Dibujar toques
+    // Draw touches
     for (int i = 0; i < sample.reportNum; ++i) {
         const float normX = clamp01(static_cast<float>(sample.report[i].x) / MAX_TOUCH_X);
         const float normY = clamp01(static_cast<float>(sample.report[i].y) / MAX_TOUCH_Y);
@@ -261,7 +261,7 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
     std::string assignment = brls::getStr("moonlight/rear_touch/calibration/current_action") + currentAssignmentLabel();
     nvgText(vg, x + 30.0f, panelY + panelHeight + 55.0f, assignment.c_str(), nullptr);
 
-    // Construir la línea de márgenes manualmente para evitar problemas de formato
+    // Build the margin line manually to avoid formatting issues
     std::string marginsLabel = brls::getStr("moonlight/rear_touch/calibration/margins");
     std::string topLabel = brls::getStr("moonlight/rear_touch/detail_top");
     std::string rightLabel = brls::getStr("moonlight/rear_touch/detail_right");
@@ -273,7 +273,7 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
                          " | " + leftLabel + ": " + std::to_string(current.left);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 80.0f, values.c_str(), nullptr);
 
-    // Construir asignaciones manualmente
+    // Build assignments manually
     std::string assignPrefix = brls::getStr("moonlight/rear_touch/calibration/assignments_prefix");
     std::string nwLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/nw");
     std::string neLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/ne");

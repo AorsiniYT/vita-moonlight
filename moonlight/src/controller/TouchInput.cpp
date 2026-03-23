@@ -23,13 +23,13 @@ TouchInputManager::TouchInputManager() : currentMode(TOUCHSCREEN_MODE_OFF) {
     sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
     sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
 
-    // Cargar configuración del trackpad desde ConfigManager
+    // Load trackpad configuration from ConfigManager
     ConfigManager config;
     config.load();
     VideoSettings settings = config.getVideoSettings();
     trackpadPointerSpeed = settings.trackpad_pointer_speed;
     trackpadDeadZone = settings.trackpad_dead_zone;
-    trackpadTapToClick = true; // Siempre activado en PS Vita
+    trackpadTapToClick = true; // Always on on PS Vita
     trackpadTwoFingerRightClick = settings.trackpad_two_finger_right_click;
     trackpadTwoFingerScroll = settings.trackpad_two_finger_scroll;
     trackpadInvertScroll = settings.trackpad_invert_scroll;
@@ -94,30 +94,30 @@ void TouchInputManager::handleTouch(int touchscreenMode) {
 }
 
 void TouchInputManager::handleTrackpad() {
-    // Máquina de estados para trackpad (basado en vita.c original):
-    // - TAP (< 100ms): presiona y suelta el botón
-    // - SWIPE (> 100ms): solo mueve el mouse SIN presionar botón
+    // State machine for trackpad (based on original vita.c):
+    // - TAP (< 100ms): press and release the button
+    // - SWIPE (> 100ms): just move the mouse WITHOUT pressing button
     
-    // OPTIMIZADO: Usar variables miembro (caché) en lugar de leer del disco cada frame
+    // OPTIMIZED: Use member variables (cache) instead of reading from disk every frame
     // Las variables se actualizan solo desde applyTrackpadSettingsLive() → setTrackpadSettings()
     int tapMoveThreshold = trackpadDeadZone;
     bool twoFingerRightClick = trackpadTwoFingerRightClick;
     bool twoFingerScroll = trackpadTwoFingerScroll;
     bool invertScroll = trackpadInvertScroll;
     
-    static const int MOUSE_ACTION_DELAY_MS = 100;  // 100ms para detectar TAP vs SWIPE
+    static const int MOUSE_ACTION_DELAY_MS = 100;  // 100ms to detect TAP vs SWIPE
     
     uint64_t now = sceKernelGetSystemTimeWide();
     
     if (touchData.reportNum == 0) {
-        // No hay dedos tocando
-        if (trackpadState == 1) { // Si estábamos esperando TAP/SWIPE y se levantó el último dedo
+        // No fingers touching
+        if (trackpadState == 1) { // If we were waiting for TAP/SWIPE and the last finger was raised
             uint64_t elapsedMs = (now - trackpadStateStartTime) / 1000;
             SceTouchReport current = trackpadInitialTouch;
             int moveX = 0;
             int moveY = 0;
             int totalMovement = 0;
-            // Si teníamos una posición inicial válida
+            // If we had a valid initial position
             if (trackpadFingerCount > 0) {
                 moveX = abs(current.x - trackpadInitialTouch.x);
                 moveY = abs(current.y - trackpadInitialTouch.y);
@@ -135,8 +135,8 @@ void TouchInputManager::handleTrackpad() {
             } else {
                 vita_debug_log("[TRACKPAD] Invalid TAP (release) (time=%llu ms, move=%d)", elapsedMs, totalMovement);
             }
-        } else if (trackpadState == 2) {  // SCREEN_TAP - estábamos en TAP esperando timeout para soltar
-            // Soltar el botón que se presionó en ON_TOUCH
+        } else if (trackpadState == 2) {  // SCREEN_TAP - we were on TAP waiting for timeout to drop
+            // Release the button that was pressed in ON_TOUCH
             if (trackpadFingerCount == 1) {
                 LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
             } else if (trackpadFingerCount == 2 && twoFingerRightClick) {
@@ -144,57 +144,57 @@ void TouchInputManager::handleTrackpad() {
             }
             vita_debug_log("[TRACKPAD] TAP released");
         }
-        // No hacer nada si estamos en ON_SWIPE (nunca presionamos botón)
-        trackpadState = 0;  // Volver a NO_TOUCH
+        // Do nothing if we are in ON_SWIPE (we never press the button)
+        trackpadState = 0;  // Return to NO_TOUCH
         trackpadFingerCount = 0;
         return;
     }
     
-    // Hay dedos tocando
+    // There are fingers touching
     switch (trackpadState) {
-        case 0:  // NO_TOUCH - inicio de contacto
+        case 0:  // NO_TOUCH - start of contact
             if (touchData.reportNum > 0) {
                 trackpadState = 1;  // ON_TOUCH
                 trackpadFingerCount = touchData.reportNum;
                 trackpadStateStartTime = now;
-                trackpadInitialTouch = touchData.report[0];  // Guardar posición inicial
+                trackpadInitialTouch = touchData.report[0];  // Save initial position
                 vita_debug_log("[TRACKPAD] Touch start with %d finger(s)", trackpadFingerCount);
             }
             break;
             
-        case 1:  // ON_TOUCH - esperando determinar si es TAP o SWIPE
+        case 1:  // ON_TOUCH - waiting to determine if it is TAP or SWIPE
             {
-                uint64_t elapsedMs = (now - trackpadStateStartTime) / 1000;  // Convertir a ms
+                uint64_t elapsedMs = (now - trackpadStateStartTime) / 1000;  // Convert to ms
                 
-                // Calcular movimiento desde la posición inicial
+                // Calculate movement from the initial position
                 SceTouchReport current = touchData.report[0];
                 int moveX = abs(current.x - trackpadInitialTouch.x);
                 int moveY = abs(current.y - trackpadInitialTouch.y);
                 int totalMovement = moveX + moveY;
                 
                 if (touchData.reportNum < trackpadFingerCount) {
-                    // Se levantó un dedo - verificar si fue un TAP válido
+                    // A finger was raised - check if it was a valid TAP
                     if (elapsedMs <= MOUSE_ACTION_DELAY_MS && totalMovement <= tapMoveThreshold) {
-                        // TAP válido: rápido y sin movimiento significativo
+                        // Valid TAP: fast and without significant movement
                         vita_debug_log("[TRACKPAD] TAP detected with %d finger(s) (move=%d)", trackpadFingerCount, totalMovement);
-                        // Presionar el botón
+                        // Press the button
                         if (trackpadFingerCount == 1) {
                             LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
                         } else if (trackpadFingerCount == 2 && twoFingerRightClick) {
                             LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_RIGHT);
                         }
                         trackpadState = 2;  // SCREEN_TAP
-                        trackpadStateStartTime = now;  // Iniciar timeout para soltar
+                        trackpadStateStartTime = now;  // Start timeout to release
                     } else {
-                        // No fue TAP válido (muy lento o se movió mucho) - ignorar
+                        // Invalid TAP (too slow or moved too much) - ignore
                         vita_debug_log("[TRACKPAD] Invalid TAP (time=%llu ms, move=%d)", elapsedMs, totalMovement);
                         trackpadState = 0;
                     }
                 } else if (touchData.reportNum > trackpadFingerCount) {
-                    // Cambio de número de dedos
+                    // Change of number of fingers
                     trackpadFingerCount = touchData.reportNum;
                 } else if (elapsedMs > MOUSE_ACTION_DELAY_MS || totalMovement > tapMoveThreshold) {
-                    // Pasó el timeout o se movió mucho -> es un SWIPE
+                    // The timeout has passed or it has moved too much -> it is a SWIPE
                     trackpadState = 3;  // SWIPE_START
                     trackpadSwipeStart = touchData.report[0];
                     vita_debug_log("[TRACKPAD] SWIPE detected (time=%llu ms, move=%d)", elapsedMs, totalMovement);
@@ -202,23 +202,23 @@ void TouchInputManager::handleTrackpad() {
             }
             break;
             
-        case 2:  // SCREEN_TAP - esperando soltar el botón después del TAP
+        case 2:  // SCREEN_TAP - waiting to release the button after the TAP
             {
                 uint64_t elapsedMs = (now - trackpadStateStartTime) / 1000;
                 if (elapsedMs > MOUSE_ACTION_DELAY_MS) {
-                    // Soltar el botón
+                    // Release the button
                     if (trackpadFingerCount == 1) {
                         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
                     } else if (trackpadFingerCount == 2 && twoFingerRightClick) {
                         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
                     }
-                    trackpadState = 0;  // Volver a NO_TOUCH
+                    trackpadState = 0;  // Return to NO_TOUCH
                     vita_debug_log("[TRACKPAD] TAP button released after timeout");
                 }
             }
             break;
             
-        case 3:  // SWIPE_START - preparar para arrastrar (sin presionar botón)
+        case 3:  // SWIPE_START - prepare to drag (without pressing button)
             {
                 trackpadSwipeStart = touchData.report[0];
                 trackpadState = 4;  // ON_SWIPE
@@ -226,10 +226,10 @@ void TouchInputManager::handleTrackpad() {
             }
             break;
             
-        case 4:  // ON_SWIPE - arrastrar SIN presionar botón
+        case 4:  // ON_SWIPE - drag WITHOUT pressing button
             {
                 if (trackpadFingerCount == 1) {
-                    // 1 dedo: movimiento del mouse
+                    // 1 finger: mouse movement
                     SceTouchReport report = touchData.report[0];
                     float baseDeltaX = (report.x - trackpadSwipeStart.x) / 2.0f;
                     float baseDeltaY = (report.y - trackpadSwipeStart.y) / 2.0f;
@@ -242,7 +242,7 @@ void TouchInputManager::handleTrackpad() {
                     }
                     trackpadSwipeStart = report;
                 } else if (trackpadFingerCount == 2 && touchData.reportNum >= 2 && twoFingerScroll) {
-                    // 2 dedos: scroll (si está habilitado)
+                    // 2 fingers: scroll (if enabled)
                     int avgY = (touchData.report[0].y + touchData.report[1].y) / 2;
                     int lastAvgY = trackpadSwipeStart.y;
                     int deltaY = (avgY - lastAvgY) / 2;
@@ -259,7 +259,7 @@ void TouchInputManager::handleTrackpad() {
 }
 
 void TouchInputManager::resetTrackpadState() {
-    // Limpiar todos los botones que podrían estar presionados en el servidor
+    // Clear all buttons that could be pressed on the server
     LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
     LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
     LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
@@ -382,8 +382,8 @@ void TouchInputManager::resetAbsoluteState() {
 }
 
 void TouchInputManager::handleTabletTouch() {
-    // TABLET mode usa el protocolo nativo de Sunshine/Limelight
-    // Coordenadas normalizadas 0-1
+    // TABLET mode uses the native Sunshine/Limelight protocol
+    // Normalized coordinates 0-1
     
     for (int j = 0; j < lastTouchData.reportNum; j++) {
         SceTouchReport lastReport = lastTouchData.report[j];
@@ -395,9 +395,9 @@ void TouchInputManager::handleTabletTouch() {
             }
         }
         if (!stillPressed) {
-            // Convertir de coordenadas touchscreen (0-1920, 0-1088) a normalizadas (0-1)
-            // Primero: convertir a pantalla (0-960, 0-544)
-            // Luego: normalizar a (0-1)
+            // Convert from touchscreen coordinates (0-1920, 0-1088) to normalized (0-1)
+            // First: convert to screen (0-960, 0-544)
+            // Then: normalize to (0-1)
             float x = ((float)lastReport.x * WIDTH) / 1920.0f / WIDTH;  // = lastReport.x / 1920.0f
             float y = ((float)lastReport.y * HEIGHT) / 1088.0f / HEIGHT; // = lastReport.y / 1088.0f
             
@@ -422,7 +422,7 @@ void TouchInputManager::handleTabletTouch() {
             vita_debug_log("[TABLET] DOWN finger=%d", report.id);
         }
 
-        // Convertir de coordenadas touchscreen (0-1920, 0-1088) a normalizadas (0-1)
+        // Convert from touchscreen coordinates (0-1920, 0-1088) to normalized (0-1)
         float x = (float)report.x / 1920.0f;
         float y = (float)report.y / 1088.0f;
         LiSendTouchEvent(eventType, report.id, x, y, 1.0f, 0.0f, 0.0f, LI_ROT_UNKNOWN);
@@ -459,7 +459,7 @@ void TouchInputManager::dropTouch(int touchscreenMode) {
     }
 }
 
-// Métodos para cambios instantáneos de configuración del trackpad
+// Methods for Instant Trackpad Settings Changes
 void TouchInputManager::setTrackpadSettings(int pointerSpeed, int deadZone, bool tapToClick, 
                                            bool twoFingerRightClick, bool twoFingerScroll, 
                                            bool invertScroll, bool multiTouch, int edgeZone)
@@ -468,7 +468,7 @@ void TouchInputManager::setTrackpadSettings(int pointerSpeed, int deadZone, bool
     if (pointerSpeed > 200) pointerSpeed = 200;
     trackpadPointerSpeed = pointerSpeed;
     trackpadDeadZone = deadZone;
-    trackpadTapToClick = true; // Siempre activado en PS Vita
+    trackpadTapToClick = true; // Always on on PS Vita
     trackpadTwoFingerRightClick = twoFingerRightClick;
     trackpadTwoFingerScroll = twoFingerScroll;
     trackpadInvertScroll = invertScroll;
@@ -488,7 +488,7 @@ int TouchInputManager::getDeadZone() const {
 }
 
 bool TouchInputManager::isTapToClickEnabled() const {
-    return true; // Siempre activado en PS Vita
+    return true; // Always on on PS Vita
 }
 
 bool TouchInputManager::isTwoFingerRightClickEnabled() const {

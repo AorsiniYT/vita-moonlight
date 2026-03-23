@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <memory>
 
-// Módulos refactorizados
+// Refactored modules
 #include "modules/vita_globals.hpp"
 // The .cpp files are compiled separately via CMake
 

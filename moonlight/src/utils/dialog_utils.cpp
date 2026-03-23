@@ -3,24 +3,24 @@
 
 using namespace brls;
 
-// Crear un diálogo personalizado con contenido Box
+// Create a custom dialog with Box content
 Dialog* createCustomDialog(brls::Box* content, const DialogOptions& options) {
     Style style = Application::getStyle();
     
     if (!content) return nullptr;
 
-    // Aplicar padding al contenido si se especifica
+    // Apply padding to content if specified
     if (options.contentPadding > 0) {
         float padding = options.contentPadding;
         content->setPadding(padding, padding, padding, padding);
     }
 
-    // Aplicar ancho si se especifica
+    // Apply width if specified
     if (options.contentWidth > 0) {
         content->setWidth(options.contentWidth);
     }
 
-    // Aplicar alineación
+    // Apply alignment
     if (options.alignItems != brls::AlignItems::AUTO) {
         content->setAlignItems(options.alignItems);
     }
@@ -38,7 +38,7 @@ Dialog* createCustomDialog(brls::Box* content, const DialogOptions& options) {
     return dialog;
 }
 
-// Crear una etiqueta personalizada
+// Create a custom label
 Label* createLabel(const std::string& text, float fontSize, 
                    brls::HorizontalAlign align, float marginBottom) {
     auto* label = new brls::Label();
@@ -52,7 +52,7 @@ Label* createLabel(const std::string& text, float fontSize,
     return label;
 }
 
-// Crear un Box de información con filas (clave: valor)
+// Create an Information Box with rows (key: value)
 Box* createInfoBox(const std::vector<std::pair<std::string, std::string>>& rows, 
                    float fontSize, float rowSpacing) {
     Style style = Application::getStyle();
@@ -110,7 +110,7 @@ Dialog* createLoadingDialog(const std::string& message) {
 
 bool updateLoadingDialogText(brls::Dialog* dialog, const std::string& message) {
     if (!dialog) return false;
-    // Buscar recursivamente la primera Label dentro del diálogo
+    // Recursively search for the first Label within the dialog
     std::function<brls::View*(brls::View*)> findLabel;
     findLabel = [&findLabel](brls::View* v) -> brls::View* {
         if (!v) return nullptr;
