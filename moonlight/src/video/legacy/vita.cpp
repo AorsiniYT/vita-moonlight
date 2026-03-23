@@ -17,7 +17,7 @@
 #include "vita.hpp"
 #include "ConfigManager.hpp"
 #include "debug.hpp"
-#include "libgamestream/sps.h" // clase SpsContext + flags
+#include "gamestream/sps.h" // clase SpsContext + flags
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>

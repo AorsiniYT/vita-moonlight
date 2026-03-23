@@ -14,7 +14,7 @@
 #include "network/NetworkOptimizations.hpp"
 #include <borealis/core/application.hpp>
 #include "video/pixel_format/pixel_format.hpp"
-// #include "libgamestream/sps.h" // deshabilitado (SPS context temporalmente fuera)
+// #include "gamestream/sps.h" // deshabilitado (SPS context temporalmente fuera)
 
 // External pixel processor from vita_decode.cpp
 extern PixelFormat::IPixelProcessor* g_pixelProcessor;

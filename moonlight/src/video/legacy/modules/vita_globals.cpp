@@ -1,7 +1,8 @@
 #include "vita_globals.hpp"
 // Zero-copy eliminated: minimum metrics
 
-#include "libgamestream/sps.h"
+#include "gamestream/sps.h"
+#include <mutex>
 
 // Global Video System Variables
 VideoStatus video_status = VITA_VIDEO_NOT_INIT;
@@ -21,6 +22,7 @@ SceVideodecQueryInitInfoHwAvcdec* init = NULL;
 vita2d_texture* frame_textures[2] = { nullptr, nullptr };
 int frame_front_idx = 0;
 int frame_back_idx = 1;
+std::mutex g_frame_slots_mutex;
 bool single_frame_buffer = false; // default double buffer; can be activated for legacy testing
 // vita2d initialization state
 bool vita2d_inited = false;

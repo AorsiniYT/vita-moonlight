@@ -10,7 +10,7 @@
 #include <string.h>
 #include <algorithm>
 #ifdef __cplusplus
-#include "libgamestream/sps.h"
+#include "gamestream/sps.h"
 extern gs::SpsContext* g_sps_ctx;
 #endif
 #include <borealis/core/application.hpp>
