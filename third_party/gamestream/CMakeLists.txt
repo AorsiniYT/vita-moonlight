@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Definir la biblioteca estática libgamestream
-add_library(libgamestream STATIC
+# Target canónico: genera libgamestream.a por convención (prefijo lib + nombre gamestream)
+add_library(gamestream STATIC
     client.cpp
     http.cpp
     xml.cpp
@@ -9,10 +9,10 @@ add_library(libgamestream STATIC
 )
 
 # Establecer estándar C++17
-set_target_properties(libgamestream PROPERTIES CXX_STANDARD 17)
+set_target_properties(gamestream PROPERTIES CXX_STANDARD 17)
 
 # Incluir directorios necesarios
-target_include_directories(libgamestream PUBLIC
+target_include_directories(gamestream PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/src
     ${CMAKE_SOURCE_DIR}/third_party/moonlight-common-c/reedsolomon
@@ -23,17 +23,20 @@ target_include_directories(libgamestream PUBLIC
 )
 
 # Enlazar dependencias
-target_link_libraries(libgamestream PUBLIC
+target_link_libraries(gamestream PUBLIC
     borealis
     moonlight-common-c
     ${CURL_LIBRARIES}
     ${EXPAT_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
 )
+
+if(NOT BUILD_FFMPEG)
+    target_link_libraries(gamestream PUBLIC ${OPENSSL_LIBRARIES})
+endif()
 
 # Definiciones de compilación
 if(BUILD_FFMPEG)
-    target_compile_definitions(libgamestream PRIVATE USE_MBEDTLS_CRYPTO)
+    target_compile_definitions(gamestream PRIVATE USE_MBEDTLS_CRYPTO)
 else()
-    target_compile_definitions(libgamestream PRIVATE USE_OPENSSL_CRYPTO)
+    target_compile_definitions(gamestream PRIVATE USE_OPENSSL_CRYPTO)
 endif()
