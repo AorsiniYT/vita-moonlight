@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <psp2/touch.h>
+#include <psp2/kernel/processmgr.h>
 #include <string.h>
 
 namespace {
@@ -64,6 +65,14 @@ void RearTouchInputManager::process(GamepadState& state, bool isPstvModel) {
     if (!enabled || isPstvModel) {
         return;
     }
+
+    static uint64_t lastRearTouchPollUs = 0;
+    uint64_t nowUs = sceKernelGetSystemTimeWide();
+    // Poll rear touch at 125Hz to reduce CPU cost without noticeable latency.
+    if (lastRearTouchPollUs != 0 && (nowUs - lastRearTouchPollUs) < 8000) {
+        return;
+    }
+    lastRearTouchPollUs = nowUs;
 
     SceTouchData backData;
     memset(&backData, 0, sizeof(SceTouchData));
