@@ -8,6 +8,7 @@
 #include <borealis/views/label.hpp>
 #include <stdlib.h>
 #include <string.h>
+#include <mutex>
 
 namespace {
     uint32_t s_presentWindowFrames = 0;
@@ -77,6 +78,7 @@ void VitaVideoRenderer::draw(float viewportW, float viewportH) {
         static bool logged=false; if(!logged){ VITA_DEBUG_LOG("[Video][DRAW] primer frame aún no decodificado - skip"); logged=true; }
         return;
     }
+    std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
     vita2d_texture* tex = FRAME_FRONT();
     if (!tex) {
         static bool logged=false; if(!logged){ VITA_DEBUG_LOG("[Video][DRAW] FRAME_FRONT null"); logged=true; }
@@ -115,6 +117,7 @@ void VitaVideoRenderer::draw(float viewportW, float viewportH) {
 void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH, float alpha) {
     if (!vg) { draw(viewportW, viewportH); return; }
     if (g_stats.frames_decoded == 0) return;
+    std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
     const vita2d_texture* tex = FRAME_FRONT();
     if (!tex) return;
     const SceGxmTexture* gxmTex = &tex->gxm_tex;
@@ -208,6 +211,10 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
 }
 
 void VitaVideoRenderer::destroyImage(NVGcontext* vg) {
+    if (!vg) {
+        vg = brls::Application::getNVGContext();
+    }
+
     if (vg) {
         // Ensure any GPU rendering referencing the image is finished.
         if (vita2d_inited) {
