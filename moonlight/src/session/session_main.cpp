@@ -151,16 +151,14 @@ void SessionMainView::draw(NVGcontext* vg, float x, float y, float width, float 
     auto t1 = high_resolution_clock::now();
 
     bool isFfmpegMode = (g_video_settings_snapshot.render_mode == 1);
-    if (isFfmpegMode) {
-        // Fixed route: FFmpeg frames are rendered through NVG.
-        if (vg) {
-            VitaVideoRenderer::instance().drawNVG(vg, width, height, 1.0f);
-        } else {
-            // Fallback only if NVG context is unavailable.
-            VitaVideoRenderer::instance().draw(width, height);
-        }
+    if (vg) {
+        // In Borealis draw loop we prefer NVG path for both modes to avoid
+        // mixing direct vita2d draws inside an active NVG frame.
+        VitaVideoRenderer::instance().drawNVG(vg, width, height, 1.0f);
+    } else if (isFfmpegMode) {
+        VitaVideoRenderer::instance().draw(width, height);
     } else {
-        // Fixed route: SCE/legacy decoder path uses vita2d.
+        // Keep legacy fallback for cases where no NVG context is available.
         VitaVideoRenderer::instance().draw(width, height);
     }
     auto t2 = high_resolution_clock::now();

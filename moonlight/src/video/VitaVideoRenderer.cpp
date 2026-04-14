@@ -120,6 +120,22 @@ void VitaVideoRenderer::draw(float viewportW, float viewportH) {
     if (image_scaling.region_x2 <= image_scaling.region_x1 || image_scaling.region_y2 <= image_scaling.region_y1) return;
     if (image_scaling.texture_width == 0 || image_scaling.texture_height == 0) return;
 
+    float srcX = image_scaling.region_x1;
+    float srcY = image_scaling.region_y1;
+    float srcW = image_scaling.region_x2 - image_scaling.region_x1;
+    float srcH = image_scaling.region_y2 - image_scaling.region_y1;
+
+    const float texW = (float)vita2d_texture_get_width(tex);
+    const float texH = (float)vita2d_texture_get_height(tex);
+    if (texW <= 0.f || texH <= 0.f) return;
+
+    if (srcX < 0.f) { srcW += srcX; srcX = 0.f; }
+    if (srcY < 0.f) { srcH += srcY; srcY = 0.f; }
+    if (srcX >= texW || srcY >= texH) return;
+    if (srcX + srcW > texW) srcW = texW - srcX;
+    if (srcY + srcH > texH) srcH = texH - srcY;
+    if (srcW <= 0.f || srcH <= 0.f) return;
+
     float scaleX = (float)dw / image_scaling.texture_width;
     float scaleY = (float)dh / image_scaling.texture_height;
     if (scaleX <= 0.f || scaleY <= 0.f) return;
@@ -127,8 +143,8 @@ void VitaVideoRenderer::draw(float viewportW, float viewportH) {
     vita2d_draw_texture_tint_part_scale(
         tex,
         (float)ox, (float)oy,
-        image_scaling.region_x1, image_scaling.region_y1,
-        image_scaling.region_x2, image_scaling.region_y2,
+        srcX, srcY,
+        srcW, srcH,
         scaleX, scaleY,
         0xFFFFFFFF);
 
