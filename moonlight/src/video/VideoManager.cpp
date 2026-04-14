@@ -62,16 +62,6 @@ bool VideoManager::initialize() {
     // Load configuration
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
-    bool updated = false;
-    if (settings.render_mode != 0 && settings.pixel_format_mode != 0) {
-        brls::Logger::info("[VideoManager] Reiniciando pixel_format_mode a RGBA porque el modo moderno no lo soporta");
-        settings.pixel_format_mode = 0;
-        updated = true;
-    }
-    if (updated) {
-        _config.setVideoSettings(settings);
-        _config.save();
-    }
     g_video_settings_snapshot = settings; // sincronizar snapshot global
     // Synchronize legacy global flags that affect immediate render
     video_fullscreen_stretch = settings.fullscreen;
@@ -141,10 +131,6 @@ void VideoManager::setRenderMode(const std::string& mode) {
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
     settings.render_mode = _currentModeInt;
-    if (_currentModeInt != 0 && settings.pixel_format_mode != 0) {
-        brls::Logger::info("[VideoManager] Desactivando formato YUV experimental: sólo disponible en modo legacy");
-        settings.pixel_format_mode = 0;
-    }
     g_video_settings_snapshot = settings; // update global snapshot
     _config.setVideoSettings(settings);
     _config.save();
@@ -221,21 +207,11 @@ void VideoManager::startVideo() {
 
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
-    bool needsSave = false;
     if (settings.render_mode != _currentModeInt) {
         _currentModeInt = settings.render_mode;
         _currentMode = (_currentModeInt == 0) ? "legacy" : "ffmpeg";
         set_render_mode_cached(_currentModeInt);
         brls::Logger::info("[VideoManager] Modo de render actualizado dinámicamente a {}", _currentMode);
-    }
-    if (_currentModeInt != 0 && settings.pixel_format_mode != 0) {
-        brls::Logger::info("[VideoManager] Ajustando pixel_format_mode a RGBA para modos no legacy");
-        settings.pixel_format_mode = 0;
-        needsSave = true;
-    }
-    if (needsSave) {
-        _config.setVideoSettings(settings);
-        _config.save();
     }
     g_video_settings_snapshot = settings;
     video_fullscreen_stretch = settings.fullscreen;
@@ -264,8 +240,10 @@ void VideoManager::stopVideo() {
         // The legacy system handles its own cleanup through callbacks
         brls::Logger::info("[VideoManager] Video legacy detenido");
     } else if (_currentMode == "ffmpeg") {
-        // TODO: Deploy when we have FFmpeg
-        brls::Logger::info("[VideoManager] Video FFmpeg detenido (placeholder)");
+        if (_ffmpegContext) {
+            ffmpeg_video_stop(_ffmpegContext);
+        }
+        brls::Logger::info("[VideoManager] Video FFmpeg detenido");
     }
 
     _videoRunning = false;
