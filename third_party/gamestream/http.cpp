@@ -116,11 +116,24 @@ int http_request(const std::string& url, Data* data,
     brls::Logger::info("Curl: Request:\n{}", url.c_str());
 
     auto* http_data = (HTTP_DATA*)malloc(sizeof(HTTP_DATA));
+    if (!http_data) {
+        gs_set_error("Out of memory");
+        return GS_OUT_OF_MEMORY;
+    }
     http_data->memory = (char*)malloc(1);
+    if (!http_data->memory) {
+        gs_set_error("Out of memory");
+        free(http_data);
+        return GS_OUT_OF_MEMORY;
+    }
     http_data->size = 0;
 
     auto curl = makeCurl();
-    if (!curl) return GS_FAILED;
+    if (!curl) {
+        free(http_data->memory);
+        free(http_data);
+        return GS_FAILED;
+    }
 
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, http_data);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
