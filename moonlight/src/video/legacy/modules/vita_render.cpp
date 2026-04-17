@@ -1,5 +1,4 @@
 #include "vita_globals.hpp"
-#include <vita2d.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/display.h>
@@ -17,9 +16,7 @@
 // Function to start the video
 extern "C" void vitavideo_start() {
     VITA_DEBUG_LOG("[Video] vitavideo_start called");
-    const VideoSettings& settings = g_video_settings_snapshot;
     active_video_thread = true;
-    vita2d_set_vblank_wait(settings.enable_vita_vblank_wait);
     // Note: external presentation enabled by default; not drawn inside submit
     VITA_DEBUG_LOG("[Video] vitavideo_start completado");
     if (stats_start_ms == 0) {
@@ -31,7 +28,6 @@ extern "C" void vitavideo_start() {
 // Video stop function
 extern "C" void vitavideo_stop() {
     VITA_DEBUG_LOG("[Video] vitavideo_stop called");
-    vita2d_set_vblank_wait(true);
     active_video_thread = false;
     VITA_DEBUG_LOG("[Video] vitavideo_stop completado");
 }

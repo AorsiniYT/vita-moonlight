@@ -2,7 +2,6 @@
 #include "legacy/modules/vita_globals.hpp"
 #include <atomic>
 #include <mutex>
-#include <vita2d.h>
 #include <psp2/gxm.h>
 
 VideoFrameHolder& VideoFrameHolder::instance() {
@@ -10,7 +9,7 @@ VideoFrameHolder& VideoFrameHolder::instance() {
     return inst;
 }
 
-void VideoFrameHolder::pushTexture(const vita2d_texture* texture, uint32_t w, uint32_t h, uint64_t ptsMs) {
+void VideoFrameHolder::pushTexture(const GxmTexture* texture, uint32_t w, uint32_t h, uint64_t ptsMs) {
     if (!texture || w == 0 || h == 0) {
         VITA_DEBUG_LOG("[VideoFrameHolder][pushTex] textura invalida tex=%p w=%u h=%u", texture, w, h);
         return;

@@ -3,7 +3,7 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>
 #include <psp2/videodec.h>
-#include <vita2d.h>
+#include <psp2/gxm.h>
 #include <stdlib.h>
 #include <memory>
 #include "vita_sceAvcInternal.hpp"
@@ -53,11 +53,8 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
     }
     // Step 1: framebuffer and initial buffers
     if (video_status == VITA_VIDEO_NOT_INIT) {
-        if (!vita2d_inited) {
-            vita2d_init();
-            vita2d_inited = true;
-            vita2d_set_vblank_wait(0); // disable vblank wait for low latency
-        }
+        // No vita2d_init needed — Borealis already initialized GXM.
+        // We use GxmTexture (direct GXM allocation) instead of vita2d textures.
 
         // Ensure we register a one-time application-exit hook that will
         // perform the full teardown of vita resources when Borealis exits.
@@ -91,28 +88,11 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
             decoder_output_mode = 0;
         }
 
-        // Initialize modular pixel processor
-        if (g_pixelProcessor) {
-            PixelFormat::destroyProcessor(g_pixelProcessor);
-            g_pixelProcessor = nullptr;
-        }
-        
-        g_pixelProcessor = PixelFormat::createProcessor(decoder_output_mode);
-        if (!g_pixelProcessor) {
-            VITA_DEBUG_LOG("[Video][ERR] No se pudo crear procesador de píxeles, fallback a RGBA");
-            decoder_output_mode = 0;
-            g_pixelProcessor = PixelFormat::createProcessor(0);
-        }
-        
-        if (g_pixelProcessor) {
-            int initRet = g_pixelProcessor->init(width, height, alignedW, alignedH);
-            if (initRet < 0) {
-                VITA_DEBUG_LOG("[Video][ERR] Error al inicializar procesador: 0x%x", initRet);
-                PixelFormat::destroyProcessor(g_pixelProcessor);
-                g_pixelProcessor = nullptr;
-            } else {
-                VITA_DEBUG_LOG("[Video][INIT] Procesador inicializado: %s", g_pixelProcessor->getName());
-            }
+        // Select decode mode directly (0=RGBA, 1=YUV experimental).
+        if (decoder_output_mode == 1) {
+            VITA_DEBUG_LOG("[Video][INIT] Modo de procesado: YUV GPU experimental");
+        } else {
+            VITA_DEBUG_LOG("[Video][INIT] Modo de procesado: RGBA Hardware Direct (No Downscale)");
         }
 
         // Modular pixel format system manages all buffers internally
@@ -241,10 +221,10 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         
         // Check if existing textures are the correct size
         if (frame_textures[0] && frame_textures[1]) {
-            unsigned int tex0_w = vita2d_texture_get_width(frame_textures[0]);
-            unsigned int tex0_h = vita2d_texture_get_height(frame_textures[0]);
-            unsigned int tex1_w = vita2d_texture_get_width(frame_textures[1]);
-            unsigned int tex1_h = vita2d_texture_get_height(frame_textures[1]);
+            uint32_t tex0_w = gxm_texture_get_width(frame_textures[0]);
+            uint32_t tex0_h = gxm_texture_get_height(frame_textures[0]);
+            uint32_t tex1_w = gxm_texture_get_width(frame_textures[1]);
+            uint32_t tex1_h = gxm_texture_get_height(frame_textures[1]);
             
             if (tex0_w == (unsigned)width && tex0_h == (unsigned)height &&
                 tex1_w == (unsigned)width && tex1_h == (unsigned)height) {
@@ -254,26 +234,27 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
                 // Different size, release old textures
                 VITA_DEBUG_LOG("[Video] Liberando texturas con tamaño incorrecto (old=%ux%u, new=%ux%u)",
                     tex0_w, tex0_h, width, height);
-                vita2d_free_texture(frame_textures[0]);
-                vita2d_free_texture(frame_textures[1]);
+                gxm_texture_free(frame_textures[0]);
+                gxm_texture_free(frame_textures[1]);
                 frame_textures[0] = nullptr;
                 frame_textures[1] = nullptr;
             }
         }
         
         if (!reusingTextures) {
-            // Create new textures at stream resolution
-            auto prevTexMemType = vita2d_texture_get_alloc_memblock_type();
-            vita2d_texture_set_alloc_memblock_type(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW);
-            uint32_t decoderPixelType = g_pixelProcessor ? g_pixelProcessor->getDecoderPixelFormat() : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
+            // Create new textures at stream resolution using direct GXM allocation
+            uint32_t decoderPixelType = (decoder_output_mode == 1)
+                ? SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER
+                : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
             SceGxmTextureFormat textureFormat = SCE_GXM_TEXTURE_FORMAT_A8B8G8R8;
             if (decoderPixelType == SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER) {
                 textureFormat = SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC0;
             }
             for (int i = 0; i < 2; i++) {
-                frame_textures[i] = vita2d_create_empty_texture_format(
+                frame_textures[i] = gxm_texture_create(
                     width, height,
-                    textureFormat
+                    textureFormat,
+                    SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW
                 );
                 if (!frame_textures[i]) {
                     VITA_DEBUG_LOG("[Video][ERR] No se pudo crear textura %d (%dx%d)", i, width, height);
@@ -281,7 +262,6 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
                 }
             }
             VITA_DEBUG_LOG("[Video][INIT] Creadas texturas %dx%d fmt=0x%08X", width, height, (unsigned)textureFormat);
-            vita2d_texture_set_alloc_memblock_type(prevTexMemType);
             
             if (!texturesOk) {
                 goto cleanup;
@@ -293,7 +273,7 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         single_frame_buffer = false;
         legacy_single_immediate_present = false;
         VITA_DEBUG_LOG("[Video][INIT] double buffer RGBA (front=%d back=%d)", frame_front_idx, frame_back_idx);
-        VITA_DEBUG_LOG("[Video][INIT] tex0=%p tex1=%p", vita2d_texture_get_datap(frame_textures[0]), frame_textures[1]?vita2d_texture_get_datap(frame_textures[1]):nullptr);
+        VITA_DEBUG_LOG("[Video][INIT] tex0=%p tex1=%p", gxm_texture_get_datap(frame_textures[0]), frame_textures[1]?gxm_texture_get_datap(frame_textures[1]):nullptr);
         VITA_DEBUG_LOG("[Video] Framebuffer inicializado");
         
         video_status = VITA_VIDEO_INIT_AVC_DEC;
@@ -315,10 +295,6 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
     }
     return 0;
 cleanup:
-    if (ret!=0 && vita2d_inited) { // if partial setup failed, release
-        vita2d_fini();
-        vita2d_inited = false;
-    }
     vita_cleanup();
     return ret;
 }

@@ -22,7 +22,6 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>
 #include <psp2/videodec.h>
-#include <vita2d.h>
 #include <stdlib.h>
 #include <memory> // std::unique_ptr, std::make_unique
 #include <string.h>

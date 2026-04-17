@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <memory>
 
-// Zero-copy eliminated: pipeline to vita2d textures is simplified
+// Zero-copy eliminated: pipeline uses GxmTexture (no vita2d)
 // Only minimum necessary metrics are preserved
 
 // (basic includes already moved above)
@@ -18,7 +18,9 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>
 #include <psp2/videodec.h>
-#include <vita2d.h>
+
+// Direct GXM texture allocator (replaces vita2d)
+#include "video/gxm_texture.hpp"
 
 // Project headers
 #include <Limelight.h>
@@ -107,7 +109,7 @@ extern size_t decoder_block_size;
 extern SceAvcdecQueryDecoderInfo* decoder_info;
 extern SceVideodecQueryInitInfoHwAvcdec* init;
 
-extern vita2d_texture* frame_textures[2];
+extern GxmTexture* frame_textures[2];
 extern int frame_front_idx;
 extern int frame_back_idx;
 #define FRAME_FRONT() (frame_textures[frame_front_idx])
@@ -117,8 +119,6 @@ extern std::mutex g_frame_slots_mutex;
 #endif
 // Single buffer mode (no double buffering). When active, FRONT and BACK are the same index.
 extern bool single_frame_buffer;
-// vita2d initialization flag (new) to make sure we don't call APIs without GXM context
-extern bool vita2d_inited;
 
 extern image_scaling_settings image_scaling;
 

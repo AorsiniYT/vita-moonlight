@@ -2,10 +2,10 @@
 #include <borealis/core/view.hpp>
 #include <borealis/core/style.hpp>
 #include <borealis/core/frame_context.hpp>
-#include <vita2d.h>
 #include <atomic>
 #include <cstdint>
 #include "video/VideoFrameHolder.hpp"
+struct GxmTexture;
 
 // Forward de NanoVG
 struct NVGcontext;
@@ -27,7 +27,7 @@ private:
     uint32_t storedW=0, storedH=0;
     int nvgImageId=-1;
     bool recreateImage=false;
-    const vita2d_texture* currentTexture=nullptr;
+    const GxmTexture* currentTexture=nullptr;
     // Simple metrics
     uint64_t lastStatsMs=0; uint32_t framesDrawn=0; uint32_t framesSeen=0; uint64_t lastFramePts=0;
     void destroyImage(NVGcontext* vg);

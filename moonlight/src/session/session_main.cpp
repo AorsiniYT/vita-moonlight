@@ -26,7 +26,6 @@
 #include "video/VitaVideoRenderer.hpp"
 #include "session/vita_session.hpp"
 #include "ConfigManager.hpp"
-#include <vita2d.h>
 #include <borealis/extern/nanovg/nanovg.h>
 #include "controller/ControllerInput.hpp"
 #include "debug.hpp"
@@ -46,9 +45,6 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     this->setBackgroundColor(nvgRGBA(0,0,0,255));
 
     this->inflateFromXMLRes("xml/views/session_main.xml");
-
-    // Ensure vita2d is ready BEFORE any potential draw (defensive)
-    extern bool vita2d_inited; if (!vita2d_inited) { vita2d_init(); vita2d_inited = true; vita2d_set_vblank_wait(0); }
 
     // Inicializar input manager
     g_controllerInput = new ControllerInputManager();
