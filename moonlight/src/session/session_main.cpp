@@ -28,6 +28,7 @@
 #include "ConfigManager.hpp"
 #include <borealis/extern/nanovg/nanovg.h>
 #include "controller/ControllerInput.hpp"
+#include "controller/keyboard/keyboard_launcher.hpp"
 #include "debug.hpp"
 #include <chrono>
 #include <cstdint>
@@ -70,7 +71,16 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
         auto* activity = new brls::Activity(overlay);
         brls::Application::pushActivity(activity);
         brls::Application::giveFocus(overlay->getDefaultFocus());
-    });    // Reset input to avoid residual states of the previous UI
+    });
+
+    g_controllerInput->setKeyboardShortcutCallback([]() {
+        if (SessionMainView::pauseOverlayOpen.load()) {
+            return;
+        }
+        open_configured_keyboard();
+    });
+
+    // Reset input to avoid residual states of the previous UI
     if (g_controllerInput) g_controllerInput->dropInput();
 
     // Hide base UI to leave only video and overlay
