@@ -85,6 +85,7 @@ struct VideoSettings {
     float motion_controls_scalar_y = 0.8f;
     int mouse_acceleration = 150;
     int keyboard_layout = 0; // 0=EN_US, 1=ES_ES, 2=ES_LATAM
+    int keyboard_mode = 0;    // 0=Legacy (SCE IME), 1=Modern (Borealis overlay)
     
     // Trackpad Settings (Specific)
     int trackpad_pointer_speed = 100;       // 0-200

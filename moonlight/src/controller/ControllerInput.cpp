@@ -56,7 +56,7 @@ ControllerInputManager* g_controllerInput = nullptr;
 ControllerInputManager::ControllerInputManager() 
     : inputEnabled(true), inputDropped(false), touchscreenMode(0), 
       touchManager(nullptr), rearTouchManager(nullptr), pauseCallback(nullptr),
-      activeKeyboard(nullptr) {
+    activeKeyboard(nullptr), activeKeyboardSeenOpen(false) {
 
     memset(&lastGamepadState, 0, sizeof(GamepadState));
     memset(&lastMouseState, 0, sizeof(VitaMouseState));
@@ -196,8 +196,27 @@ void ControllerInputManager::handleInput() {
     // Handle touch based mode
     touchManager->handleTouch(touchscreenMode);
 
-    // Keyboard Polling
+    // Keyboard per-frame update (legacy now runs IME update in dedicated thread)
     if (activeKeyboard) {
+        activeKeyboard->update();
+
+        if (activeKeyboard->isOpen()) {
+            activeKeyboardSeenOpen = true;
+        }
+
+        // Auto-cleanup only after the keyboard has reached open state at least once.
+        // This avoids destroying legacy keyboard while its IME thread is still starting.
+        if (activeKeyboardSeenOpen && !activeKeyboard->isOpen()) {
+            vita_debug_log("[ControllerInput] Active keyboard closed itself, cleaning up");
+            IKeyboard* kb = activeKeyboard;
+            activeKeyboard = nullptr;
+            activeKeyboardSeenOpen = false;
+            delete kb;
+        }
+    }
+
+    // Keyboard Polling (only for keyboards that use polling, not direct send)
+    if (activeKeyboard && !activeKeyboard->sendsDirectly()) {
         static KeyboardState oldKeyboardState;
         KeyboardState keyboardState = activeKeyboard->getKeyboardState();
         
@@ -256,6 +275,16 @@ void ControllerInputManager::setPauseCallback(const std::function<void()>& cb) {
     pauseCallback = cb;
     vita_debug_log("[ControllerInput] setPauseCallback llamado, configurando callback");
     set_pause_callback(cb);
+}
+
+void ControllerInputManager::setKeyboardShortcutCallback(const std::function<void()>& cb) {
+    set_keyboard_callback(cb);
+}
+
+void ControllerInputManager::setActiveKeyboard(IKeyboard* kb) {
+    vita_debug_log("[ControllerInput] setActiveKeyboard: %p", kb);
+    activeKeyboard = kb;
+    activeKeyboardSeenOpen = (kb != nullptr && kb->isOpen());
 }
 
 // Public setter to enable/disable input processing.

@@ -253,7 +253,8 @@ int main(int argc, char* argv[])
 
     // Run the app
     while (brls::Application::mainLoop())
-        ;
+    {
+    }
 
     // Exit
     return EXIT_SUCCESS;

@@ -6,7 +6,7 @@
 #include <psp2/ctrl.h>
 #include "controller/TouchInput.hpp"
 #include "controller/RearTouchInput.hpp"
-#include "controller/keyboard/keyboard.hpp"
+#include "controller/keyboard/IKeyboard.hpp"
 #include "debug.hpp"
 #include "controller/GamepadState.hpp"
 #include "ConfigManager.hpp"
@@ -51,6 +51,7 @@ public:
 
     // Callback for pause hotkey (START+L1+R1)
     void setPauseCallback(const std::function<void()>& cb);
+    void setKeyboardShortcutCallback(const std::function<void()>& cb);
 
     void applyRearTouchSettings(const RearTouchSettings& settings);
     void setRearTouchEnabled(bool enabled);
@@ -59,11 +60,8 @@ public:
     void setGamepadType(GamepadType type);
 
     // Keyboard integration
-    void setActiveKeyboard(KeyboardOverlay* kb) { 
-        vita_debug_log("[ControllerInput] setActiveKeyboard: %p", kb);
-        activeKeyboard = kb; 
-    }
-    KeyboardOverlay* getActiveKeyboard() const { return activeKeyboard; }
+    void setActiveKeyboard(IKeyboard* kb);
+    IKeyboard* getActiveKeyboard() const { return activeKeyboard; }
 
 private:
     bool inputEnabled;
@@ -83,7 +81,8 @@ private:
     std::function<void()> pauseCallback;
 
     // Active keyboard for polling
-    KeyboardOverlay* activeKeyboard = nullptr;
+    IKeyboard* activeKeyboard = nullptr;
+    bool activeKeyboardSeenOpen = false;
 
     // Current gamepad type
     GamepadType currentGamepadType = GAMEPAD_TYPE_XBOX;
