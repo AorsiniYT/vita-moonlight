@@ -66,6 +66,9 @@ public:
 private:
     bool inputEnabled;
     bool inputDropped;
+    bool touchSuppressed = false;
+    uint64_t touchSuppressUntilUs = 0;
+    bool lastKeyboardOpen = false;
 
     // Previous states to detect changes
     GamepadState lastGamepadState;

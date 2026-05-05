@@ -194,7 +194,33 @@ void ControllerInputManager::handleInput() {
     lastCtrlData = ctrlData;
 
     // Handle touch based mode
-    touchManager->handleTouch(touchscreenMode);
+    if (touchManager) {
+        constexpr uint64_t kTouchReleaseDelayUs = 150000;
+        const bool keyboardOpen = (activeKeyboard != nullptr && activeKeyboard->isOpen());
+
+        if (keyboardOpen) {
+            if (!touchSuppressed) {
+                touchManager->dropTouch(touchscreenMode);
+                touchSuppressed = true;
+            }
+            touchSuppressUntilUs = nowUs + kTouchReleaseDelayUs;
+        } else {
+            if (lastKeyboardOpen) {
+                touchManager->dropTouch(touchscreenMode);
+                touchSuppressed = true;
+                touchSuppressUntilUs = nowUs + kTouchReleaseDelayUs;
+            }
+
+            if (touchSuppressed && nowUs < touchSuppressUntilUs) {
+                // still suppressed
+            } else {
+                touchSuppressed = false;
+                touchManager->handleTouch(touchscreenMode);
+            }
+        }
+
+        lastKeyboardOpen = keyboardOpen;
+    }
 
     // Keyboard per-frame update (legacy now runs IME update in dedicated thread)
     if (activeKeyboard) {
@@ -211,7 +237,9 @@ void ControllerInputManager::handleInput() {
             IKeyboard* kb = activeKeyboard;
             activeKeyboard = nullptr;
             activeKeyboardSeenOpen = false;
-            delete kb;
+            if (!kb->selfDestructs()) {
+                delete kb;
+            }
         }
     }
 

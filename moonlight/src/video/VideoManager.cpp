@@ -241,7 +241,11 @@ void VideoManager::stopVideo() {
         brls::Logger::info("[VideoManager] Video legacy detenido");
     } else if (_currentMode == "ffmpeg") {
         if (_ffmpegContext) {
+#ifdef BUILD_FFMPEG
             ffmpeg_video_stop(_ffmpegContext);
+#else
+            brls::Logger::warning("[VideoManager] FFmpeg built without ffmpeg support, cannot stop");
+#endif
         }
         brls::Logger::info("[VideoManager] Video FFmpeg detenido");
     }
