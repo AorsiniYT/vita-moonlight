@@ -192,9 +192,8 @@ SettingsTab::SettingsTab()
         else {
             modeNameKey = "moonlight/settings_tab/render_mode/unknown_name";
         }
-        brls::Application::notify(fmt::format(
-            brls::getStr("moonlight/settings_tab/render_mode/notify"),
-            brls::getStr(modeNameKey)));
+        brls::Application::notify(
+            brls::getStr("moonlight/settings_tab/render_mode/notify", brls::getStr(modeNameKey)));
     });
 
     // Pixel format selector (for RGBA vs YUV tests)
@@ -212,8 +211,8 @@ SettingsTab::SettingsTab()
         extern VideoSettings g_video_settings_snapshot;
         g_video_settings_snapshot.pixel_format_mode = selected;
         const std::string& label = pixelFormats.at(static_cast<std::size_t>(selected));
-        brls::Application::notify(fmt::format(
-            brls::getStr("moonlight/settings_tab/pixel_format/notify"), label));
+        brls::Application::notify(
+            brls::getStr("moonlight/settings_tab/pixel_format/notify", label));
     });
 
     updateModeDependentVisibility(initialRenderMode, false);

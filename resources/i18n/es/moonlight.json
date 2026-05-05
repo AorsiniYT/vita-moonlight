@@ -56,7 +56,6 @@
         "dns": "DNS",
         "notify": "Mostrar notificación",
         "language": "Idioma",
-        "moonlight/settings/language": "Idioma",
         "add_host_connection_type": "Tipo de conexión",
         "add_host_lan": "LAN (local)",
         "add_host_online": "Online (externo)",
