@@ -138,8 +138,18 @@
         "show_fps_title": "Mostrar FPS",
         "save_debug_log_title": "Guardar log de depuración",
         "ref_frame_title": "Invalidación de frame de referencia",
-        "vblank_wait_title": "Esperar VBlank Vita",
-        "motion_controls_title": "Controles de movimiento",
+        "swap_interval": {
+            "title": "V-Sync (Swap Interval)",
+            "options": {
+                "0": "Sin V-Sync (Sin límite)",
+                "1": "V-Sync ON (60 FPS)",
+                "2": "V-Sync 2x (30 FPS)",
+                "3": "V-Sync 3x (20 FPS)",
+                "4": "V-Sync 4x (15 FPS)"
+            },
+            "saved": "V-Sync guardado"
+        },
+        "motion_controls_title": "Giroscopio",
         "double_tap_sprint_title": "Doble tap para correr",
         "touchscreen_mode": {
             "title": "Modo touchscreen",

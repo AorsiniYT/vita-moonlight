@@ -491,15 +491,6 @@ SettingsTab::SettingsTab()
         config.save();
     });
 
-    vblankWaitToggle->init(brls::getStr("moonlight/settings_tab/vblank_wait_title"), videoSettings.enable_vita_vblank_wait, [this](bool value) {
-        ConfigManager config;
-        config.load();
-        VideoSettings settings = config.getVideoSettings();
-        settings.enable_vita_vblank_wait = value;
-        config.setVideoSettings(settings);
-        config.save();
-    });
-
     motionControlsToggle->init(brls::getStr("moonlight/settings_tab/motion_controls_title"), videoSettings.enable_motion_controls, [this](bool value) {
         ConfigManager config;
         config.load();
@@ -693,9 +684,6 @@ SettingsTab::SettingsTab()
         brls::Application::setFPSStatus(value);
     });
 
-    swapInterval->init("Swap Interval", {"0", "1", "2", "3", "4"}, 1, [](int selected) {},
-        [](int selected) { brls::Application::setSwapInterval(selected); });
-
     alwaysOnTop->init("Always On Top", false, [](bool value){
         brls::Application::getPlatform()->setWindowAlwaysOnTop(value);
     });
@@ -735,6 +723,22 @@ SettingsTab::SettingsTab()
         slider->setDetailText(fmt::format("{:.2f}", value));
     });
     slider->setDetailText("...");
+    
+    // Configure Swap Interval (V-Sync)
+    std::vector<std::string> swapIntervalOptions = {
+        brls::getStr("moonlight/settings_tab/swap_interval/options/0"),
+        brls::getStr("moonlight/settings_tab/swap_interval/options/1"),
+        brls::getStr("moonlight/settings_tab/swap_interval/options/2"),
+        brls::getStr("moonlight/settings_tab/swap_interval/options/3"),
+        brls::getStr("moonlight/settings_tab/swap_interval/options/4")
+    };
+    int currentSwapInterval = 1; // Default: V-Sync ON (60 FPS)
+    swapInterval->init(brls::getStr("moonlight/settings_tab/swap_interval/title"), swapIntervalOptions, currentSwapInterval, [](int selected) {
+        if (selected >= 0 && selected <= 4) {
+            brls::Application::setSwapInterval(selected);
+            brls::Application::notify(brls::getStr("moonlight/settings_tab/swap_interval/saved"));
+        }
+    });
     
     // Start background loading
     this->initAsync();
