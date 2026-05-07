@@ -141,19 +141,24 @@
             <brls:Header title="@i18n/moonlight/settings_tab/system_header"/>
             
             <brls:RadioCell
-                id="radio"/>
+                id="radio"
+                visibility="gone"/>
                 
             <brls:BooleanCell
-                id="boolean"/>
+                id="boolean"
+                visibility="gone"/>
                 
             <brls:SelectorCell
-                id="selector"/>
+                id="selector"
+                visibility="gone"/>
                 
             <brls:InputCell
-                id="input"/>
+                id="input"
+                visibility="gone"/>
                 
             <brls:InputNumericCell
-                id="inputNumeric"/>
+                id="inputNumeric"
+                visibility="gone"/>
 
             <brls:DetailCell
                 title="@i18n/moonlight/settings/ip"
@@ -161,16 +166,20 @@
             
             <brls:DetailCell
                 title="@i18n/moonlight/settings/dns"
-                id="dnsServer"/>
+                id="dnsServer"
+                visibility="gone"/>
 
             <brls:BooleanCell
-                id="debug"/>
+                id="debug"
+                visibility="gone"/>
 
             <brls:BooleanCell
-                id="bottomBar"/>
+                id="bottomBar"
+                visibility="gone"/>
 
             <brls:BooleanCell
-                id="alwaysOnTop"/>
+                id="alwaysOnTop"
+                visibility="gone"/>
 
             <brls:BooleanCell
                 id="fps"/>
@@ -183,10 +192,11 @@
 
             <brls:DetailCell
                     title="@i18n/moonlight/settings/notify"
-                    id="notify"/>
+                    id="notify"
+                    visibility="gone"/>
 
-            <brls:RadioCell id="radio2"/>
-            <brls:RadioCell id="radio3"/>
+            <brls:RadioCell id="radio2" visibility="gone"/>
+            <brls:RadioCell id="radio3" visibility="gone"/>
 
             <brls:SelectorCell
                 id="languageSelector"
