@@ -10,7 +10,7 @@ struct DialogOptions {
     brls::AlignItems alignItems = brls::AlignItems::AUTO;
     brls::JustifyContent justifyContent = brls::JustifyContent::FLEX_START;
     bool cancelable = true;                // Does pressing B close the dialog?
-    bool focusable = true;
+    bool focusable = false;               // Dialog itself not focusable, focus goes to buttons
     bool hideHighlight = false;
 };
 

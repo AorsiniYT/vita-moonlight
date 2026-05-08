@@ -143,8 +143,8 @@ void HostsTab::refreshHostsList() {
             VITALOG("[PCCard] Click en card de host: %s (%s)\n", host.name.c_str(), host.ip.c_str());
             auto* dialog = new brls::Dialog(brls::getStr("host_dialog/dialog/title"));
             
-            // Prevents the dialog from closing automatically when a button is pressed
-            dialog->setCancelable(false);
+            // Allow closing the dialog with the back button (Circle on Vita)
+            dialog->setCancelable(true);
 
             dialog->addButton(brls::getStr("host_dialog/dialog/connect"), [this, host](/*dialog*/) {
                 sceClibPrintf("[PCCard] Conectar a %s (%s)\n", host.name.c_str(), host.ip.c_str());
@@ -152,53 +152,51 @@ void HostsTab::refreshHostsList() {
                     this->present(new SessionAppSelect(host.name));
                 });
             });
-            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [dialog, host]() {
+            dialog->addButton(brls::getStr("host_dialog/dialog/info"), [host]() {
                 sceClibPrintf("[PCCard] Info para %s (%s)\n", host.name.c_str(), host.ip.c_str());
-                
+
                 // Create host information dialog using dialog_utils
                 brls::Style style = brls::Application::getStyle();
-                
+
                 // Create the content with the rows of information
                 std::vector<std::pair<std::string, std::string>> infoRows = {
                     {brls::getStr("host_dialog/info/name"), host.name},
                     {brls::getStr("host_dialog/info/ip"), host.ip},
                     {brls::getStr("host_dialog/info/mac"), host.mac}
                 };
-                
+
                 brls::Box* infoContent = new brls::Box(brls::Axis::COLUMN);
                 infoContent->setAlignItems(brls::AlignItems::FLEX_START);
                 infoContent->setJustifyContent(brls::JustifyContent::FLEX_START);
                 infoContent->setWidth(620.0f);
-                
+
                 // Dialogue title
-                auto* titleLabel = createLabel(brls::getStr("host_dialog/info/title"), 
+                auto* titleLabel = createLabel(brls::getStr("host_dialog/info/title"),
                                                style["brls/applet_frame/header_title_font_size"],
                                                brls::HorizontalAlign::CENTER, 18.0f);
                 infoContent->addView(titleLabel);
-                
+
                 // Information rows
-                brls::Box* infoBox = createInfoBox(infoRows, 
-                                                    style["brls/label/default_font_size"], 
+                brls::Box* infoBox = createInfoBox(infoRows,
+                                                    style["brls/label/default_font_size"],
                                                     10.0f);
                 infoContent->addView(infoBox);
-                
+
                 // Create custom dialog
                 DialogOptions options;
                 options.contentPadding = style["brls/dialog/paddingTopBottom"] * 0.6f;
                 options.contentWidth = 620.0f;
                 options.alignItems = brls::AlignItems::FLEX_START;
                 options.cancelable = true;
-                
+
                 auto* infoDialog = createCustomDialog(infoContent, options);
                 infoDialog->addButton(brls::getStr("host_dialog/dialog/ok"), []() {
                     // Close automatically
                 });
-                infoDialog->open();
-                
-                // FORCE FOCUS FIX: The selector disappears because labels aren't focusable.
-                // We need to kick the focus manager to find the OK button.
+
+                // Open info dialog on the next UI frame after parent dismiss completes
                 brls::sync([infoDialog]() {
-                    brls::Application::giveFocus(infoDialog);
+                    infoDialog->open();
                 });
             });
             dialog->addButton(brls::getStr("host_dialog/dialog/settings"), [this, host](/*dialog*/) {
