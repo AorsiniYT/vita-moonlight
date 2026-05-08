@@ -69,8 +69,14 @@ public:
     // Gyroscope access for test overlay
     GyroManager* getGyroManager() const { return gyroManager; }
 
+    // PS button capture (lock/unlock for streaming)
+    void lockPSButton();
+    void unlockPSButton();
+    void setStreamingActive(bool active);
+
 private:
     bool inputEnabled;
+    bool streamingActive = false;
     bool inputDropped;
     bool touchSuppressed = false;
     uint64_t touchSuppressUntilUs = 0;
@@ -122,6 +128,12 @@ private:
     ButtonMapping mapping;
     bool isPstvModel;
     GyroManager* gyroManager = nullptr;
+
+    // PS button state
+    bool psButtonLocked = false;
+    bool psButtonWasPressed = false;
+    uint64_t psButtonPressedTimeUs = 0;
+    bool psButtonSpecialActive = false;
 
     void initMapping();
     GamepadState buildGamepadState(const SceCtrlData& ctrlData) const;
