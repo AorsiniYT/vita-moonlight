@@ -14,6 +14,7 @@
 #include <thread>
 #include <chrono>
 #include <cstdint>
+#include "controller/Gyro.hpp"
 
 namespace {
 
@@ -81,6 +82,9 @@ ControllerInputManager::ControllerInputManager()
     isPstvModel = (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV);
     initMapping();
 
+    // Gyroscope manager
+    gyroManager = new GyroManager();
+
     vita_debug_log("[ControllerInput] Initialized (gamepad_type=%d)", (int)currentGamepadType);
 }
 
@@ -96,6 +100,10 @@ ControllerInputManager::~ControllerInputManager() {
     if (rearTouchManager) {
         delete rearTouchManager;
         rearTouchManager = nullptr;
+    }
+    if (gyroManager) {
+        delete gyroManager;
+        gyroManager = nullptr;
     }
 }
 
@@ -192,6 +200,11 @@ void ControllerInputManager::handleInput() {
 
     // Update previous status
     lastCtrlData = ctrlData;
+
+    // Update gyroscope/motion (reads sensors and sends motion events if enabled)
+    if (gyroManager) {
+        gyroManager->update();
+    }
 
     // Handle touch based mode
     if (touchManager) {

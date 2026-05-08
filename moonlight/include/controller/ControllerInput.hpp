@@ -11,6 +11,9 @@
 #include "controller/GamepadState.hpp"
 #include "ConfigManager.hpp"
 
+// Forward declare Gyro manager
+class GyroManager;
+
 struct VitaMouseState {
     uint16_t buttonFlags;
     unsigned char leftTrigger;
@@ -62,6 +65,9 @@ public:
     // Keyboard integration
     void setActiveKeyboard(IKeyboard* kb);
     IKeyboard* getActiveKeyboard() const { return activeKeyboard; }
+
+    // Gyroscope access for test overlay
+    GyroManager* getGyroManager() const { return gyroManager; }
 
 private:
     bool inputEnabled;
@@ -115,6 +121,7 @@ private:
 
     ButtonMapping mapping;
     bool isPstvModel;
+    GyroManager* gyroManager = nullptr;
 
     void initMapping();
     GamepadState buildGamepadState(const SceCtrlData& ctrlData) const;
