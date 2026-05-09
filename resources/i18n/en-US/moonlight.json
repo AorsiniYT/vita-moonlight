@@ -173,6 +173,11 @@
                 },
                 "notify_prefix": "Controller type changed to: "
             },
+            "swap_shoulder_buttons": {
+                "title": "Swap R1/L1 <-> R2/L2",
+                "notify_enabled": "Swap shoulder buttons enabled",
+                "notify_disabled": "Swap shoulder buttons disabled"
+            },
             "mouse_accel": {
                 "title": "Mouse acceleration"
             },
@@ -277,6 +282,7 @@
             "calibration_zone_title": "Active zone",
             "calibration_zone_detail": "Adjust the margins with calibration",
             "actions_header": "Corner actions",
+            "swap_warning": "Swap R1/L1 <-> R2/L2 is active. NW/NE -> L1/R1, SW/SE -> L3/R3. Custom corner actions are disabled.",
             "action_nw": "North-west corner action",
             "action_ne": "North-east corner action",
             "action_sw": "South-west corner action",

@@ -609,6 +609,22 @@ SettingsTab::SettingsTab()
         }
     });
 
+    // Configure swap shoulder buttons toggle
+    swapShoulderButtonsToggle->init(brls::getStr("moonlight/settings_tab/swap_shoulder_buttons/title"), videoSettings.swap_shoulder_buttons, [this](bool value) {
+        ConfigManager config;
+        config.load();
+        VideoSettings settings = config.getVideoSettings();
+        settings.swap_shoulder_buttons = value;
+        config.setVideoSettings(settings);
+        config.save();
+        if (g_controllerInput) {
+            g_controllerInput->setSwapShoulderButtons(value);
+        }
+        brls::Application::notify(brls::getStr(value
+            ? "moonlight/settings_tab/swap_shoulder_buttons/notify_enabled"
+            : "moonlight/settings_tab/swap_shoulder_buttons/notify_disabled"));
+    });
+
     // NUEVO: Configure Keyboard button
     if (keyboardConfigureCell) {
         keyboardConfigureCell->setDetailText(brls::getStr("moonlight/keyboard/configure_detail"));

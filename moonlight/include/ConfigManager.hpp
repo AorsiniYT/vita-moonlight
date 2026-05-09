@@ -105,7 +105,10 @@ struct VideoSettings {
     
     // New option: gamepad type
     GamepadType gamepad_type = GAMEPAD_TYPE_XBOX; // 0=Xbox, 1=PS4 (to emulate controller)
-    
+
+    // Swap shoulder buttons: L1/R1 <-> L2/R2 (quick shoulder adjustment)
+    bool swap_shoulder_buttons = false;
+
     // Front Touch Settings (4 corner zones on front screen)
     bool enable_front_touchzones = true;
     int front_touch_offset = 0;    // px from screen edge

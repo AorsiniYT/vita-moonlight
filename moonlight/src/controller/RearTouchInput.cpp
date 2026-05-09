@@ -61,6 +61,13 @@ void RearTouchInputManager::setEnabled(bool value) {
     }
 }
 
+void RearTouchInputManager::setSwapShoulderButtons(bool value) {
+    if (swapShoulderButtons != value) {
+        dropState();
+    }
+    swapShoulderButtons = value;
+}
+
 void RearTouchInputManager::process(GamepadState& state, bool isPstvModel) {
     if (!enabled || isPstvModel) {
         return;
@@ -104,7 +111,21 @@ void RearTouchInputManager::process(GamepadState& state, bool isPstvModel) {
     }
 
     for (std::size_t i = 0; i < zoneActive.size(); ++i) {
-        const std::uint32_t actionCode = getActionForIndex(i);
+        std::uint32_t actionCode = 0;
+        if (swapShoulderButtons) {
+            // Fixed mapping when swap is active (legacy behavior):
+            // NW (0) -> L1 digital, NE (1) -> R1 digital
+            // SW (2) -> L3, SE (3) -> R3
+            static const std::uint32_t swapActions[4] = {
+                controller::INPUT_TYPE_GAMEPAD | LB_FLAG,
+                controller::INPUT_TYPE_GAMEPAD | RB_FLAG,
+                controller::INPUT_TYPE_GAMEPAD | LS_CLK_FLAG,
+                controller::INPUT_TYPE_GAMEPAD | RS_CLK_FLAG
+            };
+            actionCode = swapActions[i];
+        } else {
+            actionCode = getActionForIndex(i);
+        }
         handleZoneAction(i, zoneActive[i], actionCode, state);
     }
 }
@@ -113,7 +134,19 @@ void RearTouchInputManager::dropState() {
     GamepadState dummy{};
     for (std::size_t i = 0; i < lastZoneActive.size(); ++i) {
         if (lastZoneActive[i]) {
-            handleZoneAction(i, false, getActionForIndex(i), dummy);
+            std::uint32_t actionCode = 0;
+            if (swapShoulderButtons) {
+                static const std::uint32_t swapActions[4] = {
+                    controller::INPUT_TYPE_GAMEPAD | LB_FLAG,
+                    controller::INPUT_TYPE_GAMEPAD | RB_FLAG,
+                    controller::INPUT_TYPE_GAMEPAD | LS_CLK_FLAG,
+                    controller::INPUT_TYPE_GAMEPAD | RS_CLK_FLAG
+                };
+                actionCode = swapActions[i];
+            } else {
+                actionCode = getActionForIndex(i);
+            }
+            handleZoneAction(i, false, actionCode, dummy);
         }
     }
     lastZoneActive.fill(false);

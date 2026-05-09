@@ -77,10 +77,12 @@ ControllerInputManager::ControllerInputManager()
     config.load();
     VideoSettings initialSettings = config.getVideoSettings();
     rearTouchManager->updateSettings(initialSettings.rear_touch);
+    rearTouchManager->setSwapShoulderButtons(initialSettings.swap_shoulder_buttons);
     frontTouchManager->updateSettings(initialSettings);
-    
-    // Load gamepad type from config
+
+    // Load gamepad type and swap shoulder buttons from config
     currentGamepadType = initialSettings.gamepad_type;
+    swapShoulderButtons = initialSettings.swap_shoulder_buttons;
 
     isPstvModel = (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV);
     initMapping();
@@ -478,11 +480,24 @@ GamepadState ControllerInputManager::buildGamepadState(const SceCtrlData& ctrlDa
     if (isPressed(mapping.btnStart, ctrlData)) state.buttonFlags |= PLAY_FLAG;
     if (isPressed(mapping.btnSelect, ctrlData)) state.buttonFlags |= BACK_FLAG;
 
-    // L1/R1 maps to LB/RB (Xbox consistent)
-    if (isPressed(mapping.btnL1, ctrlData)) state.buttonFlags |= LB_FLAG;
-    if (isPressed(mapping.btnR1, ctrlData)) state.buttonFlags |= RB_FLAG;
-    state.leftTrigger = readTrigger(mapping.btnL2, ctrlData);
-    state.rightTrigger = readTrigger(mapping.btnR2, ctrlData);
+    if (swapShoulderButtons) {
+        // Swap mode: physical L1/R1 act as L2/R2 (analog triggers)
+        if (ctrlData.buttons & SCE_CTRL_L1) state.leftTrigger = 0xFF;
+        if (ctrlData.buttons & SCE_CTRL_R1) state.rightTrigger = 0xFF;
+        // On PSTV, physical L2/R2 act as L1/R1 (digital).
+        // On Vita normal, SCE_CTRL_L2/LR2 alias LTRIGGER/RTRIGGER (same physical buttons),
+        // so L1/R1 digital must come from rear touch only (handled by RearTouchInputManager).
+        if (isPstvModel) {
+            if (ctrlData.buttons & SCE_CTRL_L2) state.buttonFlags |= LB_FLAG;
+            if (ctrlData.buttons & SCE_CTRL_R2) state.buttonFlags |= RB_FLAG;
+        }
+    } else {
+        // Normal mapping: L1/R1 -> LB/RB (digital), L2/R2 -> analog triggers
+        if (isPressed(mapping.btnL1, ctrlData)) state.buttonFlags |= LB_FLAG;
+        if (isPressed(mapping.btnR1, ctrlData)) state.buttonFlags |= RB_FLAG;
+        state.leftTrigger = readTrigger(mapping.btnL2, ctrlData);
+        state.rightTrigger = readTrigger(mapping.btnR2, ctrlData);
+    }
 
     if (isPressed(mapping.btnL3, ctrlData)) state.buttonFlags |= LS_CLK_FLAG;
     if (isPressed(mapping.btnR3, ctrlData)) state.buttonFlags |= RS_CLK_FLAG;
@@ -616,6 +631,14 @@ void ControllerInputManager::setGamepadType(GamepadType type) {
 void ControllerInputManager::setRearTouchEnabled(bool enabled) {
     if (rearTouchManager) {
         rearTouchManager->setEnabled(enabled);
+    }
+}
+
+void ControllerInputManager::setSwapShoulderButtons(bool enabled) {
+    swapShoulderButtons = enabled;
+    vita_debug_log("[ControllerInput] Swap shoulder buttons -> %d", enabled ? 1 : 0);
+    if (rearTouchManager) {
+        rearTouchManager->setSwapShoulderButtons(enabled);
     }
 }
 

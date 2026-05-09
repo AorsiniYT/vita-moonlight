@@ -63,6 +63,10 @@ public:
     void applyFrontTouchSettings(const VideoSettings& settings);
     void setFrontTouchEnabled(bool enabled);
 
+    // Swap shoulder buttons: L1/R1 <-> L2/R2
+    void setSwapShoulderButtons(bool enabled);
+    bool getSwapShoulderButtons() const { return swapShoulderButtons; }
+
     // Change gamepad type without restarting session
     void setGamepadType(GamepadType type);
 
@@ -106,6 +110,9 @@ private:
 
     // Current gamepad type
     GamepadType currentGamepadType = GAMEPAD_TYPE_XBOX;
+
+    // Swap shoulder buttons state
+    bool swapShoulderButtons = false;
 
     struct ButtonMapping {
         uint32_t btnDpadUp;

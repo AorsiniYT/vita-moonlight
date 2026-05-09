@@ -12,6 +12,7 @@ public:
     BRLS_BIND(brls::SelectorCell, rearTouchNESelector, "rearTouchNESelector");
     BRLS_BIND(brls::SelectorCell, rearTouchSWSelector, "rearTouchSWSelector");
     BRLS_BIND(brls::SelectorCell, rearTouchSESelector, "rearTouchSESelector");
+    BRLS_BIND(brls::Label, rearTouchSwapWarning, "rearTouchSwapWarning");
 
     static brls::View* create();
 };

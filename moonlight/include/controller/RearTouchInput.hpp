@@ -13,6 +13,8 @@ public:
     void setEnabled(bool enabled);
     bool isEnabled() const { return enabled; }
 
+    void setSwapShoulderButtons(bool enabled);
+
     // Process the back panel and update the gamepad status
     void process(GamepadState& state, bool isPstvModel);
 
@@ -24,6 +26,7 @@ public:
 private:
     RearTouchSettings currentSettings{};
     bool enabled = true;
+    bool swapShoulderButtons = false;
 
     std::array<bool, 4> lastZoneActive {false, false, false, false};
 
