@@ -241,7 +241,7 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.enable_motion_controls = get("video", "enable_motion_controls", "false") == "true";
     settings.enable_double_tap_sprint = get("video", "enable_double_tap_sprint", "false") == "true";
     settings.absolute_mouse = get("video", "absolute_mouse", "false") == "true";
-    std::string touchscreenStr = get("video", "touchscreen_mode", "0");
+    std::string touchscreenStr = get("video", "touchscreen_mode", "1");
     if (touchscreenStr == "true") {
         settings.touchscreen_mode = 2; // Mouse Absolute
     } else if (touchscreenStr == "false") {
@@ -318,6 +318,16 @@ VideoSettings ConfigManager::getVideoSettings() const {
     settings.rear_touch.actionNorthEast = readUint("rear_touch", "action_ne", settings.rear_touch.actionNorthEast);
     settings.rear_touch.actionSouthWest = readUint("rear_touch", "action_sw", settings.rear_touch.actionSouthWest);
     settings.rear_touch.actionSouthEast = readUint("rear_touch", "action_se", settings.rear_touch.actionSouthEast);
+
+    // Front Touch Settings
+    settings.enable_front_touchzones = get("front_touch", "enabled", "false") == "true";
+    settings.front_touch_offset = std::stoi(get("front_touch", "offset", "0"));
+    settings.front_touch_size = std::stoi(get("front_touch", "size", "150"));
+    settings.front_action_northwest = readUint("front_touch", "action_nw", settings.front_action_northwest);
+    settings.front_action_northeast = readUint("front_touch", "action_ne", settings.front_action_northeast);
+    settings.front_action_southwest = readUint("front_touch", "action_sw", settings.front_action_southwest);
+    settings.front_action_southeast = readUint("front_touch", "action_se", settings.front_action_southeast);
+
     return settings;
 }
 
@@ -371,4 +381,13 @@ void ConfigManager::setVideoSettings(const VideoSettings& settings) {
     set("rear_touch", "action_sw", std::to_string(settings.rear_touch.actionSouthWest));
     set("rear_touch", "action_se", std::to_string(settings.rear_touch.actionSouthEast));
     set("rear_touch", "schema_version", "2");
+
+    // Front Touch Settings
+    set("front_touch", "enabled", settings.enable_front_touchzones ? "true" : "false");
+    set("front_touch", "offset", std::to_string(settings.front_touch_offset));
+    set("front_touch", "size", std::to_string(settings.front_touch_size));
+    set("front_touch", "action_nw", std::to_string(settings.front_action_northwest));
+    set("front_touch", "action_ne", std::to_string(settings.front_action_northeast));
+    set("front_touch", "action_sw", std::to_string(settings.front_action_southwest));
+    set("front_touch", "action_se", std::to_string(settings.front_action_southeast));
 }

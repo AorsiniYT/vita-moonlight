@@ -71,11 +71,13 @@ ControllerInputManager::ControllerInputManager()
     touchManager = new TouchInputManager();
     g_touchInput = touchManager;
     rearTouchManager = new RearTouchInputManager();
+    frontTouchManager = new FrontTouchInputManager();
 
     ConfigManager config;
     config.load();
     VideoSettings initialSettings = config.getVideoSettings();
     rearTouchManager->updateSettings(initialSettings.rear_touch);
+    frontTouchManager->updateSettings(initialSettings);
     
     // Load gamepad type from config
     currentGamepadType = initialSettings.gamepad_type;
@@ -101,6 +103,10 @@ ControllerInputManager::~ControllerInputManager() {
     if (rearTouchManager) {
         delete rearTouchManager;
         rearTouchManager = nullptr;
+    }
+    if (frontTouchManager) {
+        delete frontTouchManager;
+        frontTouchManager = nullptr;
     }
     if (gyroManager) {
         delete gyroManager;
@@ -222,6 +228,12 @@ void ControllerInputManager::handleInput() {
         rearTouchManager->process(gamepadState, isPstvModel);
     }
 
+    bool inFrontTouchZone = false;
+    bool keyboardOpen = (activeKeyboard && activeKeyboard->isOpen());
+    if (frontTouchManager && !keyboardOpen) {
+        inFrontTouchZone = frontTouchManager->process(gamepadState, isPstvModel);
+    }
+
     // Send if changed. Button/trigger changes go out immediately; analog-only
     // changes are rate-limited to avoid CPU/network spikes from stick jitter.
     const bool stateChanged = (memcmp(&gamepadState, &lastGamepadState, sizeof(GamepadState)) != 0);
@@ -282,9 +294,14 @@ void ControllerInputManager::handleInput() {
 
             if (touchSuppressed && nowUs < touchSuppressUntilUs) {
                 // still suppressed
-            } else {
+            } else if (!inFrontTouchZone) {
                 touchSuppressed = false;
                 touchManager->handleTouch(touchscreenMode);
+            } else {
+                // Front touch zone active: suppress normal touch processing
+                touchSuppressed = true;
+                touchManager->dropTouch(touchscreenMode);
+                touchSuppressUntilUs = nowUs + kTouchReleaseDelayUs;
             }
         }
 
@@ -361,6 +378,9 @@ void ControllerInputManager::dropInput() {
     touchManager->dropTouch(touchscreenMode);
     if (rearTouchManager) {
         rearTouchManager->dropState();
+    }
+    if (frontTouchManager) {
+        frontTouchManager->dropState();
     }
 
     inputDropped = true;
@@ -596,6 +616,18 @@ void ControllerInputManager::setGamepadType(GamepadType type) {
 void ControllerInputManager::setRearTouchEnabled(bool enabled) {
     if (rearTouchManager) {
         rearTouchManager->setEnabled(enabled);
+    }
+}
+
+void ControllerInputManager::applyFrontTouchSettings(const VideoSettings& settings) {
+    if (frontTouchManager) {
+        frontTouchManager->updateSettings(settings);
+    }
+}
+
+void ControllerInputManager::setFrontTouchEnabled(bool enabled) {
+    if (frontTouchManager) {
+        frontTouchManager->setEnabled(enabled);
     }
 }
 

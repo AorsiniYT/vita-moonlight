@@ -6,6 +6,7 @@
 #include <psp2/ctrl.h>
 #include "controller/TouchInput.hpp"
 #include "controller/RearTouchInput.hpp"
+#include "controller/FrontTouchInput.hpp"
 #include "controller/keyboard/IKeyboard.hpp"
 #include "debug.hpp"
 #include "controller/GamepadState.hpp"
@@ -58,7 +59,10 @@ public:
 
     void applyRearTouchSettings(const RearTouchSettings& settings);
     void setRearTouchEnabled(bool enabled);
-    
+
+    void applyFrontTouchSettings(const VideoSettings& settings);
+    void setFrontTouchEnabled(bool enabled);
+
     // Change gamepad type without restarting session
     void setGamepadType(GamepadType type);
 
@@ -91,6 +95,7 @@ private:
 
     TouchInputManager* touchManager;
     RearTouchInputManager* rearTouchManager;
+    FrontTouchInputManager* frontTouchManager;
 
     // Hotkey state
     std::function<void()> pauseCallback;

@@ -99,7 +99,11 @@
             <brls:DetailCell
                 id="rearTouchSettingsEntry"
                 title="@i18n/moonlight/rear_touch/title"/>
-            
+
+            <brls:DetailCell
+                id="frontTouchSettingsEntry"
+                title="@i18n/moonlight/front_touch/title"/>
+
             <brls:DetailCell
                 id="trackpadSettingsEntry"
                 title="@i18n/moonlight/trackpad/header"/>

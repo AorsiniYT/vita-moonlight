@@ -63,6 +63,7 @@
             "hosts_list_title": "Saved PCs",
             "hosts_list_empty": "No saved PCs",
             "rear_touch_detail": "Configure rear touch zones and actions",
+            "front_touch_detail": "Configure front touch corner zones",
             "add_host_connect_question_dialog": "Connect to $(name) at $(ip)?",
             "add_host_connect": "Connect",
             "add_host_cancel": "Cancel"
@@ -326,6 +327,25 @@
                     "reset": "Reset"
                 }
             }
+        },
+        "front_touch": {
+            "title": "Front touch zones",
+            "toggle": "Front touch zones",
+            "offset": "Zone offset",
+            "offset_detail": "Distance from screen edge",
+            "size": "Zone size",
+            "size_detail": "Square zone width/height",
+            "preview": "Preview zones",
+            "preview_detail": "Visualize and test corner zones",
+            "zones_description": "Tap screen corners to trigger actions during streaming",
+            "actions_header": "Corner actions",
+            "action_nw": "North-west corner action",
+            "action_ne": "North-east corner action",
+            "action_sw": "South-west corner action",
+            "action_se": "South-east corner action",
+            "notify_enabled": "Front touch zones enabled",
+            "notify_disabled": "Front touch zones disabled",
+            "notify_action_saved": "Front touch action saved"
         },
         "hints": {
             "cancel": "Cancel"

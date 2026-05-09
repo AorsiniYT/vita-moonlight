@@ -64,6 +64,7 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::DetailCell, keyboardConfigureCell, "keyboardConfigureCell");
     BRLS_BIND(brls::DetailCell, shortcutsConfigureCell, "shortcutsConfigureCell");
     BRLS_BIND(brls::DetailCell, rearTouchSettingsEntry, "rearTouchSettingsEntry");
+    BRLS_BIND(brls::DetailCell, frontTouchSettingsEntry, "frontTouchSettingsEntry");
     BRLS_BIND(brls::DetailCell, trackpadSettingsEntry, "trackpadSettingsEntry");
     
     // Microphone settings

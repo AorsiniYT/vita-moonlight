@@ -79,7 +79,7 @@ struct VideoSettings {
     bool enable_double_tap_sprint = false;
     bool absolute_mouse = false;
     bool enable_network_optimizations = true; // Network optimizations (IDR smart, pacing, etc.)
-    int touchscreen_mode = 0; // 0=Off, 1=DS4 Touchpad, 2=Mouse Absoluto, 3=Tableta Multitouch
+    int touchscreen_mode = 1; // 0=Off, 1=Trackpad relativo, 2=DS4 Touchpad, 3=Mouse Absoluto, 4=Tableta Multitouch
     int double_tap_sprint_step_time = 200;
     float motion_controls_scalar_x = 1.2f;
     float motion_controls_scalar_y = 0.8f;
@@ -105,6 +105,15 @@ struct VideoSettings {
     
     // New option: gamepad type
     GamepadType gamepad_type = GAMEPAD_TYPE_XBOX; // 0=Xbox, 1=PS4 (to emulate controller)
+    
+    // Front Touch Settings (4 corner zones on front screen)
+    bool enable_front_touchzones = true;
+    int front_touch_offset = 0;    // px from screen edge
+    int front_touch_size = 150;    // px square zone size
+    std::uint32_t front_action_northwest = controller::INPUT_TYPE_SPECIAL | controller::INPUT_SPECIAL_KEY_PAUSE;
+    std::uint32_t front_action_northeast = 0; // None by default
+    std::uint32_t front_action_southwest = controller::INPUT_TYPE_GAMEPAD | controller::GAMEPAD_FLAG_SPECIAL;
+    std::uint32_t front_action_southeast = 0; // None by default
     
     // Microphone settings
     bool enable_microphone = false;         // Enable/disable microphone transmission

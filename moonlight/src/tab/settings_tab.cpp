@@ -19,6 +19,7 @@
 #include "tab/settings_tab.hpp"
 #include "ConfigManager.hpp"
 #include "tab/rear_touch_settings_tab.hpp"
+#include "tab/front_touch_settings_tab.hpp"
 #include "tab/trackpad_settings_tab.hpp"
 #include "tab/microphone_settings_tab.hpp"
 #include "tab/keyboard_settings_tab.hpp" // NUEVO
@@ -524,6 +525,19 @@ SettingsTab::SettingsTab()
             // Set the title on the frame so the top header is visible.
             auto* frame = new brls::AppletFrame(rearTouchView);
             frame->setTitle(brls::getStr("moonlight/rear_touch/title"));
+            auto* act = new brls::Activity(frame);
+            brls::Application::pushActivity(act);
+            return true;
+        });
+    }
+
+    if (frontTouchSettingsEntry)
+    {
+        frontTouchSettingsEntry->setDetailText(brls::getStr("moonlight/settings/front_touch_detail"));
+        frontTouchSettingsEntry->registerClickAction([](brls::View*) {
+            auto* frontTouchView = new FrontTouchSettingsTab();
+            auto* frame = new brls::AppletFrame(frontTouchView);
+            frame->setTitle(brls::getStr("moonlight/front_touch/title"));
             auto* act = new brls::Activity(frame);
             brls::Application::pushActivity(act);
             return true;
