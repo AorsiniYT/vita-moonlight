@@ -43,6 +43,10 @@ public:
     // When true, ControllerInputManager skips the polling loop.
     virtual bool sendsDirectly() const { return false; }
 
+    // Returns true if this keyboard expects VK codes to be treated as-is
+    // (non-normalized) by Sunshine.
+    virtual bool usesNonNormalizedVk() const { return false; }
+
     // Returns true if the keyboard implementation manages its own memory lifetime
     // (e.g. Borealis View lifecycle). If false, ControllerInputManager will delete it.
     virtual bool selfDestructs() const { return false; }

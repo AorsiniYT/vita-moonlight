@@ -17,6 +17,7 @@ public:
     bool isOpen() const override;
     void update() override;
     bool sendsDirectly() const override { return true; }
+    bool usesNonNormalizedVk() const override { return true; }
 
 private:
     std::atomic<bool> isOpenFlag{false};

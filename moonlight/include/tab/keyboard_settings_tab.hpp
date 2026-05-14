@@ -15,6 +15,7 @@ private:
     BRLS_BIND(brls::SelectorCell, keyboardModeSelector, "keyboard_mode_selector");
     BRLS_BIND(brls::Header, keyboardLayoutHeader, "keyboard_layout_header");
     BRLS_BIND(brls::SelectorCell, keyboardLayoutSelector, "keyboard_layout_selector");
+    BRLS_BIND(brls::BooleanCell, keyboardInputModeToggle, "keyboard_input_mode_toggle");
     BRLS_BIND(brls::Header, keyboardModernHeader, "keyboard_modern_header");
     BRLS_BIND(brls::BooleanCell, keyboardNumbersToggle, "keyboard_numbers_toggle");
     BRLS_BIND(brls::BooleanCell, keyboardArrowsToggle, "keyboard_arrows_toggle");

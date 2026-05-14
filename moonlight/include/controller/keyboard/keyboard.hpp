@@ -10,8 +10,6 @@
 // Forward declare NVGcontext for draw override
 struct NVGcontext;
 
-#include <cstring>
-
 // Key definition with variable width support
 struct KeyDef {
     std::string label;    // Display label
@@ -35,6 +33,7 @@ public:
     bool isOpen() const override;
     KeyboardState getKeyboardState() const override;
     bool sendsDirectly() const override { return false; }
+    bool usesNonNormalizedVk() const override { return true; }
     bool selfDestructs() const override { return true; }
     void update() override;
 
@@ -92,8 +91,10 @@ private:
     // Layout page: 0 = letters, 1 = symbols/numbers
     int layoutPage = 0;
 
-    // Configured layout (0=EN_US, 1=ES_ES, 2=ES_LATAM)
+    // Configured layout (0=EN_US, 1=ES_ES, 2=ES_LATAM, etc.) for on-screen display and VK mapping
     int currentLayout = 0;
+    // Force UTF-8 text input instead of VK codes (for Windows hosts)
+    bool forceUtf8Input = false;
 
     // Modern layout options
     bool showNumbersRow = true;
