@@ -228,32 +228,35 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         }
 
         // Check if existing textures are the correct size and format
-        if (frame_textures[0] && frame_textures[1]) {
+        if (frame_textures[0] && frame_textures[1] && frame_textures[2]) {
             uint32_t tex0_w = gxm_texture_get_width(frame_textures[0]);
             uint32_t tex0_h = gxm_texture_get_height(frame_textures[0]);
             uint32_t tex1_w = gxm_texture_get_width(frame_textures[1]);
             uint32_t tex1_h = gxm_texture_get_height(frame_textures[1]);
+            uint32_t tex2_w = gxm_texture_get_width(frame_textures[2]);
+            uint32_t tex2_h = gxm_texture_get_height(frame_textures[2]);
             
             if (tex0_w == (unsigned)width && tex0_h == (unsigned)height &&
                 tex1_w == (unsigned)width && tex1_h == (unsigned)height &&
+                tex2_w == (unsigned)width && tex2_h == (unsigned)height &&
                 frame_textures[0]->format == textureFormat &&
-                frame_textures[1]->format == textureFormat) {
+                frame_textures[1]->format == textureFormat &&
+                frame_textures[2]->format == textureFormat) {
                 reusingTextures = true;
                 VITA_DEBUG_LOG("[Video] Reutilizando texturas existentes (%ux%u format=0x%08X)", width, height, (unsigned)textureFormat);
             } else {
                 // Different size or format, release old textures
                 VITA_DEBUG_LOG("[Video] Liberando texturas incompatibles (size=%ux%u, format=0x%08X)",
                     tex0_w, tex0_h, (unsigned)frame_textures[0]->format);
-                gxm_texture_free(frame_textures[0]);
-                gxm_texture_free(frame_textures[1]);
-                frame_textures[0] = nullptr;
-                frame_textures[1] = nullptr;
+                for (int i = 0; i < 3; i++) {
+                    if (frame_textures[i]) { gxm_texture_free(frame_textures[i]); frame_textures[i] = nullptr; }
+                }
             }
         }
         
         if (!reusingTextures) {
-            // Create new textures at stream resolution using direct GXM allocation
-            for (int i = 0; i < 2; i++) {
+            // Create 3 textures for triple-buffer pipeline (display/ready/write)
+            for (int i = 0; i < 3; i++) {
                 frame_textures[i] = gxm_texture_create(
                     width, height,
                     textureFormat,
@@ -264,19 +267,20 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
                     ret = 0x80010005; goto cleanup;
                 }
             }
-            VITA_DEBUG_LOG("[Video][INIT] Creadas texturas %dx%d fmt=0x%08X", width, height, (unsigned)textureFormat);
+            VITA_DEBUG_LOG("[Video][INIT] Creadas 3 texturas %dx%d fmt=0x%08X", width, height, (unsigned)textureFormat);
             
             if (!texturesOk) {
                 goto cleanup;
             }
         }
         
-        frame_front_idx = 0;
-        frame_back_idx = 1;
+        frame_display_idx = 0;
+        frame_ready_idx   = 1;
+        frame_write_idx   = 2;
         single_frame_buffer = false;
         legacy_single_immediate_present = false;
-        VITA_DEBUG_LOG("[Video][INIT] double buffer RGBA (front=%d back=%d)", frame_front_idx, frame_back_idx);
-        VITA_DEBUG_LOG("[Video][INIT] tex0=%p tex1=%p", gxm_texture_get_datap(frame_textures[0]), frame_textures[1]?gxm_texture_get_datap(frame_textures[1]):nullptr);
+        VITA_DEBUG_LOG("[Video][INIT] triple buffer (display=%d ready=%d write=%d)", frame_display_idx, frame_ready_idx, frame_write_idx);
+        VITA_DEBUG_LOG("[Video][INIT] tex0=%p tex1=%p tex2=%p", gxm_texture_get_datap(frame_textures[0]), gxm_texture_get_datap(frame_textures[1]), gxm_texture_get_datap(frame_textures[2]));
         VITA_DEBUG_LOG("[Video] Framebuffer inicializado");
         
         video_status = VITA_VIDEO_INIT_AVC_DEC;

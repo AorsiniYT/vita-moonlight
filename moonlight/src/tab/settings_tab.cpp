@@ -468,6 +468,8 @@ SettingsTab::SettingsTab()
         settings.enable_frame_pacer = value;
         config.setVideoSettings(settings);
         config.save();
+        extern VideoSettings g_video_settings_snapshot;
+        g_video_settings_snapshot.enable_frame_pacer = value;
     });
 
     centerRegionToggle->init(brls::getStr("moonlight/settings_tab/center_region_title"), videoSettings.center_region_only, [this](bool value) {

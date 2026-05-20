@@ -101,7 +101,7 @@ struct VideoSettings {
     int trackpad_edge_zone = 15;            // 0-50%
     
     // New option: render mode
-    int render_mode = 1; // 0=Legacy, 1=Modern (FFmpeg)
+    int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
     int pixel_format_mode = 1; // 0=RGBA direct, 1=YUV420 (testing)
     
     // New option: gamepad type

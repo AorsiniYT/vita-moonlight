@@ -292,7 +292,17 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     //     decoder_use_phys_fallback ? "yes" : "no",
     //     texBack,
     //     useLinearStaging ? "yes" : "no");
+    uint64_t start_dec = sceKernelGetSystemTimeWide();
     ret = sceAvcdecDecode(decoder, &au, &array_picture);
+    uint64_t end_dec = sceKernelGetSystemTimeWide();
+    if (ret >= 0) {
+        uint32_t dec_ms = (uint32_t)(end_dec - start_dec) / 1000;
+        g_stats.decode_time_ms += dec_ms;
+        if (dec_ms < g_decode_min_ms) g_decode_min_ms = dec_ms;
+        if (dec_ms > g_decode_max_ms) g_decode_max_ms = dec_ms;
+        g_decode_sum_ms += dec_ms;
+        g_decode_count++;
+    }
 
         // Map common errors for quick diagnosis
         const char* errName = "OK";
@@ -339,39 +349,22 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // (Already decoded directly into BACK texture)
 
     if (!single_frame_buffer) {
+        // Triple-buffer: decoder promotes its write buffer to "ready".
+        // The renderer thread will later swap ready<->display when it needs a new frame.
+        // This ensures the decoder NEVER writes to the texture the GPU is currently reading.
         std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
-        int tmp = frame_front_idx;
-        frame_front_idx = frame_back_idx;
-        frame_back_idx = tmp;
-        // VITA_DEBUG_LOG("[Video][DECODE] swap buffers front=%d back=%d", frame_front_idx, frame_back_idx);
+        int tmp = frame_ready_idx;
+        frame_ready_idx = frame_write_idx;
+        frame_write_idx = tmp;
+        // VITA_DEBUG_LOG("[Video][DECODE] swap: ready=%d write=%d display=%d", frame_ready_idx, frame_write_idx, frame_display_idx);
     }
 
     // Mark first frame (log before incrementing frames_decoded)
     if (g_stats.frames_decoded == 0) VITA_DEBUG_LOG("[Video][DBG] primer frame decodificado");
 
-    // Publish texture directly (no CPU copies)
-    {
-        const GxmTexture* texFront = FRAME_FRONT();
-        const uint32_t w = image_scaling.texture_width;
-        const uint32_t h = image_scaling.texture_height;
-        if (!texFront) {
-            VITA_DEBUG_LOG("[Video][DECODE][WARN] FRAME_FRONT null tras swap (front=%d)", frame_front_idx);
-        } else if (w == 0 || h == 0) {
-            VITA_DEBUG_LOG("[Video][DECODE][WARN] dimensiones invalidas para publicar tex=%p w=%u h=%u",
-                texFront,
-                w,
-                h);
-        } else {
-            // VITA_DEBUG_LOG("[Video][DECODE] publicar frame front=%d tex=%p w=%u h=%u (mode=%s pitchBytes=%u)",
-            //     frame_front_idx,
-            //     texFront,
-            //     w,
-            //     h,
-            //     cpuPushPtr ? "cpu" : "tex",
-            //     cpuPushPitchBytes);
-            VideoFrameHolder::instance().pushTexture(texFront, w, h, monotonicMs_local());
-        }
-    }
+    // Note: VideoFrameHolder::pushTexture removed from legacy path.
+    // drawNVG reads FRAME_FRONT() directly, so the push was wasted work
+    // (mutex lock + atomic stores + validation on every frame for nothing).
     VitaSession::onFrameDecoded();
 
     // Direct GXM mode removed: frame is not uploaded to direct renderer

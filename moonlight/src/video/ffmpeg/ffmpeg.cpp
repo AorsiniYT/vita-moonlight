@@ -413,8 +413,10 @@ static void reset_global_slots() {
     std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
     frame_textures[0] = nullptr;
     frame_textures[1] = nullptr;
-    frame_front_idx = 0;
-    frame_back_idx = 0;
+    frame_textures[2] = nullptr;
+    frame_display_idx = 0;
+    frame_ready_idx = 0;
+    frame_write_idx = 0;
     single_frame_buffer = true;
 }
 
@@ -1121,8 +1123,10 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
         std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
         frame_textures[0] = nullptr;
         frame_textures[1] = nullptr;
-        frame_front_idx = 0;
-        frame_back_idx = 0;
+        frame_textures[2] = nullptr;
+        frame_display_idx = 0;
+        frame_ready_idx = 0;
+        frame_write_idx = 0;
         single_frame_buffer = true;
 
         if (ctx->using_direct_memory) {
@@ -1132,21 +1136,24 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
             dr_texture* back = reinterpret_cast<dr_texture*>(ctx->dr_textures[ctx->dr_back_idx]);
             frame_textures[0] = front ? &front->impl : ctx->current_frame.texture;
             frame_textures[1] = back ? &back->impl : ctx->current_frame.texture;
-            frame_front_idx = 0;
-            frame_back_idx = 1;
+            frame_display_idx = 0;
+            frame_ready_idx = 1;
+            frame_write_idx = 1;
             single_frame_buffer = false;
 #else
             frame_textures[0] = ctx->current_frame.texture;
             frame_textures[1] = ctx->current_frame.texture;
-            frame_front_idx = 0;
-            frame_back_idx = 0;
+            frame_display_idx = 0;
+            frame_ready_idx = 0;
+            frame_write_idx = 0;
             single_frame_buffer = true;
 #endif
         } else {
             frame_textures[0] = ctx->current_frame.texture;
             frame_textures[1] = ctx->current_frame.texture;
-            frame_front_idx = 0;
-            frame_back_idx = 0;
+            frame_display_idx = 0;
+            frame_ready_idx = 0;
+            frame_write_idx = 0;
             single_frame_buffer = true;
         }
     }
@@ -1372,6 +1379,10 @@ static int ffmpeg_video_setup(int videoFormat, int width, int height, int redraw
         if (frame_textures[1]) {
             gxm_texture_free(frame_textures[1]);
             frame_textures[1] = nullptr;
+        }
+        if (frame_textures[2]) {
+            gxm_texture_free(frame_textures[2]);
+            frame_textures[2] = nullptr;
         }
     }
 
@@ -1702,6 +1713,12 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     recvUs = perf_now_us() - recvStartUs;
 
     if (frameReceived) {
+        uint32_t dec_ms = (sendUs + recvUs) / 1000;
+        g_stats.decode_time_ms += dec_ms;
+        if (dec_ms < g_decode_min_ms) g_decode_min_ms = dec_ms;
+        if (dec_ms > g_decode_max_ms) g_decode_max_ms = dec_ms;
+        g_decode_sum_ms += dec_ms;
+        g_decode_count++;
         if (publish_frame(context, frame, decodeUnit->presentationTimeUs)) {
             if (stats_start_ms == 0) {
                 stats_start_ms = monotonic_ms_local();
