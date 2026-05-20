@@ -349,14 +349,10 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // (Already decoded directly into BACK texture)
 
     if (!single_frame_buffer) {
-        // Triple-buffer: decoder promotes its write buffer to "ready".
-        // The renderer thread will later swap ready<->display when it needs a new frame.
-        // This ensures the decoder NEVER writes to the texture the GPU is currently reading.
-        std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
-        int tmp = frame_ready_idx;
-        frame_ready_idx = frame_write_idx;
-        frame_write_idx = tmp;
-        // VITA_DEBUG_LOG("[Video][DECODE] swap: ready=%d write=%d display=%d", frame_ready_idx, frame_write_idx, frame_display_idx);
+        // Triple-buffer: lock-free atomic exchange. Promote write to ready, grab old ready as the new write buffer.
+        int write_idx = __atomic_load_n(&frame_write_idx, __ATOMIC_ACQUIRE);
+        write_idx = __atomic_exchange_n(&frame_ready_idx, write_idx, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&frame_write_idx, write_idx, __ATOMIC_RELEASE);
     }
 
     // Mark first frame (log before incrementing frames_decoded)

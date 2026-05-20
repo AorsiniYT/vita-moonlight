@@ -289,7 +289,12 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         ret = sceKernelCreateThread("frame_pacer", vita_pacer_thread_main, 0, 0x10000, 0, 0, NULL);
         if (ret < 0) { VITA_DEBUG_LOG("[Video] Error creando thread frame_pacer: 0x%x", ret); ret = 0x80010007; goto cleanup; }
         pacer_thread = ret; active_pacer_thread = true; sceKernelStartThread(pacer_thread, 0, NULL);
-        // Adjust affinity of the main thread (this thread that does setup) to leave a free core for the decoder/renderer
+        
+        // High priority (64) and pin exclusively to Core 1 to isolate it from the UI thread (Core 0/2)
+        sceKernelChangeThreadPriority(pacer_thread, 64);
+        sceKernelChangeThreadCpuAffinityMask(pacer_thread, SCE_KERNEL_CPU_MASK_USER_1);
+        
+        // Adjust affinity of the main thread (this thread that does setup) to leave Core 1 free for the decoder
         SceUID selfId = sceKernelGetThreadId();
         sceKernelChangeThreadCpuAffinityMask(selfId, SCE_KERNEL_CPU_MASK_USER_0 | SCE_KERNEL_CPU_MASK_USER_2);
         video_status = VITA_VIDEO_INIT_FRAME_PACER_THREAD;

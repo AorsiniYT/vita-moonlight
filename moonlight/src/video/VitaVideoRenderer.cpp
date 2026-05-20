@@ -64,15 +64,9 @@ void VitaVideoRenderer::draw(float viewportW, float viewportH) {
         return;
     }
 
-    GxmTexture* tex = nullptr;
-    int displayIdx = 0;
-    int writeIdx = 0;
-    {
-        std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
-        tex = FRAME_FRONT();
-        displayIdx = frame_display_idx;
-        writeIdx = frame_write_idx;
-    }
+    int displayIdx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
+    int writeIdx = __atomic_load_n(&frame_write_idx, __ATOMIC_ACQUIRE);
+    GxmTexture* tex = frame_textures[displayIdx];
 
     if (!tex) {
         static bool logged = false;
@@ -143,17 +137,13 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     }
     if (g_stats.frames_decoded == 0) return;
 
-    // Triple-buffer: swap display<->ready to grab the latest decoded frame.
-    // We only do this in native YUV legacy mode (render_mode == 0). In FFmpeg mode (render_mode == 1),
-    // direct-rendering buffers are managed internally by the FFmpeg codec driver and mapped directly.
     if (g_video_settings_snapshot.render_mode == 0) {
-        std::lock_guard<std::mutex> slotLock(g_frame_slots_mutex);
-        int tmp = frame_display_idx;
-        frame_display_idx = frame_ready_idx;
-        frame_ready_idx = tmp;
+        int display_idx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
+        display_idx = __atomic_exchange_n(&frame_ready_idx, display_idx, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&frame_display_idx, display_idx, __ATOMIC_RELEASE);
     }
 
-    const GxmTexture* tex = FRAME_FRONT();
+    const GxmTexture* tex = frame_textures[__atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE)];
     if (!tex) return;
 
     const SceGxmTexture* gxmTex = &tex->gxm_tex;
