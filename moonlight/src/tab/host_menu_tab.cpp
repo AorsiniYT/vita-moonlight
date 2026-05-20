@@ -103,22 +103,6 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     });
     rightCol->addView(testBtn);
 
-    // 2.5 Test Video Bitrate Button
-    brls::Button* testVideoBtn = new brls::Button();
-    {
-        moonbeam::ConnectionTester tempTester(this->host.ip, false, "Device", brls::Application::getLocale());
-        testVideoBtn->setText(tempTester.translate("video_test_title", "Video Bitrate Diagnostic"));
-    }
-    testVideoBtn->setWidth(400.0f);
-    testVideoBtn->setMarginBottom(12.0f);
-    testVideoBtn->registerClickAction([this](brls::View*) {
-        brls::sync([this]() {
-            utils::startVideoBitrateTest(this->host);
-        });
-        return true;
-    });
-    rightCol->addView(testVideoBtn);
-
     // 3. Wake-on-LAN Button (only if mac exists)
     if (!host.mac.empty()) {
         brls::Button* wolBtn = new brls::Button();
