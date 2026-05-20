@@ -91,33 +91,36 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
 #ifdef BOREALIS_USE_GXM
     if (codec->id == AV_CODEC_ID_H264) {
         int requestedPixelMode = g_video_settings_snapshot.pixel_format_mode;
-        // Clean performance baseline: force YUV decode path on Vita FFmpeg.
+        ctx->is_vita_hw = (strcmp(codec->name, "h264_vita") == 0);
+        
+        // Clean performance baseline: force YUV/NV12 decode path on Vita FFmpeg.
         // RGBA decode path is currently much slower and has shown instability.
-        enum AVPixelFormat requestedPixFmt = AV_PIX_FMT_YUV420P;
+        // For h264_vita hardware decoder, natively use AV_PIX_FMT_VITA_NV12 to enable Direct Rendering (zero CPU copy).
+        enum AVPixelFormat requestedPixFmt = ctx->is_vita_hw ? AV_PIX_FMT_VITA_NV12 : AV_PIX_FMT_YUV420P;
         ctx->avctx->pix_fmt = requestedPixFmt;
-        if (requestedPixelMode == 0) {
-            VITA_DEBUG_LOG("[FFMPEG] Requested pixel format mode=%d but forcing baseline pix_fmt=%d (YUV420P)", requestedPixelMode, (int)requestedPixFmt);
+        
+        VITA_DEBUG_LOG("[FFMPEG] Requested pixel format mode=%d, using pix_fmt=%d (is_vita_hw=%d)", 
+                       requestedPixelMode, (int)requestedPixFmt, ctx->is_vita_hw ? 1 : 0);
+
+        // Enable direct rendering for Vita hardware decoder to achieve maximum performance (60/60 fps)
+        ctx->use_direct_render = ctx->is_vita_hw;
+        if (ctx->use_direct_render) {
+            ctx->avctx->get_buffer2 = get_buffer2_direct;
+            av_dict_set(&opts, "vita_h264_dr", "1", 0);
+            VITA_DEBUG_LOG("[FFMPEG] Direct render enabled for h264_vita! Assigned get_buffer2_direct and set vita_h264_dr=1");
         } else {
-            VITA_DEBUG_LOG("[FFMPEG] Requested pixel format mode=%d pix_fmt=%d", requestedPixelMode, (int)requestedPixFmt);
+            VITA_DEBUG_LOG("[FFMPEG] Direct render disabled; software upload path enabled");
         }
 
-        // Clean baseline: keep FFmpeg on software upload path only.
-        // Direct render will be reintroduced later with a redesigned buffer lifecycle.
-        ctx->use_direct_render = false;
-        // Keep codec/default buffer allocator untouched in software path.
-        // For h264_vita, forcing nullptr here can break first-frame decode.
-        VITA_DEBUG_LOG("[FFMPEG] Direct render disabled; software upload path enabled");
-
-        // Mark if this is the hardware assisted vita decoder
-        ctx->is_vita_hw = (strcmp(codec->name, "h264_vita") == 0);
         if (ctx->is_vita_hw) {
             VITA_DEBUG_LOG("[FFMPEG] Vita hardware codec detected: %s", codec->name);
         }
     VITA_DEBUG_LOG("[FFMPEG] ffmpeg_decoder_init: H264 on GXM: direct_render=%d", ctx->use_direct_render ? 1 : 0);
     // Set conservative fixed defaults for the Vita: slice threading and skip loop filter.
-    // We try 2 threads by default for better throughput, with runtime fallback to 1 on init failure.
-    ctx->avctx->thread_count = 2;
-    ctx->avctx->thread_type = FF_THREAD_SLICE;
+    // We try 2 threads by default for better throughput for SW decoding.
+    // Hardware decoding (h264_vita) is single-threaded; setting thread_count > 1 leads to severe instability and crashes.
+    ctx->avctx->thread_count = ctx->is_vita_hw ? 1 : 2;
+    ctx->avctx->thread_type = ctx->is_vita_hw ? 0 : FF_THREAD_SLICE;
     // Set refcounted_frames via options so we don't depend on direct field presence in headers
     av_dict_set(&opts, "refcounted_frames", "1", 0);
     // Open with conservative defaults for maximum compatibility on h264_vita.
@@ -134,14 +137,14 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
     if (requestedPixelMode == 1) {
         targetSkipLoopFilter = AVDISCARD_ALL;
         targetSkipIdct = AVDISCARD_ALL;
-        targetSkipFrame = AVDISCARD_BIDIR;
+        targetSkipFrame = AVDISCARD_DEFAULT; // Do NOT discard B-frames (allow stable 60/60 fps)
         ctx->avctx->flags2 |= AV_CODEC_FLAG2_FAST;
-        VITA_DEBUG_LOG("[FFMPEG] perf profile: YUV GPU mode -> default skip_loop_filter=ALL skip_idct=ALL skip_frame=BIDIR flags2|=FAST");
+        VITA_DEBUG_LOG("[FFMPEG] perf profile: YUV GPU mode -> default skip_loop_filter=ALL skip_idct=ALL skip_frame=DEFAULT flags2|=FAST");
 
-        // Keep default slice threading for h264_vita unless overridden via env.
+        // Hardware h264_vita must remain single-threaded.
         if (ctx->is_vita_hw) {
-            ctx->avctx->thread_count = 2;
-            VITA_DEBUG_LOG("[FFMPEG] perf profile: YUV GPU + h264_vita -> default thread_count=2");
+            ctx->avctx->thread_count = 1;
+            VITA_DEBUG_LOG("[FFMPEG] perf profile: YUV GPU + h264_vita -> thread_count forced to 1 for stability");
         }
     }
     int refcounted_frames_val = 1;

@@ -196,7 +196,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // Configure decoder output directly from mode to avoid virtual dispatch in decode thread.
     bool decodeUsesFallback = false;
     uint8_t* decodeTarget = nullptr;
-    picture.frame.pixelType = decodeYuv ? SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
+    picture.frame.pixelType = decodeYuv ? SCE_AVCDEC_PIXELFORMAT_YUV420_PACKED_RASTER : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
     decodeTarget = texBack;
 
     if (!decodeTarget) {
@@ -231,7 +231,7 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
     // Guard checks removed - pixel processor handles memory safety
     
-    picture.frame.pixelType = decodeYuv ? SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
+    picture.frame.pixelType = decodeYuv ? SCE_AVCDEC_PIXELFORMAT_YUV420_PACKED_RASTER : SCE_AVCDEC_PIXELFORMAT_RGBA8888;
 
     const uint8_t* cpuPushPtr = nullptr;
     uint32_t cpuPushPitchBytes = 0;

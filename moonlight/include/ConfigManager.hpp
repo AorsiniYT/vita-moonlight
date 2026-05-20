@@ -101,14 +101,17 @@ struct VideoSettings {
     int trackpad_edge_zone = 15;            // 0-50%
     
     // New option: render mode
-    int render_mode = 0; // 0=Legacy, 1=Modern (FFmpeg)
-    int pixel_format_mode = 0; // 0=RGBA direct, 1=YUV420 (testing)
+    int render_mode = 1; // 0=Legacy, 1=Modern (FFmpeg)
+    int pixel_format_mode = 1; // 0=RGBA direct, 1=YUV420 (testing)
     
     // New option: gamepad type
     GamepadType gamepad_type = GAMEPAD_TYPE_XBOX; // 0=Xbox, 1=PS4 (to emulate controller)
 
     // Swap shoulder buttons: L1/R1 <-> L2/R2 (quick shoulder adjustment)
     bool swap_shoulder_buttons = false;
+
+    // Swap interval (V-Sync): 0 = Sin V-Sync, 1 = 60 FPS, 2 = 30 FPS, etc.
+    int swap_interval = 0;
 
     // Front Touch Settings (4 corner zones on front screen)
     bool enable_front_touchzones = true;
