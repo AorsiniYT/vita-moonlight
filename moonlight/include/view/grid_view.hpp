@@ -19,6 +19,9 @@ public:
     // Configure the elements to display (name, optional icon)
     void setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons = {});
 
+    // Update specific item icon dynamically
+    void setItemIcon(int index, const std::string& iconPath);
+
     // Callback when an item is selected
     void setOnItemSelect(ItemSelectCallback cb);
 

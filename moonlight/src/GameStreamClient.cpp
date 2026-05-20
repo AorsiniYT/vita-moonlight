@@ -729,6 +729,19 @@ void GameStreamClient::getAppList(const std::string& address, AppListCallback ca
     callback(apps);
 }
 
+bool GameStreamClient::getAppBoxart(const std::string& address, int appId, Data& outData) {
+    if (m_server_data.count(address) == 0) {
+        brls::Logger::error("[GameStreamClient] getAppBoxart: no conectado a {}", address);
+        return false;
+    }
+    int status = gs_app_boxart(&m_server_data[address], appId, &outData);
+    if (status != GS_OK) {
+        brls::Logger::warning("[GameStreamClient] gs_app_boxart falló para appId={} con status={}", appId, status);
+        return false;
+    }
+    return true;
+}
+
 bool GameStreamClient::quitApp(const std::string& address) {
     if (m_server_data.count(address) == 0) {
         brls::Logger::error("[GameStreamClient] No conectado a {}", address);

@@ -67,6 +67,9 @@ public:
     // Get list of apps
     void getAppList(const std::string& address, AppListCallback callback);
 
+    // Get app cover boxart
+    bool getAppBoxart(const std::string& address, int appId, Data& outData);
+
     // Finish application
     bool quitApp(const std::string& address);
 
