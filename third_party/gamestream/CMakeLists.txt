@@ -30,13 +30,5 @@ target_link_libraries(gamestream PUBLIC
     ${EXPAT_LIBRARIES}
 )
 
-if(NOT BUILD_FFMPEG)
-    target_link_libraries(gamestream PUBLIC ${OPENSSL_LIBRARIES})
-endif()
-
 # Definiciones de compilación
-if(BUILD_FFMPEG)
-    target_compile_definitions(gamestream PRIVATE USE_MBEDTLS_CRYPTO)
-else()
-    target_compile_definitions(gamestream PRIVATE USE_OPENSSL_CRYPTO)
-endif()
+target_compile_definitions(gamestream PRIVATE USE_MBEDTLS_CRYPTO)

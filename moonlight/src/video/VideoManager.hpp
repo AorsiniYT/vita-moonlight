@@ -5,12 +5,7 @@
 #include "Limelight.h"
 #include "ConfigManager.hpp"
 #include "legacy/vita.hpp"
-#ifdef BUILD_FFMPEG
 #include "ffmpeg/ffmpeg.hpp"
-#else
-// Forward-declare minimal type to avoid pulling ffmpeg symbols when BUILD_FFMPEG=OFF
-typedef struct FFmpegVideoContext FFmpegVideoContext;
-#endif
 
 extern bool g_gpu_yuv_experimental_enabled;
 
