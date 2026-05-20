@@ -70,12 +70,16 @@ SettingsTab::SettingsTab()
 
     // Auto-synchronize correct format settings on startup
     bool configChanged = false;
-    if (videoSettings.render_mode == 0 && videoSettings.pixel_format_mode != 0) {
-        videoSettings.pixel_format_mode = 0;
-        configChanged = true;
-    } else if (videoSettings.render_mode == 1 && videoSettings.pixel_format_mode != 1) {
-        videoSettings.pixel_format_mode = 1;
-        configChanged = true;
+    if (videoSettings.render_mode == 0) {
+        if (videoSettings.pixel_format_mode != 0 && videoSettings.pixel_format_mode != 1) {
+            videoSettings.pixel_format_mode = 1; // Default to YUV for high performance
+            configChanged = true;
+        }
+    } else if (videoSettings.render_mode == 1) {
+        if (videoSettings.pixel_format_mode != 1) {
+            videoSettings.pixel_format_mode = 1;
+            configChanged = true;
+        }
     }
     if (configChanged) {
         config.setVideoSettings(videoSettings);
@@ -98,11 +102,14 @@ SettingsTab::SettingsTab()
     renderModes.push_back(brls::getStr("moonlight/settings_tab/render_mode/modern_option"));
 #endif
     auto updateModeDependentVisibility = [this](int renderMode, bool persistReset) {
-        (void)renderMode;
         (void)persistReset;
 
         if (pixelFormatSelector) {
-            pixelFormatSelector->setVisibility(brls::Visibility::GONE);
+            if (renderMode == 0) {
+                pixelFormatSelector->setVisibility(brls::Visibility::VISIBLE);
+            } else {
+                pixelFormatSelector->setVisibility(brls::Visibility::GONE);
+            }
         }
     };
 
@@ -122,7 +129,9 @@ SettingsTab::SettingsTab()
 #endif
         settings.render_mode = chosen; // 0=legacy,1=ffmpeg
         if (chosen == 0) {
-            settings.pixel_format_mode = 0; // Legacy uses RGBA
+            if (settings.pixel_format_mode != 0 && settings.pixel_format_mode != 1) {
+                settings.pixel_format_mode = 1; // Default to YUV for high performance
+            }
         } else if (chosen == 1) {
             settings.pixel_format_mode = 1; // FFmpeg uses YUV
         }

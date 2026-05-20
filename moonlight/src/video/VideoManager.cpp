@@ -9,6 +9,7 @@
 
 // Global snapshot consumed by vita.cpp
 VideoSettings g_video_settings_snapshot = {};
+bool g_gpu_yuv_experimental_enabled = false;
 
 // Flag to enable/disable debug logs
 bool g_debug_log_enabled = false;
@@ -60,6 +61,8 @@ bool VideoManager::initialize() {
             _config.load();
             VideoSettings settings = _config.getVideoSettings();
             g_video_settings_snapshot = settings;
+            const char* env = getenv("MOONLIGHT_FFMPEG_GPU_YUV");
+            g_gpu_yuv_experimental_enabled = (env && env[0] == '1') || (settings.pixel_format_mode == 1);
             video_fullscreen_stretch = settings.fullscreen;
             _currentModeInt = settings.render_mode;
             _currentMode = (_currentModeInt == 0) ? "legacy" : "ffmpeg";
@@ -89,6 +92,8 @@ bool VideoManager::initialize() {
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
     g_video_settings_snapshot = settings; // sincronizar snapshot global
+    const char* env = getenv("MOONLIGHT_FFMPEG_GPU_YUV");
+    g_gpu_yuv_experimental_enabled = (env && env[0] == '1') || (settings.pixel_format_mode == 1);
     // Synchronize legacy global flags that affect immediate render
     video_fullscreen_stretch = settings.fullscreen;
     // low latency removed: no longer assigned
@@ -158,6 +163,8 @@ void VideoManager::setRenderMode(const std::string& mode) {
     VideoSettings settings = _config.getVideoSettings();
     settings.render_mode = _currentModeInt;
     g_video_settings_snapshot = settings; // update global snapshot
+    const char* env = getenv("MOONLIGHT_FFMPEG_GPU_YUV");
+    g_gpu_yuv_experimental_enabled = (env && env[0] == '1') || (settings.pixel_format_mode == 1);
     _config.setVideoSettings(settings);
     _config.save();
     set_render_mode_cached(_currentModeInt);
@@ -240,6 +247,8 @@ void VideoManager::startVideo() {
         brls::Logger::info("[VideoManager] Modo de render actualizado dinámicamente a {}", _currentMode);
     }
     g_video_settings_snapshot = settings;
+    const char* env = getenv("MOONLIGHT_FFMPEG_GPU_YUV");
+    g_gpu_yuv_experimental_enabled = (env && env[0] == '1') || (settings.pixel_format_mode == 1);
     video_fullscreen_stretch = settings.fullscreen;
 
     brls::Logger::info("[VideoManager] Iniciando video en modo {}", _currentMode);
