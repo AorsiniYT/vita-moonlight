@@ -24,7 +24,7 @@
 #include <mutex>
 
 /**
- * @brief Singleton manager for microphone audio transmission using libmoonmic
+ * @brief Singleton manager for microphone audio transmission using moonmic
  * 
  * Handles microphone lifecycle with automatic retry logic if host is not detected.
  * Retries connection every 10 seconds when enabled but not connected.
@@ -132,12 +132,12 @@ private:
     bool startInternal();
     
     /**
-     * @brief Error callback from libmoonmic
+     * @brief Error callback from moonmic
      */
     static void errorCallback(const char* error, void* userData);
 
     
-    // libmoonmic client instance
+    // moonmic client instance
     moonmic_client_t* client_ = nullptr;
     
     // Configuration

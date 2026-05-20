@@ -260,7 +260,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     third_party/
 )
 target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
-target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff gamestream libmoonmic)
+target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB} inih mdnsniff gamestream moonmic moonbeam)
 
 
 
