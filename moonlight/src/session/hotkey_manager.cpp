@@ -1,3 +1,4 @@
+#include "debug.hpp"
 #include "session/hotkey_manager.hpp"
 #include "borealis.hpp"
 
@@ -31,7 +32,7 @@ void HotkeyManager::tryTrigger() {
     auto msR = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastR).count();
 
     if (msStart <= comboWindowMs && msL <= comboWindowMs && msR <= comboWindowMs) {
-        brls::Logger::info("[HotkeyManager] Pause combo START+L+R detectada");
+        vita_log::info("[HotkeyManager] Pause combo START+L+R detectada");
         if (pauseCallback) pauseCallback();
     }
 }

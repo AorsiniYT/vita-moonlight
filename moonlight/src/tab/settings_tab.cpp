@@ -1,4 +1,3 @@
-
 /*
     Copyright 2021 natinusala
     Edit for AorsiniYT 2025
@@ -42,6 +41,8 @@
 #include "audio/MicrophoneTester.hpp"
 
 using namespace brls::literals;  // for _i18n
+
+#include "debug.hpp"
 
 bool radioSelected = false;
 
@@ -91,6 +92,9 @@ SettingsTab::SettingsTab()
     // Initialize global flag for debug logs
     extern bool g_debug_log_enabled;
     g_debug_log_enabled = videoSettings.save_debug_log;
+    if (videoSettings.save_debug_log) {
+        enable_file_logging(true);
+    }
 
     // Initialize network optimizations
     vita_netopt_set_enabled(videoSettings.enable_network_optimizations ? 1 : 0);
@@ -503,6 +507,7 @@ SettingsTab::SettingsTab()
         // Update global flag for debug logs
         extern bool g_debug_log_enabled;
         g_debug_log_enabled = value;
+        enable_file_logging(value);
     });
 
     refFrameInvalidationToggle->init(brls::getStr("moonlight/settings_tab/ref_frame_title"), videoSettings.enable_ref_frame_invalidation, [this](bool value) {
@@ -720,7 +725,7 @@ SettingsTab::SettingsTab()
     debug->init("Debug Layer", brls::Application::isDebuggingViewEnabled(), [](bool value){
         brls::Application::enableDebuggingView(value);
         brls::sync([value](){
-            brls::Logger::info("{} the debug layer", value ? "Open" : "Close");
+            vita_log::info("%s the debug layer", value ? "Open" : "Close");
         });
     });
 

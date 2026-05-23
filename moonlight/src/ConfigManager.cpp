@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
+#include "debug.hpp"
 
 // Out-of-class definition for static std::string ConfigManager::getConfigPath();
 #ifdef _WIN32
@@ -144,7 +145,11 @@ void ConfigManager::setKeysDir(const std::string& dir) {
 bool ConfigManager::load() {
     data.clear();
     std::string path = getConfigPath();
+#if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
+    vita_log::info("[ConfigManager] Cargando configuración desde: %s", path.c_str());
+#else
     std::cout << "[ConfigManager] Cargando configuración desde: " << path << std::endl;
+#endif
     int result = ini_parse(path.c_str(), iniHandler, this);
     if (result != 0) {
         std::cout << "[ConfigManager] Error al cargar el archivo o no existe." << std::endl;

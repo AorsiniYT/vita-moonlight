@@ -9,7 +9,7 @@
 #include <cstdlib> // getenv
 #include "borealis.hpp"
 #include <borealis/core/application.hpp>
-#include <borealis/core/logger.hpp>
+#include "debug.hpp"
 #include <borealis/core/style.hpp>
 #include <borealis/core/frame_context.hpp>
 #include <borealis/views/dialog.hpp>
@@ -142,13 +142,14 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     // speeds (150+ FPS) and overwriting GXM buffers before they are scanned out, which causes severe screen tearing.
     brls::Application::setLimitedFPS(targetFps);
     brls::Application::setSwapInterval(videoSettings.swap_interval);
-    brls::Logger::info("[SessionMainView] Init render config (cfg_fps={} -> swapInterval={})", targetFps, videoSettings.swap_interval);
+    brls::Application::setFPSStatus(true); // Enable FPS status for logging
+    vita_log::info("[SessionMainView] Init render config (cfg_fps=%d -> swapInterval=%d)", targetFps, videoSettings.swap_interval);
 
     // Direct GXM mode eliminated. render_mode normalizes: 0=legacy,1=ffmpeg (future)
     bool settingsChanged = false;
     if (videoSettings.render_mode > 1) {
         videoSettings.render_mode = 0;
-        brls::Logger::info("[SessionMainView] render_mode deprecated (>1) normalizado a 0 (legacy)");
+        vita_log::info("[SessionMainView] render_mode deprecated (>1) normalizado a 0 (legacy)");
         settingsChanged = true;
     }
     if (settingsChanged) {

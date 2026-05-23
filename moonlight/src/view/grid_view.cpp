@@ -1,3 +1,4 @@
+#include "debug.hpp"
 #include "view/grid_view.hpp"
 #include <borealis/views/label.hpp>
 #include <borealis/views/image.hpp>
@@ -5,7 +6,7 @@
 #include "view/pccard.hpp"  // Add include for PCCard
 
 GridView::GridView() {
-    brls::Logger::info("[GridView] Constructor llamado");
+    vita_log::info("[GridView] Constructor llamado");
     this->setAxis(brls::Axis::COLUMN);  // Switch to column for rows
     this->columns = 4;  // 4 columns by default for PS Vita
     this->itemNames.clear();
@@ -14,7 +15,7 @@ GridView::GridView() {
 }
 
 void GridView::setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons) {
-    brls::Logger::info("[GridView] setItems llamado, names.size()={}", names.size());
+    vita_log::info("[GridView] setItems llamado, names.size()=%zu", names.size());
     this->itemNames = names;
     this->itemIcons = icons;
     reload();
@@ -34,14 +35,14 @@ void GridView::setItemIcon(int index, const std::string& iconPath) {
 }
 
 void GridView::reload() {
-    brls::Logger::info("[GridView] reload llamado, itemNames.size()={}", itemNames.size());
+    vita_log::info("[GridView] reload llamado, itemNames.size()=%zu", itemNames.size());
 
     // Clean existing views
     this->clearViews();
     itemViews.clear();
 
     if (itemNames.empty()) {
-        brls::Logger::info("[GridView] reload: lista vacía, no se añaden elementos");
+        vita_log::info("[GridView] reload: lista vacía, no se añaden elementos");
         return;
     }
 
@@ -63,7 +64,7 @@ void GridView::reload() {
 
         // Set click action
         card->setClickAction([this, i]() {
-            brls::Logger::info("[GridView] Elemento seleccionado idx={}", i);
+            vita_log::info("[GridView] Elemento seleccionado idx=%d", i);
             if (onItemSelect) onItemSelect(i);
         });
 
@@ -79,11 +80,11 @@ void GridView::reload() {
         currentRowBox->addView(card);
         itemViews.push_back(card);
 
-    brls::Logger::info("[GridView] Elemento añadido: '{}' en fila {}, columna {}",
-              itemNames[i], currentRow, (i % columns) + 1);
+    vita_log::info("[GridView] Elemento añadido: '%s' en fila %d, columna %d",
+              itemNames[i].c_str(), currentRow, (i % columns) + 1);
     }
 
-    brls::Logger::info("[GridView] reload finalizado, {} filas creadas", currentRow);
+    vita_log::info("[GridView] reload finalizado, %d filas creadas", currentRow);
 }
 
 brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* currentView) {

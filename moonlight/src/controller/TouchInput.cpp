@@ -36,7 +36,7 @@ TouchInputManager::TouchInputManager() : currentMode(TOUCHSCREEN_MODE_OFF) {
     trackpadMultiTouch = settings.trackpad_multi_touch;
     trackpadEdgeZone = settings.trackpad_edge_zone;
 
-    vita_debug_log("[TouchInput] Initialized with mode OFF");
+    vita_log::info("[TouchInput] Initialized with mode OFF");
 }
 
 TouchInputManager::~TouchInputManager() {
@@ -51,9 +51,9 @@ bool TouchInputManager::isModeSupportedByGamepad(int touchscreenMode, int gamepa
 
 bool TouchInputManager::setTouchMode(int newMode, int gamepadType) {
     if (!isModeSupportedByGamepad(newMode, gamepadType)) {
-        vita_debug_log("[TouchInput][WARN] Modo %d no soportado con gamepad tipo %d", newMode, gamepadType);
+        vita_log::warning("[TouchInput][WARN] Modo %d no soportado con gamepad tipo %d", newMode, gamepadType);
         if (newMode == TOUCHSCREEN_MODE_DS4_TOUCHPAD && gamepadType == 1) {
-            vita_debug_log("[TouchInput] DS4 Touchpad solo compatible con PlayStation");
+            vita_log::info("[TouchInput] DS4 Touchpad solo compatible con PlayStation");
         }
         return false;
     }
@@ -61,7 +61,7 @@ bool TouchInputManager::setTouchMode(int newMode, int gamepadType) {
     if (currentMode != newMode) {
         dropTouch(currentMode);
         currentMode = newMode;
-        vita_debug_log("[TouchInput] Modo cambiado a %d", newMode);
+        vita_log::info("[TouchInput] Modo cambiado a %d", newMode);
     }
     return true;
 }
@@ -124,7 +124,7 @@ void TouchInputManager::handleTrackpad() {
                 totalMovement = moveX + moveY;
             }
             if (elapsedMs <= MOUSE_ACTION_DELAY_MS && totalMovement <= tapMoveThreshold) {
-                vita_debug_log("[TRACKPAD] TAP detected (release) with %d finger(s) (move=%d)", trackpadFingerCount, totalMovement);
+                vita_log::debug("[TRACKPAD] TAP detected (release) with %d finger(s) (move=%d)", trackpadFingerCount, totalMovement);
                 if (trackpadFingerCount == 1) {
                     LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
                     LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
@@ -133,7 +133,7 @@ void TouchInputManager::handleTrackpad() {
                     LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
                 }
             } else {
-                vita_debug_log("[TRACKPAD] Invalid TAP (release) (time=%llu ms, move=%d)", elapsedMs, totalMovement);
+                vita_log::error("[TRACKPAD] Invalid TAP (release) (time=%llu ms, move=%d)", elapsedMs, totalMovement);
             }
         } else if (trackpadState == 2) {  // SCREEN_TAP - we were on TAP waiting for timeout to drop
             // Release the button that was pressed in ON_TOUCH
@@ -142,7 +142,7 @@ void TouchInputManager::handleTrackpad() {
             } else if (trackpadFingerCount == 2 && twoFingerRightClick) {
                 LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
             }
-            vita_debug_log("[TRACKPAD] TAP released");
+            vita_log::debug("[TRACKPAD] TAP released");
         }
         // Do nothing if we are in ON_SWIPE (we never press the button)
         trackpadState = 0;  // Return to NO_TOUCH
@@ -158,7 +158,7 @@ void TouchInputManager::handleTrackpad() {
                 trackpadFingerCount = touchData.reportNum;
                 trackpadStateStartTime = now;
                 trackpadInitialTouch = touchData.report[0];  // Save initial position
-                vita_debug_log("[TRACKPAD] Touch start with %d finger(s)", trackpadFingerCount);
+                vita_log::debug("[TRACKPAD] Touch start with %d finger(s)", trackpadFingerCount);
             }
             break;
             
@@ -176,7 +176,7 @@ void TouchInputManager::handleTrackpad() {
                     // A finger was raised - check if it was a valid TAP
                     if (elapsedMs <= MOUSE_ACTION_DELAY_MS && totalMovement <= tapMoveThreshold) {
                         // Valid TAP: fast and without significant movement
-                        vita_debug_log("[TRACKPAD] TAP detected with %d finger(s) (move=%d)", trackpadFingerCount, totalMovement);
+                        vita_log::debug("[TRACKPAD] TAP detected with %d finger(s) (move=%d)", trackpadFingerCount, totalMovement);
                         // Press the button
                         if (trackpadFingerCount == 1) {
                             LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
@@ -187,7 +187,7 @@ void TouchInputManager::handleTrackpad() {
                         trackpadStateStartTime = now;  // Start timeout to release
                     } else {
                         // Invalid TAP (too slow or moved too much) - ignore
-                        vita_debug_log("[TRACKPAD] Invalid TAP (time=%llu ms, move=%d)", elapsedMs, totalMovement);
+                        vita_log::error("[TRACKPAD] Invalid TAP (time=%llu ms, move=%d)", elapsedMs, totalMovement);
                         trackpadState = 0;
                     }
                 } else if (touchData.reportNum > trackpadFingerCount) {
@@ -197,7 +197,7 @@ void TouchInputManager::handleTrackpad() {
                     // The timeout has passed or it has moved too much -> it is a SWIPE
                     trackpadState = 3;  // SWIPE_START
                     trackpadSwipeStart = touchData.report[0];
-                    vita_debug_log("[TRACKPAD] SWIPE detected (time=%llu ms, move=%d)", elapsedMs, totalMovement);
+                    vita_log::debug("[TRACKPAD] SWIPE detected (time=%llu ms, move=%d)", elapsedMs, totalMovement);
                 }
             }
             break;
@@ -213,7 +213,7 @@ void TouchInputManager::handleTrackpad() {
                         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
                     }
                     trackpadState = 0;  // Return to NO_TOUCH
-                    vita_debug_log("[TRACKPAD] TAP button released after timeout");
+                    vita_log::debug("[TRACKPAD] TAP button released after timeout");
                 }
             }
             break;
@@ -222,7 +222,7 @@ void TouchInputManager::handleTrackpad() {
             {
                 trackpadSwipeStart = touchData.report[0];
                 trackpadState = 4;  // ON_SWIPE
-                vita_debug_log("[TRACKPAD] SWIPE started (no button press)");
+                vita_log::debug("[TRACKPAD] SWIPE started (no button press)");
             }
             break;
             
@@ -268,7 +268,7 @@ void TouchInputManager::resetTrackpadState() {
     trackpadModeState.lastAbsX = -1;
     trackpadModeState.lastAbsY = -1;
     
-    vita_debug_log("[TRACKPAD] State reset - all mouse buttons released");
+    vita_log::debug("[TRACKPAD] State reset - all mouse buttons released");
 }
 
 void TouchInputManager::handleDS4Touch() {
@@ -283,7 +283,7 @@ void TouchInputManager::handleDS4Touch() {
         }
         if (!stillPressed) {
             LiSendControllerTouchEvent(0, LI_TOUCH_EVENT_UP, lastReport.id, 0.0f, 0.0f, 0.0f);
-            vita_debug_log("[DS4_TOUCHPAD] UP finger=%d", lastReport.id);
+            vita_log::info("[DS4_TOUCHPAD] UP finger=%d", lastReport.id);
         }
     }
 
@@ -300,7 +300,7 @@ void TouchInputManager::handleDS4Touch() {
         }
         if (!wasPressed) {
             eventType = LI_TOUCH_EVENT_DOWN;
-            vita_debug_log("[DS4_TOUCHPAD] DOWN finger=%d", report.id);
+            vita_log::info("[DS4_TOUCHPAD] DOWN finger=%d", report.id);
         }
 
         float x = (float)report.x / 960.0f;
@@ -402,7 +402,7 @@ void TouchInputManager::handleTabletTouch() {
             float y = ((float)lastReport.y * HEIGHT) / 1088.0f / HEIGHT; // = lastReport.y / 1088.0f
             
             LiSendTouchEvent(LI_TOUCH_EVENT_UP, lastReport.id, x, y, 0.0f, 0.0f, 0.0f, LI_ROT_UNKNOWN);
-            vita_debug_log("[TABLET] UP finger=%d x=%.3f y=%.3f", lastReport.id, x, y);
+            vita_log::info("[TABLET] UP finger=%d x=%.3f y=%.3f", lastReport.id, x, y);
         }
     }
 
@@ -419,7 +419,7 @@ void TouchInputManager::handleTabletTouch() {
         }
         if (!wasPressed) {
             eventType = LI_TOUCH_EVENT_DOWN;
-            vita_debug_log("[TABLET] DOWN finger=%d", report.id);
+            vita_log::info("[TABLET] DOWN finger=%d", report.id);
         }
 
         // Convert from touchscreen coordinates (0-1920, 0-1088) to normalized (0-1)
@@ -428,7 +428,7 @@ void TouchInputManager::handleTabletTouch() {
         LiSendTouchEvent(eventType, report.id, x, y, 1.0f, 0.0f, 0.0f, LI_ROT_UNKNOWN);
         
         if (eventType == LI_TOUCH_EVENT_DOWN) {
-            vita_debug_log("[TABLET] DOWN finger=%d x=%.3f y=%.3f", report.id, x, y);
+            vita_log::info("[TABLET] DOWN finger=%d x=%.3f y=%.3f", report.id, x, y);
         }
     }
 }
@@ -475,7 +475,7 @@ void TouchInputManager::setTrackpadSettings(int pointerSpeed, int deadZone, bool
     trackpadMultiTouch = multiTouch;
     trackpadEdgeZone = edgeZone;
     
-    vita_debug_log("[TRACKPAD] Settings updated: speed=%d, deadzone=%d, scroll=%d", 
+    vita_log::debug("[TRACKPAD] Settings updated: speed=%d, deadzone=%d, scroll=%d", 
                    pointerSpeed, deadZone, twoFingerScroll);
 }
 

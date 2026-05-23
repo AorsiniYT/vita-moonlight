@@ -22,8 +22,10 @@
 #include "CryptoManager.hpp"
 #include "errors.h"
 #include "http.h"
+#include "debug.hpp"
+
+#include <fmt/format.h>
 #include <Limelight.h>
-#include <borealis/core/logger.hpp>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -60,14 +62,14 @@ static int load_unique_id(const std::string& keyDirectory) {
         unique_id = "0123456789ABCDEF";
         FILE *wfd = fopen(uniqueFilePath.c_str(), "w");
         if (wfd == NULL) {
-            brls::Logger::error("[load_unique_id] no se pudo crear/abrir '{}' para escribir uniqueid", uniqueFilePath);
+            vita_log::error("[load_unique_id] no se pudo crear/abrir '{}' para escribir uniqueid", uniqueFilePath);
             return GS_FAILED;
         }
         fwrite(unique_id.c_str(), UNIQUEID_CHARS, 1, wfd);
         fclose(wfd);
     }
     // Log diagnóstico: qué unique_id y keyDir se están usando
-    brls::Logger::info("[load_unique_id] keyDir='{}' unique_id='{}' (fromFile={})", keyDirectory, unique_id, fromFile);
+    vita_log::info("[load_unique_id] keyDir='{}' unique_id='{}' (fromFile={})", keyDirectory, unique_id, fromFile);
     return GS_OK;
 }
 
@@ -113,7 +115,7 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     static uint32_t canary1 = 0xA1B2C3D4;
     static uint32_t canary2 = 0x11223344;
     uint32_t localCanaryStart = 0x55AA7733;
-    brls::Logger::info("[load_serverinfo] inicio (https={}, addr='{}', httpPort={}, httpsPort={}, c1=0x{:08X}, c2=0x{:08X}, lc=0x{:08X})", https, server->serverInfo.address ? server->serverInfo.address : "(null)", server->httpPort, server->httpsPort, canary1, canary2, localCanaryStart);
+    vita_log::info("[load_serverinfo] inicio (https={}, addr='{}', httpPort={}, httpsPort={}, c1=0x{:08X}, c2=0x{:08X}, lc=0x{:08X})", https, server->serverInfo.address ? server->serverInfo.address : "(null)", server->httpPort, server->httpsPort, canary1, canary2, localCanaryStart);
 
     snprintf(url, sizeof(url), "%s://%s:%d/serverinfo?uniqueid=%s",
              https ? "https" : "http", server->serverInfo.address,
@@ -125,11 +127,11 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     // (PS Vita network stack). Use LONG for https and LOW for http.
     HTTPRequestTimeout timeout = https ? HTTPRequestTimeoutLong : HTTPRequestTimeoutLow;
     if (http_request(url, &data, timeout) != GS_OK) {
-        brls::Logger::error("[load_serverinfo] http_request fallo");
+        vita_log::error("[load_serverinfo] http_request fallo");
         return GS_IO_ERROR;
     }
     if (xml_status(data) == GS_ERROR) {
-        brls::Logger::error("[load_serverinfo] xml_status error");
+        vita_log::error("[load_serverinfo] xml_status error");
         return GS_ERROR;
     }
 
@@ -147,20 +149,20 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
         return true;
     };
 
-    brls::Logger::info("[load_serverinfo] antes de construir xmlPayload size(data)={}", (int)data.size());
+    vita_log::info("[load_serverinfo] antes de construir xmlPayload size(data)={}", (int)data.size());
     const std::string xmlPayload((const char*)data.bytes(), data.size());
-    brls::Logger::info("[load_serverinfo] xmlPayload construido ptr=0x{:X} len={}", (uintptr_t)xmlPayload.c_str(), (int)xmlPayload.size());
+    vita_log::info("[load_serverinfo] xmlPayload construido ptr=0x{:X} len={}", (uintptr_t)xmlPayload.c_str(), (int)xmlPayload.size());
     // Guardar hash simple (suma bytes) para comparar si cambia inesperadamente
     uint32_t hash = 0; 
     for (size_t i=0;i<xmlPayload.size();++i) {
         hash += (unsigned char)xmlPayload[i];
         if (i < 4) {
-            brls::Logger::info("[load_serverinfo] byte{}=0x{:02X}", (int)i, (int)(unsigned char)xmlPayload[i]);
+            vita_log::info("[load_serverinfo] byte{}=0x{:02X}", (int)i, (int)(unsigned char)xmlPayload[i]);
         }
     }
-    brls::Logger::info("[load_serverinfo] xml len={}, hash=0x{:08X}", (int)xmlPayload.size(), hash);
+    vita_log::info("[load_serverinfo] xml len={}, hash=0x{:08X}", (int)xmlPayload.size(), hash);
     if (xmlPayload.size() < 20) {
-        brls::Logger::error("[load_serverinfo] XML demasiado corto");
+        vita_log::error("[load_serverinfo] XML demasiado corto");
     }
     std::string pairedText;
     std::string currentGameText;
@@ -168,44 +170,44 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     std::string httpsPortText;
 
     if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344) {
-        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE currentgame c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
+        vita_log::error("[load_serverinfo] CANARY ALTERADO ANTES DE currentgame c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
     }
     if (!extractTag(xmlPayload, "currentgame", currentGameText)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo currentgame");
+        vita_log::error("[load_serverinfo] simpleXML fallo currentgame");
         return ret;
     }
     if (localCanaryStart != 0x55AA7733) {
-        brls::Logger::error("[load_serverinfo] LOCAL CANARY ALTERADO tras currentgame lc=0x{:08X}", localCanaryStart);
+        vita_log::error("[load_serverinfo] LOCAL CANARY ALTERADO tras currentgame lc=0x{:08X}", localCanaryStart);
     }
     if (!extractTag(xmlPayload, "PairStatus", pairedText)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo PairStatus");
+        vita_log::error("[load_serverinfo] simpleXML fallo PairStatus");
         return ret;
     }
     // Extraer y loggear el uniqueid que reporta el servidor para diagnóstico
     std::string serverUniqueId;
     if (extractTag(xmlPayload, "uniqueid", serverUniqueId)) {
-        brls::Logger::info("[load_serverinfo] server reported uniqueid='{}' (client unique_id='{}')", serverUniqueId, unique_id);
+        vita_log::info("[load_serverinfo] server reported uniqueid='{}' (client unique_id='{}')", serverUniqueId, unique_id);
     } else {
-        brls::Logger::info("[load_serverinfo] server did not include a uniqueid tag in response (client unique_id='{}')", unique_id);
+        vita_log::info("[load_serverinfo] server did not include a uniqueid tag in response (client unique_id='{}')", unique_id);
     }
     if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344) {
-        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE appversion c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
+        vita_log::error("[load_serverinfo] CANARY ALTERADO ANTES DE appversion c1=0x{:08X} c2=0x{:08X}", canary1, canary2);
     }
     if (!extractTag(xmlPayload, "appversion", server->serverInfoAppVersion)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo appversion");
+        vita_log::error("[load_serverinfo] simpleXML fallo appversion");
         return ret;
     }
     if (canary1 != 0xA1B2C3D4 || canary2 != 0x11223344 || localCanaryStart != 0x55AA7733) {
-        brls::Logger::error("[load_serverinfo] CANARY ALTERADO ANTES DE state c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", canary1, canary2, localCanaryStart);
+        vita_log::error("[load_serverinfo] CANARY ALTERADO ANTES DE state c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", canary1, canary2, localCanaryStart);
     }
     if (!extractTag(xmlPayload, "state", stateText)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo state");
+        vita_log::error("[load_serverinfo] simpleXML fallo state");
         return ret;
     }
 
     std::string scms;
     if (!extractTag(xmlPayload, "ServerCodecModeSupport", scms)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo ServerCodecModeSupport");
+        vita_log::error("[load_serverinfo] simpleXML fallo ServerCodecModeSupport");
         return ret;
     }
     server->serverInfo.serverCodecModeSupport = scms.empty() ? 0 : atoi(scms.c_str());
@@ -213,7 +215,7 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     extractTag(xmlPayload, "gputype", server->gpuType);
     extractTag(xmlPayload, "GsVersion", server->gsVersion);
     if (!extractTag(xmlPayload, "hostname", server->hostname)) {
-        brls::Logger::error("[load_serverinfo] simpleXML fallo hostname");
+        vita_log::error("[load_serverinfo] simpleXML fallo hostname");
         return ret;
     }
     extractTag(xmlPayload, "GfeVersion", server->serverInfoGfeVersion);
@@ -222,13 +224,13 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
 
     if (currentGameText.empty() || pairedText.empty() ||
         server->serverInfoAppVersion.empty() || stateText.empty()) {
-        brls::Logger::error("[load_serverinfo] campos requeridos vacios");
+        vita_log::error("[load_serverinfo] campos requeridos vacios");
         return ret;
     }
 
     server->paired = pairedText == "1";
     if (!server->paired) {
-        brls::Logger::info("[load_serverinfo] Host no emparejado (PairStatus=0). Se requerirá pairing antes de lanzar.");
+        vita_log::info("[load_serverinfo] Host no emparejado (PairStatus=0). Se requerirá pairing antes de lanzar.");
         // Información adicional para diagnosticar discrepancias entre device.ini/local keys y
         // el estado reportado por el servidor. Si el serverUniqueId existe y difiere del
         // unique_id local, es una pista de que el host podría no reconocer el identifier
@@ -242,20 +244,20 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
             // y se presenta el identificador del cliente. Si tras emparejar
             // PairStatus sigue siendo 0, reintentar /serverinfo por HTTPS o ejecutar
             // re-pair desde la UI.
-            brls::Logger::info("[load_serverinfo] Nota: server uniqueid (host)='{}' != local client unique_id='{}'. Esto puede ser normal. Si PairStatus sigue a 0, intenta reconsultar por HTTPS o re-pair.", serverUniqueId, unique_id);
+            vita_log::info("[load_serverinfo] Nota: server uniqueid (host)='{}' != local client unique_id='{}'. Esto puede ser normal. Si PairStatus sigue a 0, intenta reconsultar por HTTPS o re-pair.", serverUniqueId, unique_id);
         }
     }
     if (currentGameText.size() > 32) {
-        brls::Logger::error("[load_serverinfo] currentGameText demasiado largo ({} bytes)", currentGameText.size());
+        vita_log::error("[load_serverinfo] currentGameText demasiado largo ({} bytes)", currentGameText.size());
         return ret;
     }
     server->currentGame = currentGameText.empty() ? 0 : atoi(currentGameText.c_str());
     if (server->currentGame != 0) {
-        brls::Logger::info("[load_serverinfo] currentGame reportado por host: {} (posible sesión previa)", server->currentGame);
+        vita_log::info("[load_serverinfo] currentGame reportado por host: {} (posible sesión previa)", server->currentGame);
     }
     server->supports4K = server->serverInfo.serverCodecModeSupport != 0;
     if (server->serverInfoAppVersion.size() > 64) {
-        brls::Logger::error("[load_serverinfo] appversion demasiado largo ({} bytes)", server->serverInfoAppVersion.size());
+        vita_log::error("[load_serverinfo] appversion demasiado largo ({} bytes)", server->serverInfoAppVersion.size());
         return ret;
     }
     server->serverMajorVersion = server->serverInfoAppVersion.empty() ? 0 : atoi(server->serverInfoAppVersion.c_str());
@@ -266,7 +268,7 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     if (stateText == "_SERVER_BUSY") {
         server->currentGame = 0;
     }
-    brls::Logger::info("[load_serverinfo] OK paired={}, currentGame={}, appVersion='{}', httpsPort={}, state='{}' c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", server->paired, server->currentGame, server->serverInfoAppVersion, server->httpsPort, stateText, canary1, canary2, localCanaryStart);
+    vita_log::info("[load_serverinfo] OK paired={}, currentGame={}, appVersion='{}', httpsPort={}, state='{}' c1=0x{:08X} c2=0x{:08X} lc=0x{:08X}", server->paired, server->currentGame, server->serverInfoAppVersion, server->httpsPort, stateText, canary1, canary2, localCanaryStart);
     return GS_OK;
 }
 
@@ -375,13 +377,13 @@ int gs_pair(PSERVER_DATA server, char* pin) {
         return GS_WRONG_STATE;
     }
 
-    brls::Logger::info("Client: Pairing with generation {} server",
+    vita_log::info("Client: Pairing with generation {} server",
                        server->serverMajorVersion);
-    brls::Logger::info("Client: Start pairing stage #1");
+    vita_log::info("Client: Start pairing stage #1");
 
     Data salt = Data::random_bytes(16);
     Data salted_pin = salt.append(pin ? Data(pin, strlen(pin)) : Data());
-//    brls::Logger::info("Client: PIN: {}, salt {}", pin, salt.hex().bytes());
+//    vita_log::info("Client: PIN: {}, salt {}", pin, salt.hex().bytes());
 
     snprintf(url, sizeof(url),
              "http://%s:%u/"
@@ -404,7 +406,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
         return gs_pair_cleanup(ret, server, &result);
     }
 
-    brls::Logger::info("Client: Start pairing stage #2");
+    vita_log::info("Client: Start pairing stage #2");
 
     Data plainCert = result.empty() ? Data() : Data((char*)result.c_str(), result.size());
     Data aesKey;
@@ -445,7 +447,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
         return gs_pair_cleanup(ret, server, &result);
     }
 
-    brls::Logger::info("Client: Start pairing stage #3");
+    vita_log::info("Client: Start pairing stage #3");
 
     Data encServerChallengeResp = result.empty() ? Data() : Data((char*)result.c_str(), result.size()).hex_to_bytes();
     Data decServerChallengeResp =
@@ -493,7 +495,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
         return gs_pair_cleanup(ret, server, &result);
     }
 
-    brls::Logger::info("Client: Start pairing stage #4");
+    vita_log::info("Client: Start pairing stage #4");
 
     Data serverSecretResp = result.empty() ? Data() : Data((char*)result.c_str(), result.size()).hex_to_bytes();
     Data serverSecret = serverSecretResp.subdata(0, 16);
@@ -539,7 +541,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
         return gs_pair_cleanup(ret, server, &result);
     }
 
-    brls::Logger::info("Client: Start pairing stage #5");
+    vita_log::info("Client: Start pairing stage #5");
 
     snprintf(
         url, sizeof(url),
@@ -563,10 +565,10 @@ int gs_pair(PSERVER_DATA server, char* pin) {
     for (int attempt = 0; attempt < 3; ++attempt) {
         int r = load_serverinfo(server, true);
         if (r == GS_OK && server->paired) {
-            brls::Logger::info("[gs_pair] post-pair server reports paired via HTTPS (attempt {})", attempt + 1);
+            vita_log::info("[gs_pair] post-pair server reports paired via HTTPS (attempt {})", attempt + 1);
             break;
         }
-        brls::Logger::warning("[gs_pair] post-pair /serverinfo HTTPS did not report PairStatus=1 (attempt {})", attempt + 1);
+        vita_log::warning("[gs_pair] post-pair /serverinfo HTTPS did not report PairStatus=1 (attempt {})", attempt + 1);
         // Small delay between retries
         usleep(200 * 1000); // 200ms
     }
@@ -618,13 +620,13 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST* list) {
         };
         std::string idStr, titleStr;
         if (!extract(appBlock, "ID", idStr) || !extract(appBlock, "AppTitle", titleStr)) {
-            brls::Logger::error("[gs_applist] fallo parse parcial appBlock");
+            vita_log::error("[gs_applist] fallo parse parcial appBlock");
             pos = end + 6;
             continue;
         }
         if (titleStr.size() > 256) titleStr.resize(256);
         PAPP_LIST app = (PAPP_LIST)malloc(sizeof(APP_LIST));
-        if (!app) { brls::Logger::error("[gs_applist] malloc APP_LIST fallo"); break; }
+        if (!app) { vita_log::error("[gs_applist] malloc APP_LIST fallo"); break; }
         memset(app, 0, sizeof(APP_LIST));
         app->id = idStr.empty() ? 0 : atoi(idStr.c_str());
         if (!titleStr.empty()) {
@@ -639,7 +641,7 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST* list) {
         pos = end + 6; // avanzar tras </App>
     }
     *list = head;
-    brls::Logger::info("[gs_applist] parse simple completo apps={} bytesXML={}", appCount, (int)xml.size());
+    vita_log::info("[gs_applist] parse simple completo apps={} bytesXML={}", appCount, (int)xml.size());
     return ret;
 }
 
@@ -679,7 +681,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
              (unsigned char)config->remoteInputAesKey[0], (unsigned char)config->remoteInputAesKey[1],
              (unsigned char)config->remoteInputAesKey[2], (unsigned char)config->remoteInputAesKey[3],
              (unsigned char)config->remoteInputAesKey[4], (unsigned char)config->remoteInputAesKey[5]);
-    brls::Logger::info("[gs_start_app] remoteInputAesKey preview={} (len=16)", keyPreview);
+    vita_log::info("[gs_start_app] remoteInputAesKey preview={} (len=16)", keyPreview);
 
     char url[4096];
     int rikeyid = 0;
@@ -717,7 +719,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
             snprintf(url + currentLen, sizeof(url) - currentLen,
                      "&displayWidth=%d&displayHeight=%d",
                      displayWidth, displayHeight);
-            brls::Logger::info("[gs_start_app] Display resolution hint: {}x{} (stream: {}x{})",
+            vita_log::info("[gs_start_app] Display resolution hint: {}x{} (stream: {}x{})",
                              displayWidth, displayHeight,
                              config->width, config->height);
         }
@@ -727,7 +729,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
         snprintf(url + currentLen, sizeof(url) - currentLen, "%s",
                  LiGetLaunchUrlQueryParameters());
         if (forceFresh && server->currentGame != 0) {
-            brls::Logger::warning("[gs_start_app] Ignorando resume para forzar renegociación H.264 (fresh launch)");
+            vita_log::warning("[gs_start_app] Ignorando resume para forzar renegociación H.264 (fresh launch)");
         }
     } else {
         snprintf(url, sizeof(url),
@@ -758,7 +760,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
         server->serverInfo.rtspSessionUrl = new char[size + 1];
         memcpy((void *) server->serverInfo.rtspSessionUrl, result.c_str(), size + 1);
     } else {
-        brls::Logger::error("sessionUrl0 not found or empty");
+        vita_log::error("sessionUrl0 not found or empty");
     }
 
 exit:
@@ -811,10 +813,10 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
     }
     
     if (!CryptoManager::load_cert_key_pair(keyDir)) {
-        brls::Logger::info("Client: No certs, generate new...");
+        vita_log::info("Client: No certs, generate new...");
 
         if (!CryptoManager::generate_new_cert_key_pair(keyDir)) {
-            brls::Logger::info("Client: Failed to generate certs...");
+            vita_log::info("Client: Failed to generate certs...");
             return GS_FAILED;
         }
     }
@@ -826,9 +828,9 @@ int gs_init(PSERVER_DATA server, const std::string address, const std::string& k
     const char* certHexC = certHexC_uc ? reinterpret_cast<const char*>(certHexC_uc) : nullptr;
     std::string certHex = certHexC ? std::string(certHexC) : std::string();
         std::string certPreview = certHex.substr(0, certHex.size() > 32 ? 32 : certHex.size());
-        brls::Logger::info("[gs_init] keyDir='{}' client cert preview='{}'", keyDir, certPreview);
+        vita_log::info("[gs_init] keyDir='{}' client cert preview='{}'", keyDir, certPreview);
     } catch (...) {
-        brls::Logger::warning("[gs_init] no se pudo obtener preview del certificado para keyDir='{}'", keyDir);
+        vita_log::warning("[gs_init] no se pudo obtener preview del certificado para keyDir='{}'", keyDir);
     }
 
     http_init(keyDir);

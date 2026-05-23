@@ -21,7 +21,7 @@
 #include "view/pccard.hpp"
 #include "model/HostStorage.hpp"
 #include "GameStreamClient.hpp"
-#include <borealis/core/logger.hpp>
+#include "debug.hpp"
 #include <borealis/views/progress_spinner.hpp>
 #include <fstream>
 #include "ConfigManager.hpp"
@@ -56,16 +56,16 @@ std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin();
 using namespace brls::literals;
 
 AddHostTab::AddHostTab() {
-    brls::Logger::info("[AddHostTab] Constructor: Iniciando inflateFromXMLRes");
+    vita_log::info("[AddHostTab] Constructor: Iniciando inflateFromXMLRes");
     this->inflateFromXMLRes("xml/tabs/add_host.xml");
     // --- Diagnosis of available CPU cores and current usage ---
 // --- Diagnosis of available CPU cores and current usage ---
 #if defined(__PSV__)
     int cpuCoreCount = 4; // Theoretical
-    brls::Logger::info("[AddHostTab][CPU] Núcleos CPU PSVita (teórico): {}", cpuCoreCount);
+    vita_log::info("[AddHostTab][CPU] Núcleos CPU PSVita (teórico): %d", cpuCoreCount);
     // Get affinity mask from main thread
     int affinityMask = sceKernelGetThreadCpuAffinityMask(0);
-    brls::Logger::info("[AddHostTab][CPU] Affinity mask del hilo principal: 0x{:X}", affinityMask);
+    vita_log::info("[AddHostTab][CPU] Affinity mask del hilo principal: 0x%X", affinityMask);
     // Show in the log which cores are actually available
     std::string availableCores;
     for (int i = 0; i < 4; ++i) {
@@ -74,21 +74,21 @@ AddHostTab::AddHostTab() {
         }
     }
     if (!availableCores.empty())
-        brls::Logger::info("[AddHostTab][CPU] Núcleos disponibles para este hilo: {}", availableCores);
+        vita_log::info("[AddHostTab][CPU] Núcleos disponibles para este hilo: %s", availableCores.c_str());
     else
-        brls::Logger::warning("[AddHostTab][CPU] ¡Ningún núcleo disponible para este hilo! (mask=0x{:X})", affinityMask);
+        vita_log::warning("[AddHostTab][CPU] ¡Ningún núcleo disponible para este hilo! (mask=0x%X)", affinityMask);
 #else
     unsigned int cpuCoreCount = std::thread::hardware_concurrency();
-    brls::Logger::info("[AddHostTab][CPU] Núcleos CPU detectados: {}", cpuCoreCount);
+    vita_log::info("[AddHostTab][CPU] Núcleos CPU detectados: %u", cpuCoreCount);
 #endif
     // Log of thread IDs and affinity (diagnosis)
 #if defined(__PSV__)
     SceUID threadId = sceKernelGetThreadId();
-    brls::Logger::info("[AddHostTab][CPU] ID del hilo principal: 0x{:X}", threadId);
+    vita_log::info("[AddHostTab][CPU] ID del hilo principal: 0x%X", threadId);
 #else
     std::stringstream ss;
     ss << std::this_thread::get_id();
-    brls::Logger::info("[AddHostTab][CPU] ID del hilo principal: {}", ss.str());
+    vita_log::info("[AddHostTab][CPU] ID del hilo principal: %s", ss.str().c_str());
 #endif
 
     // The spinner and the label are already in the XML, control visibility by id
@@ -104,13 +104,13 @@ AddHostTab::AddHostTab() {
     // Manual translation and log testing
     std::string testKey = "moonlight/settings/add_host_ip_placeholder";
     std::string testTranslation = brls::getStr(testKey);
-    brls::Logger::info("[AddHostTab] Prueba manual: clave='{}', traducción='{}'", testKey, testTranslation);
-    brls::Logger::info("[AddHostTab] Locale activo: {}", brls::Application::getLocale());
-    brls::Logger::info("[AddHostTab] Ruta recursos esperada: resources/i18n/es/moonlight.json");
+    vita_log::info("[AddHostTab] Prueba manual: clave='%s', traducción='%s'", testKey.c_str(), testTranslation.c_str());
+    vita_log::info("[AddHostTab] Locale activo: %s", brls::Application::getLocale().c_str());
+    vita_log::info("[AddHostTab] Ruta recursos esperada: resources/i18n/es/moonlight.json");
 
     if (this->ipField) {
         std::string placeholder = brls::getStr("moonlight/settings/add_host_ip_placeholder");
-        brls::Logger::info("[AddHostTab] Placeholder resolved: {}", placeholder);
+        vita_log::info("[AddHostTab] Placeholder resolved: %s", placeholder.c_str());
         // Allow IP:PORT up to 22 characters (ex: 255.255.255.255:65535)
         this->ipField->init(brls::getStr("moonlight/settings/ip"), "", [](std::string){}, placeholder, "", 22);
     }
@@ -136,12 +136,12 @@ AddHostTab::AddHostTab() {
     if (this->addButton && this->ipField && this->nameField && this->preferExternalSelector) {
         // Manual Pair Button (Add Host Manual)
         this->addButton->registerClickAction([this](brls::View*) {
-            brls::Logger::info("[AddHostTab][MANUAL] Emparejamiento manual iniciado");
+            vita_log::info("[AddHostTab][MANUAL] Emparejamiento manual iniciado");
 #if defined(__PSV__)
             if (AddHostTab::vitaInstance != nullptr) {
                 check_host::stopVitaDiscovery();
                 if (AddHostTab::vitaInstance != this) {
-                    brls::Logger::warning("[AddHostTab][SAFE] Descubrimiento ya fue cerrado por otra instancia, abortando.");
+                    vita_log::warning("[AddHostTab][SAFE] Descubrimiento ya fue cerrado por otra instancia, abortando.");
                     return true;
                 }
                 AddHostTab::vitaInstance = nullptr;
@@ -156,7 +156,7 @@ AddHostTab::AddHostTab() {
 #if defined(__PSV__)
             if (AddHostTab::vitaInstance != nullptr) {
                 brls::Application::notify("Por favor espera a que termine la búsqueda de dispositivos antes de emparejar.");
-                brls::Logger::warning("[AddHostTab][SAFE] Emparejamiento bloqueado: descubrimiento aún activo.");
+                vita_log::warning("[AddHostTab][SAFE] Emparejamiento bloqueado: descubrimiento aún activo.");
                 return true;
             }
 #endif
@@ -243,8 +243,8 @@ std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin();
 AddHostTab* AddHostTab::winInstance = nullptr;
 extern "C" void AddHostTab::winHostFoundCb(int idx, const char* host, const char* pcname, const char* ip, int port) {
     if (!AddHostTab::winInstance) return;
-    brls::Logger::info("[AddHostTab] Host detectado (WIN): {} - {}:{} (host={})", pcname, ip, port, host);
-    brls::Logger::info("[AddHostTab] Datos callback WIN: host='{}' pcname='{}' ip='{}' port={}", host, pcname, ip, port);
+    vita_log::info("[AddHostTab] Host detectado (WIN): %s - %s:%d (host=%s)", pcname, ip, port, host);
+    vita_log::info("[AddHostTab] Datos callback WIN: host='%s' pcname='%s' ip='%s' port=%d", host, pcname, ip, port);
     // Use the global list of discovered hosts in Windows
     auto& discoveredHostsWin = getDiscoveredHostsWin();
     std::string name(pcname ? pcname : "");
@@ -257,7 +257,7 @@ extern "C" void AddHostTab::winHostFoundCb(int idx, const char* host, const char
         displayName = std::string("...").substr(0, maxDisplayLen);
     }
     if (name.empty() && ipStr.empty()) {
-        brls::Logger::error("[AddHostTab] Host detectado pero sin datos válidos (WIN)");
+        vita_log::error("[AddHostTab] Host detectado pero sin datos válidos (WIN)");
         return;
     }
     // Avoid duplicates
@@ -267,7 +267,7 @@ extern "C" void AddHostTab::winHostFoundCb(int idx, const char* host, const char
     discoveredHostsWin.push_back({displayName, ipStr});
     brls::sync([=]() {
         if (!AddHostTab::winInstance->hostsList) {
-            brls::Logger::error("[AddHostTab] hostsList es nulo (WIN)");
+            vita_log::error("[AddHostTab] hostsList es nulo (WIN)");
             return;
         }
         // Clean everything except the spinner
@@ -320,7 +320,7 @@ extern "C" void AddHostTab::winHostFoundCb(int idx, const char* host, const char
         if (spinnerRow)
             spinnerRow->setVisibility(brls::Visibility::VISIBLE);
         else
-            brls::Logger::error("[AddHostTab] spinnerRow es nulo tras añadir host (WIN)");
+            vita_log::error("[AddHostTab] spinnerRow es nulo tras añadir host (WIN)");
     });
 }
 #endif
@@ -329,9 +329,9 @@ void AddHostTab::startDeviceDiscovery() {
     // Clear host list and show spinner
     brls::View* spinnerRow = this->getView("spinner_row");
     if (!this->hostsList) {
-        brls::Logger::error("[AddHostTab] hostsList es nulo. No se puede limpiar la lista de hosts.");
+        vita_log::error("[AddHostTab] hostsList es nulo. No se puede limpiar la lista de hosts.");
     } else if (!spinnerRow) {
-        brls::Logger::error("[AddHostTab] spinnerRow es nulo. No se puede mostrar el spinner.");
+        vita_log::error("[AddHostTab] spinnerRow es nulo. No se puede mostrar el spinner.");
     } else {
         auto children = this->hostsList->getChildren();
         for (auto* child : children) {
@@ -346,11 +346,11 @@ void AddHostTab::startDeviceDiscovery() {
     this->discoveredHosts.clear();
     check_host::startVitaDiscovery([](int idx, const char* host, const char* pcname, const char* ip, int port) {
         if (!AddHostTab::vitaInstance) {
-            brls::Logger::error("[check_host] vitaInstance es nulo");
+            vita_log::error("[check_host] vitaInstance es nulo");
             return;
         }
-        brls::Logger::info("[AddHostTab] Host detectado (VITA): {} - {}:{} (host={})", pcname ? pcname : "(null)", ip ? ip : "(null)", port, host ? host : "(null)");
-        brls::Logger::info("[AddHostTab] Datos callback VITA: host='{}' pcname='{}' ip='{}' port={}", host ? host : "(null)", pcname ? pcname : "(null)", ip ? ip : "(null)", port);
+        vita_log::info("[AddHostTab] Host detectado (VITA): %s - %s:%d (host=%s)", pcname ? pcname : "(null)", ip ? ip : "(null)", port, host ? host : "(null)");
+        vita_log::info("[AddHostTab] Datos callback VITA: host='%s' pcname='%s' ip='%s' port=%d", host ? host : "(null)", pcname ? pcname : "(null)", ip ? ip : "(null)", port);
         std::string name(pcname ? pcname : "");
         std::string ipStr(ip ? ip : "");
         std::string displayName = name;
@@ -361,17 +361,17 @@ void AddHostTab::startDeviceDiscovery() {
             displayName = std::string("...").substr(0, maxDisplayLen);
         }
         if (name.empty() && ipStr.empty()) {
-            brls::Logger::error("[AddHostTab] Host detectado pero sin datos válidos (VITA)");
+            vita_log::error("[AddHostTab] Host detectado pero sin datos válidos (VITA)");
             return;
         }
         brls::sync([displayName, ipStr]() {
             AddHostTab* self = AddHostTab::vitaInstance;
             if (!self) {
-                brls::Logger::error("[check_host] vitaInstance liberada antes de procesar host");
+                vita_log::error("[check_host] vitaInstance liberada antes de procesar host");
                 return;
             }
             if (!self->hostsList) {
-                brls::Logger::error("[check_host] hostsList es nulo");
+                vita_log::error("[check_host] hostsList es nulo");
                 return;
             }
             auto duplicate = std::find_if(self->discoveredHosts.begin(), self->discoveredHosts.end(), [&](const auto& h) {
@@ -402,7 +402,7 @@ void AddHostTab::refreshHostsList() {
 }
 
 AddHostTab::~AddHostTab() {
-    brls::Logger::info("[AddHostTab] (DEBUG) Destructor: deteniendo hilo de descubrimiento y pairing...");
+    vita_log::info("[AddHostTab] (DEBUG) Destructor: deteniendo hilo de descubrimiento y pairing...");
 #if defined(__PSV__)
     AddHostTab::vitaInstance = nullptr;
     check_host::stopVitaDiscovery();
@@ -432,7 +432,7 @@ std::vector<std::pair<std::string, std::string>>& getDiscoveredHostsWin() {
 #if defined(__PSV__)
 void AddHostTab::rebuildDiscoveredHostsUI() {
     if (!this->hostsList) {
-        brls::Logger::error("[AddHostTab] hostsList es nulo durante rebuild");
+        vita_log::error("[AddHostTab] hostsList es nulo durante rebuild");
         return;
     }
 
@@ -485,6 +485,6 @@ void AddHostTab::rebuildDiscoveredHostsUI() {
     if (spinnerRow)
         spinnerRow->setVisibility(brls::Visibility::VISIBLE);
     else
-        brls::Logger::error("[AddHostTab] spinnerRow es nulo tras rebuild");
+        vita_log::error("[AddHostTab] spinnerRow es nulo tras rebuild");
 }
 #endif

@@ -11,10 +11,10 @@ TestOverlayStream::TestOverlayStream() {
     this->registerAction("nav_up", brls::BUTTON_NAV_UP, [this](brls::View*) { this->moveFocus(-1); return true; });
     this->registerAction("nav_down", brls::BUTTON_NAV_DOWN, [this](brls::View*) { this->moveFocus(+1); return true; });
     this->registerAction("confirm", brls::BUTTON_A, [this](brls::View*) { this->activateFocused(); return true; });
-    this->registerAction("cancel", brls::BUTTON_B, [this](brls::View*) { vita_debug_log("[TestOverlayStream] cancel pressed"); return true; });
+    this->registerAction("cancel", brls::BUTTON_B, [this](brls::View*) { vita_log::info("[TestOverlayStream] cancel pressed"); return true; });
 
     // Also allow START to simulate resume/close (useful in testing)
-    this->registerAction("start", brls::BUTTON_START, [this](brls::View*) { vita_debug_log("[TestOverlayStream] START pressed"); return true; });
+    this->registerAction("start", brls::BUTTON_START, [this](brls::View*) { vita_log::info("[TestOverlayStream] START pressed"); return true; });
 }
 
 void TestOverlayStream::onLayout() {
@@ -31,7 +31,7 @@ void TestOverlayStream::moveFocus(int delta) {
 }
 
 void TestOverlayStream::activateFocused() {
-    vita_debug_log("[TestOverlayStream] activateFocused index=%d label=%s", focusedIndex, buttonLabels[focusedIndex].c_str());
+    vita_log::info("[TestOverlayStream] activateFocused index=%d label=%s", focusedIndex, buttonLabels[focusedIndex].c_str());
     // Here we could call real callbacks; for now just log
 }
 

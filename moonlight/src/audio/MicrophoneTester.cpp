@@ -16,6 +16,7 @@
 
 #include "MicrophoneTester.hpp"
 #include <borealis.hpp>
+#include "debug.hpp"
 
 #ifdef __vita__
 #include <psp2/audioin.h>
@@ -31,25 +32,25 @@ MicrophoneTester& MicrophoneTester::getInstance() {
 }
 
 MicrophoneTester::MicrophoneTester() {
-    brls::Logger::info("[MicrophoneTester] Initialized");
+    vita_log::info("[MicrophoneTester] Initialized");
 }
 
 MicrophoneTester::~MicrophoneTester() {
     stop();
-    brls::Logger::info("[MicrophoneTester] Destroyed");
+    vita_log::info("[MicrophoneTester] Destroyed");
 }
 
 bool MicrophoneTester::start() {
 #ifndef __vita__
-    brls::Logger::warning("[MicrophoneTester] Not supported on this platform");
+    vita_log::warning("[MicrophoneTester] Not supported on this platform");
     return false;
 #else
     if (running_) {
-        brls::Logger::warning("[MicrophoneTester] Already running");
+        vita_log::warning("[MicrophoneTester] Already running");
         return true;
     }
     
-    brls::Logger::info("[MicrophoneTester] Starting loopback test");
+    vita_log::info("[MicrophoneTester] Starting loopback test");
     
     running_ = true;
     loopback_thread_ = std::thread(&MicrophoneTester::loopbackThreadFunc, this);
@@ -63,7 +64,7 @@ void MicrophoneTester::stop() {
         return;
     }
     
-    brls::Logger::info("[MicrophoneTester] Stopping loopback test");
+    vita_log::info("[MicrophoneTester] Stopping loopback test");
     
     running_ = false;
     
@@ -71,7 +72,7 @@ void MicrophoneTester::stop() {
         loopback_thread_.join();
     }
     
-    brls::Logger::info("[MicrophoneTester] Loopback test stopped");
+    vita_log::info("[MicrophoneTester] Loopback test stopped");
 }
 
 bool MicrophoneTester::isRunning() const {
@@ -80,7 +81,7 @@ bool MicrophoneTester::isRunning() const {
 
 void MicrophoneTester::setOpusMode(bool enabled) {
     use_opus_ = enabled;
-    brls::Logger::info("[MicrophoneTester] Opus mode: {}", enabled ? "ENABLED" : "DISABLED");
+    vita_log::info("[MicrophoneTester] Opus mode: %s", enabled ? "ENABLED" : "DISABLED");
 }
 
 void MicrophoneTester::setGain(float gain) {
@@ -89,12 +90,12 @@ void MicrophoneTester::setGain(float gain) {
     if (gain > 50.0f) gain = 50.0f;
     
     gain_ = gain;
-    brls::Logger::info("[MicrophoneTester] Gain set to: {:.1f}x", gain);
+    vita_log::info("[MicrophoneTester] Gain set to: %.1fx", gain);
 }
 
 #ifdef __vita__
 void MicrophoneTester::loopbackThreadFunc() {
-    brls::Logger::info("[MicrophoneTester] Loopback thread started");
+    vita_log::info("[MicrophoneTester] Loopback thread started");
     
     // Auto-detect best sample rate supported by Vita microphone
     struct SampleRateTest {
@@ -112,10 +113,10 @@ void MicrophoneTester::loopbackThreadFunc() {
     int SAMPLE_RATE = 16000;  // Default fallback
     int GRAIN = 256;
     
-    brls::Logger::info("[MicrophoneTester] Testing microphone sample rates...");
+    vita_log::info("[MicrophoneTester] Testing microphone sample rates...");
     
     for (const auto& test : tests) {
-        brls::Logger::info("[MicrophoneTester] Testing: {} ({} samples)", test.name, test.grain);
+        vita_log::info("[MicrophoneTester] Testing: %s (%d samples)", test.name, test.grain);
         
         int test_port = sceAudioInOpenPort(
             SCE_AUDIO_IN_PORT_TYPE_VOICE,
@@ -129,15 +130,15 @@ void MicrophoneTester::loopbackThreadFunc() {
             sceAudioInReleasePort(test_port);
             SAMPLE_RATE = test.rate;
             GRAIN = test.grain;
-            brls::Logger::info("[MicrophoneTester] ✓ {} SUPPORTED - using this", test.name);
+            vita_log::info("[MicrophoneTester] ✓ %s SUPPORTED - using this", test.name);
             break;
         } else {
-            brls::Logger::warning("[MicrophoneTester] ✗ {} failed (error: 0x{:08X})", 
+            vita_log::warning("[MicrophoneTester] ✗ %s failed (error: 0x%08X)", 
                                   test.name, test_port);
         }
     }
     
-    brls::Logger::info("[MicrophoneTester] Selected: {}Hz, grain={} samples ({:.1f}ms)",
+    vita_log::info("[MicrophoneTester] Selected: %dHz, grain=%d samples (%.1fms)",
                        SAMPLE_RATE, GRAIN, (float)GRAIN * 1000.0f / SAMPLE_RATE);
     
     // Open microphone input port
@@ -149,12 +150,12 @@ void MicrophoneTester::loopbackThreadFunc() {
     );
     
     if (in_port < 0) {
-        brls::Logger::error("[MicrophoneTester] Failed to open audio input: 0x{:08X}", in_port);
+        vita_log::error("[MicrophoneTester] Failed to open audio input: 0x%08X", in_port);
         running_ = false;
         return;
     }
     
-    brls::Logger::info("[MicrophoneTester] Audio input opened: port={}", in_port);
+    vita_log::info("[MicrophoneTester] Audio input opened: port=%d", in_port);
     
     // Open audio output port (BGM port to avoid conflict with streaming audio on MAIN port)
     // Note: MAIN port is used by Moonlight for stream audio, so we use BGM for mic loopback
@@ -166,20 +167,20 @@ void MicrophoneTester::loopbackThreadFunc() {
     );
     
     if (out_port < 0) {
-        brls::Logger::error("[MicrophoneTester] Failed to open audio output: 0x{:08X}", out_port);
+        vita_log::error("[MicrophoneTester] Failed to open audio output: 0x%08X", out_port);
         sceAudioInReleasePort(in_port);
         running_ = false;
         return;
     }
     
-    brls::Logger::info("[MicrophoneTester] Audio output opened: port={}", out_port);
+    vita_log::info("[MicrophoneTester] Audio output opened: port=%d", out_port);
     
     // Allocate aligned buffers (256-byte alignment for DMA)
     int16_t* input_buffer = (int16_t*)memalign(256, GRAIN * sizeof(int16_t));
     int16_t* output_buffer = (int16_t*)memalign(256, GRAIN * 2 * sizeof(int16_t));  // Stereo = 2 channels
     
     if (!input_buffer || !output_buffer) {
-        brls::Logger::error("[MicrophoneTester] Failed to allocate buffers");
+        vita_log::error("[MicrophoneTester] Failed to allocate buffers");
         if (input_buffer) free(input_buffer);
         if (output_buffer) free(output_buffer);
         sceAudioOutReleasePort(out_port);
@@ -192,7 +193,7 @@ void MicrophoneTester::loopbackThreadFunc() {
     memset(input_buffer, 0, GRAIN * sizeof(int16_t));
     memset(output_buffer, 0, GRAIN * 2 * sizeof(int16_t));
     
-    brls::Logger::info("[MicrophoneTester] Audio config: {}Hz, grain={} samples ({:.1f}ms)", 
+    vita_log::info("[MicrophoneTester] Audio config: %dHz, grain=%d samples (%.1fms)", 
                        SAMPLE_RATE, GRAIN, (float)GRAIN * 1000.0f / SAMPLE_RATE);
     
     // Create Opus encoder/decoder if testing Opus mode
@@ -206,15 +207,15 @@ void MicrophoneTester::loopbackThreadFunc() {
     const int OPUS_FRAME_SIZE = (SAMPLE_RATE == 48000) ? 960 : 320;  // 20ms @ 48kHz or 16kHz
     
     if (use_opus_) {
-        brls::Logger::info("[MicrophoneTester] Opus mode: creating encoder/decoder");
-        brls::Logger::info("[MicrophoneTester] Opus frame size: {} samples (20ms @ {}Hz)", 
+        vita_log::info("[MicrophoneTester] Opus mode: creating encoder/decoder");
+        vita_log::info("[MicrophoneTester] Opus frame size: %d samples (20ms @ %dHz)", 
                            OPUS_FRAME_SIZE, SAMPLE_RATE);
         
         int error = 0;
         // Use AUDIO mode for better quality (vs VOIP which is lower quality)
         encoder = opus_encoder_create(SAMPLE_RATE, 1, OPUS_APPLICATION_AUDIO, &error);
         if (error != OPUS_OK || !encoder) {
-            brls::Logger::error("[MicrophoneTester] Failed to create Opus encoder: {}", error);
+            vita_log::error("[MicrophoneTester] Failed to create Opus encoder: %d", error);
             free(output_buffer);
             free(input_buffer);
             sceAudioOutReleasePort(out_port);
@@ -229,11 +230,11 @@ void MicrophoneTester::loopbackThreadFunc() {
         opus_encoder_ctl(encoder, OPUS_SET_VBR(1));              // Variable bitrate
         opus_encoder_ctl(encoder, OPUS_SET_DTX(0));              // No discontinuous transmission
         
-        brls::Logger::info("[MicrophoneTester] Opus encoder configured: 96kbps, complexity=10, VBR");
+        vita_log::info("[MicrophoneTester] Opus encoder configured: 96kbps, complexity=10, VBR");
         
         decoder = opus_decoder_create(SAMPLE_RATE, 1, &error);
         if (error != OPUS_OK || !decoder) {
-            brls::Logger::error("[MicrophoneTester] Failed to create Opus decoder: {}", error);
+            vita_log::error("[MicrophoneTester] Failed to create Opus decoder: %d", error);
             opus_encoder_destroy(encoder);
             free(output_buffer);
             free(input_buffer);
@@ -251,12 +252,12 @@ void MicrophoneTester::loopbackThreadFunc() {
         if (GRAIN < OPUS_FRAME_SIZE) {
             opus_input_padded = (int16_t*)memalign(256, OPUS_FRAME_SIZE * sizeof(int16_t));
             memset(opus_input_padded, 0, OPUS_FRAME_SIZE * sizeof(int16_t));
-            brls::Logger::info("[MicrophoneTester] Using padding: grain {} -> Opus frame {}", 
+            vita_log::info("[MicrophoneTester] Using padding: grain %d -> Opus frame %d", 
                                GRAIN, OPUS_FRAME_SIZE);
         }
         
         if (!opus_packet || !opus_decoded || (GRAIN < OPUS_FRAME_SIZE && !opus_input_padded)) {
-            brls::Logger::error("[MicrophoneTester] Failed to allocate Opus buffers");
+            vita_log::error("[MicrophoneTester] Failed to allocate Opus buffers");
             if (opus_input_padded) free(opus_input_padded);
             if (opus_packet) free(opus_packet);
             if (opus_decoded) free(opus_decoded);
@@ -270,11 +271,11 @@ void MicrophoneTester::loopbackThreadFunc() {
             return;
         }
         
-        brls::Logger::info("[MicrophoneTester] Opus encoder/decoder created ({}Hz VOIP, bitrate=auto)", 
+        vita_log::info("[MicrophoneTester] Opus encoder/decoder created (%dHz VOIP, bitrate=auto)", 
                            SAMPLE_RATE);
     }
     
-    brls::Logger::info("[MicrophoneTester] Buffers allocated, starting loopback loop (mode: {})", 
+    vita_log::info("[MicrophoneTester] Buffers allocated, starting loopback loop (mode: %s)", 
                        use_opus_ ? "OPUS" : "RAW");
     
     // Main loopback loop
@@ -282,7 +283,7 @@ void MicrophoneTester::loopbackThreadFunc() {
         // Read from microphone (MONO)
         int result = sceAudioInInput(in_port, input_buffer);
         if (result < 0) {
-            brls::Logger::error("[MicrophoneTester] Audio input error: 0x{:08X}", result);
+            vita_log::error("[MicrophoneTester] Audio input error: 0x%08X", result);
             break;
         }
         
@@ -303,17 +304,17 @@ void MicrophoneTester::loopbackThreadFunc() {
             // Encode to Opus
             int encoded_bytes = opus_encode(encoder, encode_source, OPUS_FRAME_SIZE, opus_packet, 4000);
             if (encoded_bytes < 0) {
-                brls::Logger::error("[MicrophoneTester] Opus encode error: {} (frame_size={}, rate={})", 
+                vita_log::error("[MicrophoneTester] Opus encode error: %d (frame_size=%d, rate=%d)", 
                                     encoded_bytes, OPUS_FRAME_SIZE, SAMPLE_RATE);
                 break;
             }
             
-            brls::Logger::debug("[MicrophoneTester] Encoded {} bytes", encoded_bytes);
+            vita_log::debug("[MicrophoneTester] Encoded %d bytes", encoded_bytes);
             
             // Decode from Opus
             int decoded_samples = opus_decode(decoder, opus_packet, encoded_bytes, opus_decoded, OPUS_FRAME_SIZE, 0);
             if (decoded_samples < 0) {
-                brls::Logger::error("[MicrophoneTester] Opus decode error: {}", decoded_samples);
+                vita_log::error("[MicrophoneTester] Opus decode error: %d", decoded_samples);
                 break;
             }
             
@@ -342,13 +343,13 @@ void MicrophoneTester::loopbackThreadFunc() {
         // Play to speakers/headphones
         result = sceAudioOutOutput(out_port, output_buffer);
         if (result < 0) {
-            brls::Logger::error("[MicrophoneTester] Audio output error: 0x{:08X}", result);
+            vita_log::error("[MicrophoneTester] Audio output error: 0x%08X", result);
             break;
         }
     }
     
     // Cleanup
-    brls::Logger::info("[MicrophoneTester] Cleaning up resources");
+    vita_log::info("[MicrophoneTester] Cleaning up resources");
     
     if (use_opus_) {
         if (opus_input_padded) free(opus_input_padded);
@@ -365,6 +366,6 @@ void MicrophoneTester::loopbackThreadFunc() {
     
     running_ = false;
     
-    brls::Logger::info("[MicrophoneTester] Loopback thread finished");
+    vita_log::info("[MicrophoneTester] Loopback thread finished");
 }
 #endif

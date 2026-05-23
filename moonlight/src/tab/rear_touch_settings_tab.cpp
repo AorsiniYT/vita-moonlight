@@ -160,7 +160,7 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
     // use it directly to ensure the header is displayed correctly.
     // Debug: log that we are about to push the overlay and the title it carries
     // Use vita_debug_log for togglable Vita logging
-    vita_debug_log("[RearTouchSettingsTab] pushing RearTouchCalibrationOverlay - itemTitle='%s'", overlay->getAppletFrameItem()->title.c_str());
+    vita_log::info("[RearTouchSettingsTab] pushing RearTouchCalibrationOverlay - itemTitle='%s'", overlay->getAppletFrameItem()->title.c_str());
     brls::Application::pushActivity(new brls::Activity(overlay));
         return true;
     });
