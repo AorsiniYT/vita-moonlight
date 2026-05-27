@@ -113,6 +113,9 @@ struct VideoSettings {
     // Swap interval (V-Sync): 0 = Sin V-Sync, 1 = 60 FPS, 2 = 30 FPS, etc.
     int swap_interval = 0;
 
+    // Buffer mode: 0 = Single (minimal latency), 1 = Double, 2 = Triple
+    int buffer_mode = 0;
+
     // Front Touch Settings (4 corner zones on front screen)
     bool enable_front_touchzones = true;
     int front_touch_offset = 0;    // px from screen edge
