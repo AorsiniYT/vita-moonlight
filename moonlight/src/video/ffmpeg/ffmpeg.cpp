@@ -55,6 +55,9 @@ static std::atomic<bool> g_ffmpeg_stop_request{false};
 static uint32_t g_ffmpeg_submit_counter = 0;
 static unsigned g_ffmpeg_frame_index = 0;
 
+// Defined in VideoManager.cpp with C++ linkage
+extern bool g_debug_log_enabled;
+
 static inline void wait_for_borealis_gxm_idle() {
 #ifdef BOREALIS_USE_GXM
     // Delay removed to reduce video transmission latency
@@ -1149,10 +1152,10 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
     uint32_t publishStartUs = perf_now_us();
 
     static uint32_t s_publish_log_counter = 0;
-    bool verbosePublishLog = ((s_publish_log_counter++ % 1200) == 0);
+    bool verbosePublishLog = g_debug_log_enabled && ((s_publish_log_counter++ % 1200) == 0);
     if (verbosePublishLog) {
         VITA_DEBUG_LOG("[FFMPEG] publish_frame: pts=%llu format=%d %dx%d direct_render=%d",
-                       ptsUs, frame->format, frame->width, frame->height,
+                       (unsigned long long)ptsUs, frame->format, frame->width, frame->height,
                        ctx->decoder.use_direct_render ? 1 : 0);
     }
 
@@ -1228,6 +1231,7 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
             __atomic_store_n(&frame_ready_flag, true, __ATOMIC_RELEASE);
             single_frame_buffer = false;
         }
+        __atomic_store_n(&frame_publish_timestamp_us, perf_now_us(), __ATOMIC_RELEASE);
     }
     uint32_t slotsMtxUs = perf_now_us() - slotsMtxStartUs;
 
@@ -1243,9 +1247,9 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
 #endif
 
     ctx->last_pts_us = ptsUs;
-    uint32_t vfhStartUs = perf_now_us();
-    VideoFrameHolder::instance().pushTexture(ctx->current_frame.texture, texW, texH, ptsMs);
-    uint32_t vfhUs = perf_now_us() - vfhStartUs;
+    // VideoFrameHolder push removed: frame_textures[] persistent mapping is used directly
+    // by VitaVideoRenderer::drawNVG. The VFH mutex lock was wasted work.
+    uint32_t vfhUs = 0;
 
     uint32_t publishTotalUs = perf_now_us() - publishStartUs;
 
@@ -1317,6 +1321,12 @@ static void ffmpeg_release_locked(FFmpegVideoContext* ctx) {
     ctx->initialized = false;
     ctx->last_pts_us = 0;
     reset_global_slots();
+
+    if (g_sps_ctx) {
+        delete g_sps_ctx;
+        g_sps_ctx = nullptr;
+        VITA_DEBUG_LOG("[FFMPEG][SPS] Contexto SPS destruido");
+    }
 }
 
 extern "C" {
@@ -1496,6 +1506,13 @@ static int ffmpeg_video_setup(int videoFormat, int width, int height, int redraw
     vitavideo_update_scaling_settings(width, height);
     video_fullscreen_stretch = g_video_settings_snapshot.fullscreen;
 
+    if (!g_sps_ctx) {
+        g_sps_ctx = new gs::SpsContext(width, height);
+        if (g_sps_ctx) {
+            VITA_DEBUG_LOG("[FFMPEG][SPS] Contexto SPS inicializado (%dx%d)", width, height);
+        }
+    }
+
     memset(&g_stats, 0, sizeof(g_stats));
     stats_start_ms = 0;
     last_fps_window_ms = 0;
@@ -1664,9 +1681,9 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         }
     }
 
-    bool verboseDecodeLog = ((g_ffmpeg_submit_counter % 600) == 0);
+    bool verboseDecodeLog = g_debug_log_enabled && ((g_ffmpeg_submit_counter % 600) == 0);
     if (verboseDecodeLog) {
-        VITA_DEBUG_LOG("[FFMPEG] submit_decode_unit: size=%d pts=%llu", decodeUnit->fullLength, decodeUnit->presentationTimeUs);
+        VITA_DEBUG_LOG("[FFMPEG] submit_decode_unit: size=%d pts=%llu", decodeUnit->fullLength, (unsigned long long)decodeUnit->presentationTimeUs);
     }
 
     uint32_t lockStartUs = perf_now_us();
@@ -1693,10 +1710,12 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
     uint32_t drainStartUs = perf_now_us();
     bool drainReceived = false;
-    AVFrame* tempDrainFrame = av_frame_alloc();
-    if (tempDrainFrame) {
+    // Pre-allocated static drain frame to avoid heap alloc/free per submit (saves ~10us/frame)
+    static AVFrame* s_drain_frame = nullptr;
+    if (!s_drain_frame) s_drain_frame = av_frame_alloc();
+    if (s_drain_frame) {
         while (true) {
-            int drain = avcodec_receive_frame(avctx, tempDrainFrame);
+            int drain = avcodec_receive_frame(avctx, s_drain_frame);
             if (verboseDecodeLog) {
                 VITA_DEBUG_LOG("[FFMPEG] avcodec_receive_frame drain ret=%d", drain);
             }
@@ -1711,17 +1730,17 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
                 av_frame_unref(frame);
                 g_perf.dropped_stale_frames++;
             }
-            av_frame_move_ref(frame, tempDrainFrame);
+            av_frame_move_ref(frame, s_drain_frame);
             drainReceived = true;
         }
-        av_frame_free(&tempDrainFrame);
     }
     if (drainReceived) {
         if (s_dropStaleDrainFrames) {
             g_perf.dropped_stale_frames++;
             av_frame_unref(frame);
         } else {
-            if (publish_frame(context, frame, context->last_pts_us)) {
+            int64_t drainPts = (frame->pts != AV_NOPTS_VALUE) ? frame->pts : (int64_t)context->last_pts_us;
+            if (publish_frame(context, frame, (uint64_t)drainPts)) {
                 av_frame_unref(frame);
             }
         }
@@ -1734,8 +1753,8 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         VITA_DEBUG_LOG("[FFMPEG] pkt=%p avctx=%p frame=%p", pkt, avctx, frame);
     }
     uint32_t copyStartUs = perf_now_us();
-    if (av_new_packet(pkt, decodeUnit->fullLength) < 0) {
-        vita_log::error("[FFMPEG] av_new_packet failed size=%d", decodeUnit->fullLength);
+    if (av_new_packet(pkt, decodeUnit->fullLength + 256) < 0) {
+        vita_log::error("[FFMPEG] av_new_packet failed size=%d", decodeUnit->fullLength + 256);
         // Do not free decodeUnit here; ownership belongs to the depacketizer.
         copyUs = perf_now_us() - copyStartUs;
         finalize_submit_metrics();
@@ -1746,12 +1765,27 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     }
 
     uint8_t* dst = pkt->data;
+    uint32_t offset = 0;
     PLENTRY entry = decodeUnit->bufferList;
     while (entry) {
-        memcpy(dst, entry->data, entry->length);
-        dst += entry->length;
+        if (entry->bufferType == BUFFER_TYPE_SPS) {
+            if (g_sps_ctx) {
+                uint32_t before = offset;
+                g_sps_ctx->fix(entry, GS_SPS_BITSTREAM_FIXUP, dst, &offset);
+                if (verboseDecodeLog) {
+                    VITA_DEBUG_LOG("[FFMPEG][SPS] Fix aplicado (in=%u out=%u)", entry->length, (unsigned)(offset - before));
+                }
+            } else {
+                memcpy(dst + offset, entry->data, entry->length);
+                offset += entry->length;
+            }
+        } else {
+            memcpy(dst + offset, entry->data, entry->length);
+            offset += entry->length;
+        }
         entry = entry->next;
     }
+    av_shrink_packet(pkt, offset);
     copyUs = perf_now_us() - copyStartUs;
 
     pkt->pts = decodeUnit->presentationTimeUs;
@@ -1779,10 +1813,12 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
     uint32_t recvStartUs = perf_now_us();
     bool frameReceived = false;
-    AVFrame* tempFrame = av_frame_alloc();
-    if (tempFrame) {
+    // Pre-allocated static receive frame to avoid heap alloc/free per submit
+    static AVFrame* s_recv_frame = nullptr;
+    if (!s_recv_frame) s_recv_frame = av_frame_alloc();
+    if (s_recv_frame) {
         while (true) {
-            int ret = avcodec_receive_frame(avctx, tempFrame);
+            int ret = avcodec_receive_frame(avctx, s_recv_frame);
             if (verboseDecodeLog) {
                 VITA_DEBUG_LOG("[FFMPEG] avcodec_receive_frame ret=%d", ret);
             }
@@ -1791,7 +1827,6 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
             }
             if (ret < 0) {
                 vita_log::error("[FFMPEG] receive_frame error=0x%X", ret);
-                av_frame_free(&tempFrame);
                 // Do not free decodeUnit here; caller (depacketizer) handles freeing.
                 recvUs = perf_now_us() - recvStartUs;
                 finalize_submit_metrics();
@@ -1801,10 +1836,9 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
                 av_frame_unref(frame);
                 g_perf.dropped_stale_frames++;
             }
-            av_frame_move_ref(frame, tempFrame);
+            av_frame_move_ref(frame, s_recv_frame);
             frameReceived = true;
         }
-        av_frame_free(&tempFrame);
     }
     recvUs = perf_now_us() - recvStartUs;
 
@@ -1815,7 +1849,19 @@ static int ffmpeg_video_submit_decode_unit(PDECODE_UNIT decodeUnit) {
         if (dec_ms > g_decode_max_ms) g_decode_max_ms = dec_ms;
         g_decode_sum_ms += dec_ms;
         g_decode_count++;
-        if (publish_frame(context, frame, decodeUnit->presentationTimeUs)) {
+
+        int64_t framePts = (frame->pts != AV_NOPTS_VALUE) ? frame->pts : (int64_t)decodeUnit->presentationTimeUs;
+        int64_t ptsDiff = (int64_t)decodeUnit->presentationTimeUs - framePts;
+        if (ptsDiff != 0) {
+            static uint32_t s_pts_mismatch_counter = 0;
+            if ((s_pts_mismatch_counter++ % 60) == 0) {
+                VITA_DEBUG_LOG("[FFMPEG][DIAG] PTS mismatch: submitted=%lld frame=%lld diff=%lld us (%lld ms)",
+                               (long long)decodeUnit->presentationTimeUs, (long long)framePts,
+                               (long long)ptsDiff, (long long)(ptsDiff / 1000));
+            }
+        }
+
+        if (publish_frame(context, frame, (uint64_t)framePts)) {
             if (stats_start_ms == 0) {
                 stats_start_ms = monotonic_ms_local();
             }
@@ -1845,11 +1891,10 @@ DECODER_RENDERER_CALLBACKS get_ffmpeg_video_callbacks(void) {
     callbacks.stop = ffmpeg_video_stop_callback;
     callbacks.cleanup = ffmpeg_video_cleanup_callback;
     callbacks.submitDecodeUnit = ffmpeg_video_submit_decode_unit;
-    // Removing CAPABILITY_DIRECT_SUBMIT decouples network packet reception from hardware decoding.
-    // This allows the high-priority receive thread to continuously ingest UDP packets without
-    // blocking for 14ms on avcodec_send_packet, avoiding socket buffer overflow and packet loss,
-    // which results in a rock-stable 60/60 FPS stream.
-    callbacks.capabilities = CAPABILITY_SLICES_PER_FRAME(2);
+    // Restoring CAPABILITY_DIRECT_SUBMIT enables low-latency direct submission from the connection thread.
+    // Since direct rendering is active, avcodec_send_packet takes under 3.5ms and is safe to execute.
+    // This bypasses the packet queuing backlog, reducing end-to-end latency to the absolute minimum.
+    callbacks.capabilities = CAPABILITY_DIRECT_SUBMIT | CAPABILITY_SLICES_PER_FRAME(2);
     return callbacks;
 }
 

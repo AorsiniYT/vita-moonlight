@@ -25,6 +25,7 @@ int frame_ready_idx   = 1;  // most recently decoded frame, waiting
 int frame_write_idx   = 2;  // decoder writes to this
 std::mutex g_frame_slots_mutex;
 bool single_frame_buffer = true; // single buffer for minimal latency (like original legacy)
+uint32_t frame_publish_timestamp_us = 0; // end-to-end latency tracking
 
 // Screen size (configurable at runtime)
 int SCREEN_WIDTH = 960;

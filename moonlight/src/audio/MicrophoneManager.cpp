@@ -161,8 +161,8 @@ bool MicrophoneManager::startInternal() {
     std::string devicename = sunInfo.devicename;
     
     vita_log::info("[MicrophoneManager] Sunshine validation result: PairStatus=%d", pair_status);
-    vita_log::info("[MicrophoneManager] uniqueid='%s' len=%zu", uniqueid.c_str(), uniqueid.length());
-    vita_log::info("[MicrophoneManager] devicename='%s' len=%zu", devicename.c_str(), devicename.length());
+    vita_log::info("[MicrophoneManager] uniqueid='%s' len=%u", uniqueid.c_str(), (unsigned)uniqueid.length());
+    vita_log::info("[MicrophoneManager] devicename='%s' len=%u", devicename.c_str(), (unsigned)devicename.length());
 
     // Get display resolution from MoonmicBridge
     bridge.loadConfig();  // Force reload from device.ini to pick up any changes
