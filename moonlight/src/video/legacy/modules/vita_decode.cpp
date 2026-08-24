@@ -14,7 +14,6 @@ extern gs::SpsContext* g_sps_ctx;
 #endif
 #include <borealis/core/application.hpp>
 #include <borealis/extern/nanovg/nanovg.h>
-#include "video/VideoFrameHolder.hpp"
 #include "session/vita_session.hpp"
 #include "debug.hpp"
 #include "Limelight.h"
@@ -387,9 +386,6 @@ extern "C" int vitavideo_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // Mark first frame (log before incrementing frames_decoded)
     if (g_stats.frames_decoded == 0) VITA_DEBUG_LOG("[Video][DBG] primer frame decodificado");
 
-    // Note: VideoFrameHolder::pushTexture removed from legacy path.
-    // drawNVG reads FRAME_FRONT() directly, so the push was wasted work
-    // (mutex lock + atomic stores + validation on every frame for nothing).
     VitaSession::onFrameDecoded();
 
     // Direct GXM mode removed: frame is not uploaded to direct renderer

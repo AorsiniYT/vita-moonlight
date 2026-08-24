@@ -227,7 +227,6 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
 void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
     nvgSave(vg);
 
-    // Fondo
     nvgBeginPath(vg);
     nvgRect(vg, x, y, width, height);
     nvgFillColor(vg, nvgRGBA(15, 18, 26, 240));

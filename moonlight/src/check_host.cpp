@@ -13,10 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-// check_host.cpp
-// Centralized host discovery logic for PSVita and Windows
-// Allows to start/stop the discovery thread in a robust and cross-platform way
-
 #include "../../../third_party/mdnsniff/udp_sniffer_vita.h"
 #include "../../../third_party/mdnsniff/udp_sniffer_win.h"
 #include <thread>
@@ -29,8 +25,6 @@
 #include "tab/add_host_tab.hpp"
 #include "tab/hosts_tab.hpp"
 #endif
-// --- No manual Vita network initialization required, udp_sniffer_vita handles it ---
-
 #if defined(__PSV__)
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/sysmodule.h>
@@ -79,7 +73,7 @@ namespace {
 }
 
 void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int)) {
-    // Robust legacy-style network initialization
+    // Match the legacy client initialization order before starting discovery.
     vita_log::info("[check_host] startVitaDiscovery: INICIO (estilo legacy)");
 #if defined(__PSV__)
     vita_log::info("[check_host] startVitaDiscovery: INICIO (VITALOG)\n");

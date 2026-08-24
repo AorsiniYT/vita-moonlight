@@ -21,7 +21,7 @@
 
 #include <memory>
 
-#include "GameStreamClient.hpp" // Para RemoteAppInfo
+#include "GameStreamClient.hpp"
 class SessionAppSelect : public brls::Box {
   public:
     SessionAppSelect(const std::string& hostName);

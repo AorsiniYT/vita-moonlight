@@ -17,7 +17,6 @@
 #include <borealis.hpp>
 #include "utils/host_search.hpp"
 #include "model/HostStorage.hpp" // For HostInfo
-#include <atomic>
 
 class HostsTab : public brls::Box {
 public:
@@ -28,9 +27,6 @@ public:
     // Safe implementation: Execute the recreation of the MainActivity content in the UI thread.
     static void requestGlobalRefresh();
     BRLS_BIND(brls::Box, hostsList, "hosts_list");
-    // Indicates that the HostsTab has already finished its construction and initialization
-    // (maintained for possible future lifecycle checks)
-    std::atomic<bool> initialized{false};
 };
 // check_host.hpp
 #pragma once

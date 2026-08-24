@@ -22,7 +22,7 @@ public:
     void setRenderMode(const std::string& mode);
     std::string getRenderMode() const;
 
-    // Callbacks para Limelight
+    // Limelight callbacks.
     DECODER_RENDERER_CALLBACKS getDecoderCallbacks();
 
     // If the selected renderer needs a render context (FFmpeg wrapper), expose it here

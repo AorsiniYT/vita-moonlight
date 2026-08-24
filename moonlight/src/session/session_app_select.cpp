@@ -17,10 +17,10 @@
 #include "moonmic/MoonmicPrep.hpp"
 #include "client.h"
 #include "Limelight.h"
-#include <cstdlib>  // For malloc/free
-#include <cstring>  // To strcpy
-#include <cstdio>   // For snprintf
-#include <string>   // Para std::string
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <string>
 #include <chrono>
 #include <thread>
 #include <borealis/core/application.hpp>

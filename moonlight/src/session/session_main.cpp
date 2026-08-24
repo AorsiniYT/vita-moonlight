@@ -20,7 +20,6 @@
 #include "session/hotkey_manager.hpp"
 #include "session/overlay/ingame_overlay_view.hpp"
 #include "session/overlay/vita_pause_overlay.hpp"
-#include "session/overlay/test_overlay_stream.hpp"
 #include "video/legacy/vita.hpp"
 #include "video/legacy/modules/vita_globals.hpp"
 #include "video/VitaVideoRenderer.hpp"
@@ -118,19 +117,6 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
         this->addView(overlayStatsView.get());
     }
 
-    // Test Overlay: Off
-    // if (!testOverlay) {
-    //     testOverlay = std::make_unique<TestOverlayStream>();
-    // }
-    // if (testOverlay) {
-    //     testOverlay->setVisibility(brls::Visibility::GONE); // Desactivado
-    //     this->addView(testOverlay.get());
-    //     // Give focus to the test overlay so it can receive navigation
-    //     // brls::sync([this]() {
-    //     //     if (testOverlay) brls::Application::giveFocus(testOverlay.get());
-    //     // });
-    // }
-
     g_video_settings_snapshot = videoSettings;
 
     unsigned targetFps = (unsigned)streamCfg.fps;
@@ -177,7 +163,6 @@ void showSessionMain(const HostInfo& host, const RemoteAppInfo& app) {
 
 SessionMainView::~SessionMainView() {
     overlayStatsView.release();
-    testOverlay.release();
     if (g_controllerInput) {
         delete g_controllerInput;
         g_controllerInput = nullptr;

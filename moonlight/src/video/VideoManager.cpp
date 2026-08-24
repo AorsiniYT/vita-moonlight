@@ -88,7 +88,7 @@ bool VideoManager::initialize() {
     // Load configuration
     _config.load();
     VideoSettings settings = _config.getVideoSettings();
-    g_video_settings_snapshot = settings; // sincronizar snapshot global
+    g_video_settings_snapshot = settings;
     const char* env = getenv("MOONLIGHT_FFMPEG_GPU_YUV");
     g_gpu_yuv_experimental_enabled = (env && env[0] == '1') || (settings.pixel_format_mode == 1);
     // Synchronize legacy global flags that affect immediate render
@@ -234,8 +234,7 @@ void VideoManager::startVideo() {
         // The legacy system manages its own internal state through callbacks
         vita_log::info("[VideoManager] Video legacy iniciado");
     } else if (_currentMode == "ffmpeg") {
-        // TODO: Deploy when we have FFmpeg
-        vita_log::info("[VideoManager] Video FFmpeg iniciado (placeholder)");
+        vita_log::info("[VideoManager] Video FFmpeg iniciado");
     }
 
     _videoRunning = true;
@@ -262,4 +261,3 @@ void VideoManager::stopVideo() {
 }
 
 // Static callbacks for Limelight - REMOVED: we now directly use extern "C" functions
-

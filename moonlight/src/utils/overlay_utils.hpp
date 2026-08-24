@@ -73,7 +73,6 @@ protected:
 private:
     std::vector<std::string> buttonLabels;
     int focusedIndex = 0;
-    uint64_t lastDrawLogMs = 0;
     FocusDummy* focusDummy = nullptr;
     std::function<void(int index)> activateCallback;
     std::string headerText;

@@ -13,7 +13,7 @@ public:
 
     GridView();
 
-    // Factory para XMLView
+    // XML view factory.
     static brls::View* create() { return new GridView(); }
 
     // Configure the elements to display (name, optional icon)
