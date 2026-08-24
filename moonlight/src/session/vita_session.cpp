@@ -16,13 +16,6 @@
 #include <chrono>
 #ifdef BOREALIS_USE_GXM
 #include <psp2/gxm.h>
-
-// Override default buffering for lower latency
-// Keep DISPLAY_BUFFER_COUNT at 3 to prevent vertical tearing
-// Reduce MAX_PENDING_SWAPS from 2 to 1 for lower latency
-#define DISPLAY_BUFFER_COUNT 3
-#define MAX_PENDING_SWAPS 1
-
 #include <borealis/extern/nanovg/nanovg_gxm_utils.h>
 #endif
 

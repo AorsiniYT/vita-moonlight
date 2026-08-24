@@ -1,43 +1,31 @@
-/*
-    session_main.cpp - Pantalla principal de sesión activa (streaming) para Moonlight PSVita/Windows
-    Autor: aorsini + comunidad
-*/
-#include <string>
-#include <vector>
 #include <memory>
-#include <functional>
-#include <cstdlib> // getenv
+
 #include "borealis.hpp"
 #include <borealis/core/application.hpp>
-#include "debug.hpp"
-#include <borealis/core/style.hpp>
-#include <borealis/core/frame_context.hpp>
-#include <borealis/views/dialog.hpp>
-#include "GameStreamClient.hpp"
-#include "model/HostStorage.hpp"
-#include "GameStreamClient.hpp"
-#include "session/session_main.hpp"
-#include "session/hotkey_manager.hpp"
-#include "session/overlay/ingame_overlay_view.hpp"
-#include "session/overlay/vita_pause_overlay.hpp"
-#include "video/legacy/vita.hpp"
-#include "video/legacy/modules/vita_globals.hpp"
-#include "video/VitaVideoRenderer.hpp"
-#include "session/vita_session.hpp"
-#include "ConfigManager.hpp"
 #include <borealis/extern/nanovg/nanovg.h>
+#include <borealis/core/frame_context.hpp>
+#include <borealis/core/style.hpp>
+
+#include "ConfigManager.hpp"
 #include "controller/ControllerInput.hpp"
 #include "controller/keyboard/keyboard_launcher.hpp"
 #include "debug.hpp"
-#include <chrono>
-#include <cstdint>
+#include "session/session_main.hpp"
+#include "session/overlay/ingame_overlay_view.hpp"
+#include "session/overlay/vita_pause_overlay.hpp"
+#include "session/vita_session.hpp"
+#include "video/VitaVideoRenderer.hpp"
+#include "video/legacy/modules/vita_globals.hpp"
 
-#include "session/hotkey_manager.hpp"
+extern "C" {
+    int vita_dp_init(void);
+    void vita_dp_fini(void);
+    int vita_dp_present_frame(void);
+    bool vita_dp_is_active(void);
+    void vita_frame_pacer_start(int paceFps);
+    void vita_frame_pacer_stop(int restoreFps);
+}
 
-#include <thread>
-#include <chrono>
-
-// Constructor implementation
 SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     : brls::Box(), host(host), app(app) {
     this->setFocusable(true);
@@ -128,6 +116,25 @@ SessionMainView::SessionMainView(const HostInfo& host, const RemoteAppInfo& app)
     brls::Application::setFPSStatus(true); // Enable FPS status for logging
     vita_log::info("[SessionMainView] Init render config (cfg_fps=%d -> swapInterval=%d)", targetFps, videoSettings.swap_interval);
 
+    brls::Application::setLowLatencyMode(true);
+
+    // Wake the render loop as soon as the decoder publishes a frame.
+    if (videoSettings.swap_interval == 0) {
+        vita_frame_pacer_start(61);
+    }
+
+    if (vita_dp_init() == 0) {
+        prePresentSub = brls::Application::getPrePresentEvent()->subscribe([]() {
+            if (vita_dp_is_active()) {
+                vita_dp_present_frame();
+            }
+        });
+        prePresentSubscribed = true;
+
+        // NanoVG flushes after the direct quad, so the session background must stay clear.
+        this->setBackgroundColor(nvgRGBA(0, 0, 0, 0));
+    }
+
     // Direct GXM mode eliminated. render_mode normalizes: 0=legacy,1=ffmpeg (future)
     bool settingsChanged = false;
     if (videoSettings.render_mode > 1) {
@@ -146,22 +153,31 @@ void SessionMainView::draw(NVGcontext* vg, float x, float y, float width, float 
     // Process input every frame
     if (g_controllerInput) g_controllerInput->handleInput();
 
-    if (vg) {
-        VitaVideoRenderer::instance().drawNVG(vg, width, height, 1.0f);
-    } else {
-        VitaVideoRenderer::instance().draw(width, height);
+    if (!vita_dp_is_active()) {
+        if (vg) {
+            VitaVideoRenderer::instance().drawNVG(vg, width, height, 1.0f);
+        } else {
+            VitaVideoRenderer::instance().draw(width, height);
+        }
     }
 
     Box::draw(vg, x, y, width, height, style, ctx);
 }
 
-// Function to launch the main session screen
 void showSessionMain(const HostInfo& host, const RemoteAppInfo& app) {
     auto* view = new SessionMainView(host, app);
     brls::Application::pushActivity(new brls::Activity(view));
 }
 
 SessionMainView::~SessionMainView() {
+    if (prePresentSubscribed) {
+        brls::Application::getPrePresentEvent()->unsubscribe(prePresentSub);
+        prePresentSubscribed = false;
+    }
+
+    vita_frame_pacer_stop(61);
+    brls::Application::setLowLatencyMode(false);
+    vita_dp_fini();
     overlayStatsView.release();
     if (g_controllerInput) {
         delete g_controllerInput;
