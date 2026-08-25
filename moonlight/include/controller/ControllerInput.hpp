@@ -41,7 +41,7 @@ public:
     void setInputEnabled(bool enabled);
 
     // Set touchscreen mode
-    void setTouchscreenMode(int mode) { touchscreenMode = mode; }
+    void setTouchscreenMode(int mode);
 
     // Validate and change touch mode (with gamepad compatibility)
     bool setTouchscreenModeWithValidation(int newMode);

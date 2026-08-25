@@ -616,7 +616,10 @@ void ControllerInputManager::setGamepadType(GamepadType type) {
     
     // Step 3: Reconnect with the new guy
     uint8_t liType = (type == GAMEPAD_TYPE_PS4) ? 0x02 : 0x01;
-    uint16_t capabilities = 0x01 | 0x02; // ANALOG_TRIGGERS | RUMBLE
+    uint16_t capabilities = LI_CCAP_ANALOG_TRIGGERS | LI_CCAP_RUMBLE;
+    if (type == GAMEPAD_TYPE_PS4) {
+        capabilities |= LI_CCAP_TOUCHPAD;
+    }
     uint32_t supportedButtonFlags = 0xFFFFFFFF; // All buttons
     
     vita_log::info("[ControllerInput] Reconectando controlador con nuevo tipo (LI_CTYPE=%d)...", liType);
@@ -630,6 +633,21 @@ void ControllerInputManager::setGamepadType(GamepadType type) {
     GamepadState zeroState = {0};
     sendGamepadState(zeroState);
 }
+
+void ControllerInputManager::setTouchscreenMode(int mode) {
+    if (mode < TOUCHSCREEN_MODE_OFF || mode > TOUCHSCREEN_MODE_TABLET) {
+        mode = TOUCHSCREEN_MODE_TRACKPAD;
+    }
+
+    if (!touchManager || !touchManager->setTouchMode(mode, static_cast<int>(currentGamepadType))) {
+        mode = TOUCHSCREEN_MODE_TRACKPAD;
+        if (touchManager) {
+            touchManager->setTouchMode(mode, static_cast<int>(currentGamepadType));
+        }
+    }
+    touchscreenMode = mode;
+}
+
 void ControllerInputManager::setRearTouchEnabled(bool enabled) {
     if (rearTouchManager) {
         rearTouchManager->setEnabled(enabled);
@@ -736,4 +754,3 @@ void ControllerInputManager::setStreamingActive(bool active) {
         }
     }
 }
-

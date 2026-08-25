@@ -56,7 +56,10 @@ void VitaSession::notifyGamepadType() {
     
     // Send to server: LI_CTYPE_XBOX = 0x01, LI_CTYPE_PS = 0x02
     uint8_t liType = (type == GAMEPAD_TYPE_PS4) ? 0x02 : 0x01;
-    uint16_t capabilities = 0x01 | 0x02; // ANALOG_TRIGGERS | RUMBLE
+    uint16_t capabilities = LI_CCAP_ANALOG_TRIGGERS | LI_CCAP_RUMBLE;
+    if (type == GAMEPAD_TYPE_PS4) {
+        capabilities |= LI_CCAP_TOUCHPAD;
+    }
     uint32_t supportedButtonFlags = 0xFFFFFFFF;
     
     if (LiSendControllerArrivalEvent(0, 0x01, liType, supportedButtonFlags, capabilities) != 0) {
