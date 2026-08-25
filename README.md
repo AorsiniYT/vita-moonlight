@@ -2,119 +2,169 @@
 
 # Moonlight Vita
 
-Moonlight client for PlayStation Vita that allows you to stream games from your PC to your handheld console.
+Moonlight client for PlayStation Vita, based on Moonlight Embedded. It streams
+games and applications from a Sunshine-compatible host to a PS Vita or PSTV.
 
-## 🔥 Upcoming Features
+## Features
 
-- **Swap R1/L1 <-> R2/L2:** Option to swap the functions of R1/L1 and R2/L2 directly from the configuration menu, for greater flexibility and comfort.
-- **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
+- Hardware H.264 decoding on PS Vita
+- Low-latency GXM presentation
+- Host discovery, pairing and Wake-on-LAN
+- Touchscreen, rear touchpad, motion and configurable shortcuts
+- Optional microphone forwarding through Moonmic
+- Borealis-based interface with controller and touch navigation
 
-## 🚀 Features
+## Requirements
 
-- User interface optimized for touchscreen and PS Vita controls
-- Low latency for a smooth gaming experience
-- Integration with Moonlight Game Streaming
-- UI based on Borealis, a modern user interface framework
+- PS Vita or PSTV with homebrew support
+- VitaShell for VPK installation
+- A PC running Sunshine or another compatible GameStream host
+- A stable local network; Ethernet is recommended for the host PC
 
-## 📦 Requirements
+## Installation
 
-- PlayStation Vita with firmware 3.60 or higher
-- Custom Firmware installed (H-encore, Henkaku, etc.)
-- PC with NVIDIA GameStream compatible GPU
-- Moonlight application installed on the host PC
+1. Copy `moonlight_vita.vpk` to the Vita.
+2. Install the package with VitaShell.
+3. Start Moonlight from LiveArea and pair it with the host.
 
-## 🛠️ Installation
+## Building
 
-1. Make sure you have Vitashell installed on your PS Vita
-2. Copy the `moonlight_vita.vpk` file to your PS Vita
-3. Install it using Vitashell
-4. Launch the application from LiveArea
+The same scripts support native Linux, WSL and Windows/MSYS2. VitaSDK must be
+installed before building and `VITASDK/bin` must be available in `PATH`.
 
-## 🔧 Building
+Clone the repository with its required submodules:
 
-### Prerequisites
-
-#### To build for PS Vita:
-- **Git**
-  - Latest stable version recommended
-  - [Download Git](https://git-scm.com/downloads)
-
-#### To build for Windows (on Ubuntu):
 ```bash
-# Install cross-compilation tools for Windows
-sudo apt update
-sudo apt install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 mingw-w64-tools
-
-# During installation, select "posix" when prompted
-# (Select option 1: x86_64-w64-mingw32)
-
-# Install additional required tools
-sudo apt install -y cmake make pkg-config
+git clone --recurse-submodules https://github.com/AorsiniYT/vita-moonlight.git
+cd vita-moonlight
+git submodule update --init --recursive
 ```
 
-### Building for PS Vita
+### Linux
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/AorsiniYT/Moonlight-Vita.git -b vita
-   cd Moonlight-Vita
-   ```
+Install the host tools. On Debian or Ubuntu:
 
-2. Run the build script:
-   ```bash
-   chmod +x makepsv
-   ./makepsv
-   ```
+```bash
+sudo apt update
+sudo apt install build-essential cmake ninja-build git curl wget unzip \
+    libarchive-tools pkg-config fakeroot patch python3 bzip2 xz-utils
+```
 
-   The generated VPK file will be available in the `cmake-build-psv/` folder.
+Install VitaSDK following the [official VitaSDK instructions](https://vitasdk.org/),
+then export its location:
 
-### Building for Windows
+```bash
+export VITASDK=/usr/local/vitasdk
+export PATH="$VITASDK/bin:$PATH"
+```
 
-1. Make sure you have installed all the dependencies mentioned above.
+### WSL
 
-2. Run the build script:
-   ```bash
-   chmod +x makewin
-   ./makewin
-   ```
+Use a current WSL2 distribution and install the same packages listed for Linux.
+Install VitaSDK inside WSL, normally at `/usr/local/vitasdk`; do not reuse a
+Windows VitaSDK installation. Keeping the repository in the WSL filesystem
+(for example `~/src/vita-moonlight`) avoids slow builds and permission issues on
+`/mnt/c`.
 
-   The generated executable will be available in the `build_mingw/` folder.
+```bash
+export VITASDK=/usr/local/vitasdk
+export PATH="$VITASDK/bin:$PATH"
+```
 
-3. Follow the on-screen instructions to install and run the application on your PS Vita.
+If the source must remain on a mounted Windows drive, place build outputs in the
+WSL filesystem:
 
-## 🎮 Usage
+```bash
+export VITA_BUILD_ROOT="$HOME/.cache/vita-moonlight-build"
+```
 
-1. Make sure your PC is on and Moonlight is configured
-2. Start the application on your PS Vita
-3. Select your PC from the list of available devices
-4. Enjoy game streaming!
+### Windows/MSYS2
 
-## 📚 Additional Documentation
+Run the commands from the MSYS2 `MSYS` shell. Install the required host tools:
 
-For more information about PS Vita development with Borealis, see:
+```bash
+pacman -S --needed make git curl wget unzip libarchive cmake ninja pkgconf \
+    patch python diffutils sed grep findutils tar
+```
 
-- [Borealis guide for PS Vita](https://github.com/xfangfang/borealis/wiki/PS-Vita) - Detailed setup and development instructions
-- [Advanced Borealis documentation](https://gist.github.com/xfangfang/305da139721ad4e96d7a9d9a1a550a9d) - Technical information about the framework
+Set `VITASDK` to the installed SDK. POSIX and Windows paths are both accepted:
 
-## 📝 Notes
+```bash
+export VITASDK=/usr/local/vitasdk
+export PATH="$VITASDK/bin:$PATH"
+```
 
-- For best performance, a wired network connection on the PC is recommended
-- Adjust the quality settings in the app according to your connection
-- Some games may require additional configuration on the host PC
+### Dependencies
 
-## 🤝 Contributing
+From Linux, WSL or MSYS2, install the Vita libraries and the FFmpeg-vita fork:
 
-Contributions are welcome. Please read the contribution guidelines before submitting changes.
+```bash
+./scripts/prepare/install_all.sh
+```
 
-## 📄 License
+The normal GXM build does not require PVR_PSP2. Install it only for the optional
+GLES backend:
 
-This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
+```bash
+./scripts/prepare/install_all.sh --with-pvr
+```
+
+### Compile
+
+For a non-interactive release build using GXM:
+
+```bash
+./makepsv --gxm --release --no-deploy
+```
+
+Running `./makepsv` without arguments opens the interactive builder. Build
+directories include the host and graphics backend, such as
+`cmake-build-psv-linux-gxm`, `cmake-build-psv-wsl-gxm` or
+`cmake-build-psv-msys2-gxm`. Set `VITA_BUILD_ROOT` to place these directories
+outside the source tree.
+
+For fast incremental builds and direct deployment, copy the IP template first:
+
+```bash
+cp ip_vita.txt.example ip_vita.txt
+./makefast
+```
+
+`makefast --no-deploy` only builds the application and does not require an IP
+file. Deployment expects VitaShell FTP on port 1337 and Vita Companion control
+on port 1338.
+
+See [scripts/prepare/README.md](scripts/prepare/README.md) for dependency details
+and troubleshooting.
+
+## Contributing
+
+Keep changes focused and follow the existing code style. Update submodules after
+pulling changes that modify gitlinks, then run the relevant Vita build before
+submitting a pull request.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Credits
 
-- Thanks to [Natinusala](https://github.com/natinusala), [xfangfang](https://github.com/xfangfang) and [XITRIX](https://github.com/XITRIX) for [borealis](https://github.com/xfangfang/borealis), the UI framework that makes this project possible.
-- The [moonlight-stream](https://github.com/moonlight-stream/moonlight-common-c) team for their library, which enables connectivity with Sunshine and GeForce Experience.
+Moonlight Vita exists because of the work of the Moonlight community and the
+developers who maintained the Vita port over many years. Major historical
+contributors include:
 
----
+- [Iwan Timmer](https://github.com/irtimmer), original Moonlight Embedded maintainer
+- [xyzz](https://github.com/xyzz), creator and maintainer of the Vita port
+- [d3m3vilurr](https://github.com/d3m3vilurr), long-term Vita maintenance and platform updates
+- [Cameron Gutman](https://github.com/cgutman), Moonlight protocol and streaming work
 
-Developed with ❤️ for the PS Vita community
+Thanks also to [AorsiniYT](https://github.com/AorsiniYT) and every contributor to
+the current fork, to the
+[Moonlight Vita contributors](https://github.com/xyzz/vita-moonlight/graphs/contributors),
+and to the maintainers of
+[moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c).
+
+The interface uses [Borealis](https://github.com/xfangfang/borealis), created and
+maintained by Natinusala, xfangfang, XITRIX and its contributors. The toolchain
+and platform libraries are provided by the [VitaSDK](https://vitasdk.org/)
+community.
