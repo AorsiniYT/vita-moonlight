@@ -24,7 +24,9 @@
 #include "tab/keyboard_settings_tab.hpp" // NUEVO
 #include "tab/shortcuts_settings_tab.hpp"
 #include "tab/gyro_settings_tab.hpp"
+#include "session/session_main.hpp"
 #include "controller/ControllerInput.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -68,6 +70,51 @@ SettingsTab::SettingsTab()
     config.load();
     StreamConfiguration streamConfig = config.getStreamConfig();
     VideoSettings videoSettings = config.getVideoSettings();
+
+    NVGcolor settingsBackground = brls::Application::getTheme().getColor("brls/background");
+    settingsBackground.a = videoSettings.settings_background_opacity;
+    this->setBackgroundColor(settingsBackground);
+
+    settingsOpacitySlider->init(
+        brls::getStr("moonlight/settings_tab/settings_background_opacity"),
+        videoSettings.settings_background_opacity,
+        [this](float value) {
+            value = std::max(0.0f, std::min(1.0f, value));
+            NVGcolor background = brls::Application::getTheme().getColor("brls/background");
+            background.a = value;
+            if (auto* frame = dynamic_cast<brls::AppletFrame*>(this->getParent())) {
+                this->setBackgroundColor(nvgRGBA(0, 0, 0, 0));
+                frame->setBackgroundColor(background);
+            } else {
+                this->setBackgroundColor(background);
+            }
+            settingsOpacitySlider->setDetailText(fmt::format("{:.0f}%", value * 100.0f));
+
+            ConfigManager config;
+            config.load();
+            VideoSettings settings = config.getVideoSettings();
+            settings.settings_background_opacity = value;
+            config.setVideoSettings(settings);
+            config.save();
+            extern VideoSettings g_video_settings_snapshot;
+            g_video_settings_snapshot.settings_background_opacity = value;
+        });
+    settingsOpacitySlider->setDetailText(fmt::format("{:.0f}%", videoSettings.settings_background_opacity * 100.0f));
+
+    keepAwakeToggle->init(
+        brls::getStr("moonlight/settings_tab/keep_awake_while_streaming"),
+        videoSettings.keep_awake_while_streaming,
+        [](bool value) {
+            ConfigManager config;
+            config.load();
+            VideoSettings settings = config.getVideoSettings();
+            settings.keep_awake_while_streaming = value;
+            config.setVideoSettings(settings);
+            config.save();
+            extern VideoSettings g_video_settings_snapshot;
+            g_video_settings_snapshot.keep_awake_while_streaming = value;
+            SessionMainView::setKeepAwakeWhileStreaming(value);
+        });
 
     // Auto-synchronize correct format settings on startup
     bool configChanged = false;

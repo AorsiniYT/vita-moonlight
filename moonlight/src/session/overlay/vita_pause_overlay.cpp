@@ -1,4 +1,5 @@
 #include "session/overlay/vita_pause_overlay.hpp"
+#include "ConfigManager.hpp"
 #include <borealis.hpp>
 #include <borealis/core/thread.hpp>
 #include <borealis/views/applet_frame.hpp>
@@ -162,6 +163,12 @@ VitaPauseOverlay::VitaPauseOverlay(std::function<void()> onClose, const HostInfo
                 {
                     brls::View* settingsView = SettingsTab::create();
                     auto* frame = new brls::AppletFrame(settingsView);
+                    ConfigManager config;
+                    config.load();
+                    NVGcolor background = brls::Application::getTheme().getColor("brls/background");
+                    background.a = config.getVideoSettings().settings_background_opacity;
+                    settingsView->setBackgroundColor(nvgRGBA(0, 0, 0, 0));
+                    frame->setBackgroundColor(background);
                     frame->setTitle(brls::getStr("moonlight/tabs/settings"));
                     auto* activity = new brls::Activity(frame);
                     brls::Application::pushActivity(activity, brls::TransitionAnimation::FADE);

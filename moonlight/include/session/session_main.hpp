@@ -15,6 +15,7 @@ public:
     SessionMainView(const HostInfo& host, const RemoteAppInfo& app);
     ~SessionMainView();
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
+    static void setKeepAwakeWhileStreaming(bool enabled);
 private:
     void openSessionMenu();
     bool isPauseOverlayOpen() const { return pauseOverlayOpen.load(); }
@@ -28,6 +29,7 @@ private:
     BRLS_BIND(brls::Label, info, "info");
     BRLS_BIND(brls::Button, endBtn, "endBtn");
     static inline std::atomic<bool> pauseOverlayOpen{false};
+    static inline std::atomic<bool> sessionActive{false};
 };
 
 // Function to launch the main session screen
