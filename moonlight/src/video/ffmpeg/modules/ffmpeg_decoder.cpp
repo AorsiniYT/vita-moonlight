@@ -84,6 +84,7 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
     ctx->parser = av_parser_init(codec->id);
 
     AVDictionary *opts = NULL;
+    bool requestedVitaLowDelay = false;
     enum AVDiscard targetSkipLoopFilter = AVDISCARD_DEFAULT;
     enum AVDiscard targetSkipIdct = AVDISCARD_DEFAULT;
     enum AVDiscard targetSkipFrame = AVDISCARD_DEFAULT;
@@ -98,7 +99,6 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
         // For h264_vita hardware decoder, natively use AV_PIX_FMT_VITA_NV12 to enable Direct Rendering (zero CPU copy).
         enum AVPixelFormat requestedPixFmt = ctx->is_vita_hw ? AV_PIX_FMT_VITA_NV12 : AV_PIX_FMT_YUV420P;
         ctx->avctx->pix_fmt = requestedPixFmt;
-        ctx->avctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
         
         VITA_DEBUG_LOG("[FFMPEG] Requested pixel format mode=%d, using pix_fmt=%d (is_vita_hw=%d)", 
                        requestedPixelMode, (int)requestedPixFmt, ctx->is_vita_hw ? 1 : 0);
@@ -108,6 +108,8 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
         if (ctx->use_direct_render) {
             ctx->avctx->get_buffer2 = get_buffer2_direct;
             av_dict_set(&opts, "vita_h264_dr", "1", 0);
+            av_dict_set(&opts, "vita_h264_low_delay_mode", "low", 0);
+            requestedVitaLowDelay = true;
             VITA_DEBUG_LOG("[FFMPEG] Direct render enabled for h264_vita! Assigned get_buffer2_direct and set vita_h264_dr=1");
         } else {
             VITA_DEBUG_LOG("[FFMPEG] Direct render disabled; software upload path enabled");
@@ -183,7 +185,7 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
             else if (strcmp(skipFrameEnv, "bidir") == 0) targetSkipFrame = AVDISCARD_BIDIR;
             else if (strcmp(skipFrameEnv, "none") == 0) targetSkipFrame = AVDISCARD_DEFAULT;
         }
-    VITA_DEBUG_LOG("[FFMPEG] ffmpeg_decoder_init: thread_count=%d thread_type=%d refcounted=%d skip_loop_filter(open)=%d target_skip_loop_filter=%d target_skip_idct=%d target_skip_frame=%d flags2=0x%X", ctx->avctx->thread_count, ctx->avctx->thread_type, refcounted_frames_val, ctx->avctx->skip_loop_filter, targetSkipLoopFilter, targetSkipIdct, targetSkipFrame, (unsigned)ctx->avctx->flags2);
+    VITA_DEBUG_LOG("[FFMPEG] ffmpeg_decoder_init: thread_count=%d thread_type=%d refcounted=%d skip_loop_filter(open)=%d target_skip_loop_filter=%d target_skip_idct=%d target_skip_frame=%d flags=0x%X flags2=0x%X", ctx->avctx->thread_count, ctx->avctx->thread_type, refcounted_frames_val, ctx->avctx->skip_loop_filter, targetSkipLoopFilter, targetSkipIdct, targetSkipFrame, (unsigned)ctx->avctx->flags, (unsigned)ctx->avctx->flags2);
     } else {
         // Non-H264 codecs keep default behavior.
         ctx->use_direct_render = false;
@@ -195,6 +197,11 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
 #endif
 
     int openRet = avcodec_open2(ctx->avctx, codec, &opts);
+    if (requestedVitaLowDelay) {
+        bool accepted = av_dict_get(opts, "vita_h264_low_delay_mode", nullptr, 0) == nullptr;
+        VITA_DEBUG_LOG("[FFMPEG] vita_h264_low_delay_mode=low %s",
+                       accepted ? "accepted" : "not supported by installed FFmpeg-vita");
+    }
     av_dict_free(&opts);
     if (openRet < 0) {
 #ifdef BOREALIS_USE_GXM

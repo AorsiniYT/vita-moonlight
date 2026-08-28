@@ -118,6 +118,15 @@ extern "C" int vitavideo_setup(int videoFormat, int width, int height, int redra
         init->numOfRefFrames = 4; init->numOfStreams = 1;
         decoder_width = init->horizontal;
         decoder_height = init->vertical;
+
+        int low_delay_ret = sceAvcdecSetLowDelayModeNongameapp(
+            SCE_VIDEODEC_TYPE_HW_AVCDEC,
+            SCE_AVCDEC_DELAY_MODE_LOW);
+        VITA_DEBUG_LOG(
+            "[Video][LOW_DELAY] sceAvcdecSetLowDelayModeNongameapp(mode=%d, refs=%u): 0x%08x",
+            SCE_AVCDEC_DELAY_MODE_LOW,
+            init->numOfRefFrames,
+            low_delay_ret);
         
         // Use Internal API for resolutions > 720p (requires PAF/AVCDEC modules)
         if (width > 1280 || height > 720) {
