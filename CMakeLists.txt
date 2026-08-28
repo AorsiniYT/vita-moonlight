@@ -263,7 +263,6 @@ if(PLATFORM_PSV)
         inih
         mdnsniff
         enet
-        h264bitstream
         moonlight-common-c
     )
 
@@ -330,7 +329,6 @@ if(WIN32)
         inih
         mdnsniff
         enet
-        h264bitstream
         moonlight-common-c
         z
         ws2_32
