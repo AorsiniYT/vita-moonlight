@@ -206,29 +206,7 @@ int vita_dp_present_frame(void)
     if (!s_dp_active) return -1;
     if (g_stats.frames_decoded == 0) return -1;
 
-    int displayIdx;
-    if (!single_frame_buffer) {
-        int bufferMode = g_video_settings_snapshot.buffer_mode;
-        if (bufferMode == 2) {
-            int current_display = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
-            if (__atomic_load_n(&frame_ready_flag, __ATOMIC_ACQUIRE)) {
-                int old_ready = __atomic_exchange_n(&frame_ready_idx, current_display, __ATOMIC_SEQ_CST);
-                current_display = old_ready;
-                __atomic_store_n(&frame_display_idx, current_display, __ATOMIC_RELEASE);
-                __atomic_store_n(&frame_ready_flag, false, __ATOMIC_RELEASE);
-            }
-            displayIdx = current_display;
-        } else {
-            if (__atomic_load_n(&frame_ready_flag, __ATOMIC_ACQUIRE)) {
-                int ready = __atomic_load_n(&frame_ready_idx, __ATOMIC_ACQUIRE);
-                __atomic_store_n(&frame_display_idx, ready, __ATOMIC_RELEASE);
-                __atomic_store_n(&frame_ready_flag, false, __ATOMIC_RELEASE);
-            }
-            displayIdx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
-        }
-    } else {
-        displayIdx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
-    }
+    int displayIdx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
 
     const GxmTexture* tex = __atomic_load_n(&frame_textures[displayIdx], __ATOMIC_ACQUIRE);
     if (!tex) return -1;
@@ -281,7 +259,7 @@ int vita_dp_present_frame(void)
 
     g_stats.frames_presented++;
     // FFmpeg releases deferred CDRAM buffers from the presentation side.
-    VitaVideoRenderer::instance().onFramePresented();
+    VitaVideoRenderer::instance().onFramePresented(sceGxmTextureGetData(&gxmTexSnapshot));
 
     return 0;
 }

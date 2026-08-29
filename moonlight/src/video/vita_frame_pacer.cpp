@@ -6,6 +6,8 @@
 
 #include "debug.hpp"
 
+extern "C" void ffmpeg_video_watchdog_tick(void);
+
 namespace {
 
 brls::VoidEvent::Subscription s_runLoopSub;
@@ -27,6 +29,7 @@ void pace_callback() {
     // input and animations responsive if the stream stalls.
     SceUInt timeout = (SceUInt)(s_frameBudgetUs * 2);
     sceKernelWaitSema(sema, 1, &timeout);
+    ffmpeg_video_watchdog_tick();
 }
 
 } // namespace
