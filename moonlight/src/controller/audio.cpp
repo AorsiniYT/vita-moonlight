@@ -47,6 +47,7 @@ void release_port() {
 } // namespace
 
 int audio_init(int /*audioConfiguration*/, const POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* /*audioContext*/, int /*arFlags*/) {
+    g_active = false;
     destroy_decoder();
     release_port();
     g_decodeOffset = 0;
@@ -103,7 +104,6 @@ int audio_init(int /*audioConfiguration*/, const POPUS_MULTISTREAM_CONFIGURATION
     vita_log::info("[Audio] Puerto abierto id=0x%X channels=%d streams=%d coupled=%d frame_samples=%d",
                    g_port, g_channelCount, opusConfig->streams,
                    opusConfig->coupledStreams, g_frameSize);
-    g_active = true;
     return VITA_AUDIO_INIT_OK;
 }
 
