@@ -26,6 +26,8 @@
 struct StreamConfiguration {
     int width = 1280;
     int height = 720;
+    int streamWidth = 960;
+    int streamHeight = 544;
     int fps = 60;
     int bitrate = -1; // Self-calculated
     int packetSize = 1024;

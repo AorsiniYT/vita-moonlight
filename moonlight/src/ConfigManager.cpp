@@ -198,6 +198,13 @@ StreamConfiguration ConfigManager::getStreamConfig() const {
     StreamConfiguration config;
     config.width = std::stoi(get("stream", "width", "1280"));
     config.height = std::stoi(get("stream", "height", "720"));
+    config.streamWidth = std::stoi(get("stream", "stream_width", "960"));
+    config.streamHeight = std::stoi(get("stream", "stream_height", "544"));
+    if (!((config.streamWidth == 960 && config.streamHeight == 544) ||
+          (config.streamWidth == 848 && config.streamHeight == 480))) {
+        config.streamWidth = 960;
+        config.streamHeight = 544;
+    }
     config.fps = std::stoi(get("stream", "fps", "60"));
     config.bitrate = std::stoi(get("stream", "bitrate", "-1"));
     config.packetSize = std::stoi(get("stream", "packetsize", "1024"));
@@ -210,6 +217,8 @@ StreamConfiguration ConfigManager::getStreamConfig() const {
 void ConfigManager::setStreamConfig(const StreamConfiguration& config) {
     set("stream", "width", std::to_string(config.width));
     set("stream", "height", std::to_string(config.height));
+    set("stream", "stream_width", std::to_string(config.streamWidth));
+    set("stream", "stream_height", std::to_string(config.streamHeight));
     set("stream", "fps", std::to_string(config.fps));
     set("stream", "bitrate", std::to_string(config.bitrate));
     set("stream", "packetsize", std::to_string(config.packetSize));
