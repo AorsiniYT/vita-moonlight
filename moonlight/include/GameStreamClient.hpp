@@ -51,6 +51,7 @@ public:
         NEW_ONLY = 2     // Always fresh launch, ignore active session
     };
     bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId, StartMode mode, int displayWidth = 0, int displayHeight = 0);
+    bool resumeApp(const std::string& address, STREAM_CONFIGURATION& config, int appId);
     // Retrieve last used configuration (includes remoteInputAesKey/IV if already generated)
     bool lastStreamConfig(const std::string& address, STREAM_CONFIGURATION& out) const;
 

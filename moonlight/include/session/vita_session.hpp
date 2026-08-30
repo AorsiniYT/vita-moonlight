@@ -38,6 +38,7 @@ public:
 
     // manual reconnection
     bool attemptReconnect();
+    bool reconnectAfterResume();
 
     // Access to active session
     static VitaSession* active();
@@ -79,6 +80,7 @@ private:
     static void audio_renderer_decode_and_play_sample(char*, int);
 
     bool internalStart();
+    bool restartConnection(bool renegotiateSession);
 
 private:
     std::string m_address;
@@ -93,6 +95,7 @@ private:
     bool m_is_active = false;
     bool m_is_terminated = false;
     bool m_poor = false;
+    bool m_allow_resume_reconnect = false;
 
     int m_reconnect_attempts = 0;
     const int m_reconnect_limit = 1;

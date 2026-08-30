@@ -757,6 +757,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION* config, int appId,
 
     if (xml_search(data, "sessionUrl0", &result) == GS_OK && !result.empty()) {
         const std::string::size_type size = result.size();
+        delete[] server->serverInfo.rtspSessionUrl;
         server->serverInfo.rtspSessionUrl = new char[size + 1];
         memcpy((void *) server->serverInfo.rtspSessionUrl, result.c_str(), size + 1);
     } else {
