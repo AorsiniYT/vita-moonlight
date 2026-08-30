@@ -68,6 +68,8 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
         ffmpeg_decoder_destroy(ctx);
         return -1;
     }
+    ctx->avctx->pkt_timebase.num = 1;
+    ctx->avctx->pkt_timebase.den = AV_TIME_BASE;
 
     ctx->pkt = av_packet_alloc();
     if (!ctx->pkt) {
@@ -85,6 +87,7 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
 
     AVDictionary *opts = NULL;
     bool requestedVitaLowDelay = false;
+    bool requestedVitaTimestampPassthrough = false;
     enum AVDiscard targetSkipLoopFilter = AVDISCARD_DEFAULT;
     enum AVDiscard targetSkipIdct = AVDISCARD_DEFAULT;
     enum AVDiscard targetSkipFrame = AVDISCARD_DEFAULT;
@@ -109,7 +112,9 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
             ctx->avctx->get_buffer2 = get_buffer2_direct;
             av_dict_set(&opts, "vita_h264_dr", "1", 0);
             av_dict_set(&opts, "vita_h264_low_delay_mode", "low", 0);
+            av_dict_set(&opts, "vita_h264_timestamp_mode", "passthrough", 0);
             requestedVitaLowDelay = true;
+            requestedVitaTimestampPassthrough = true;
             VITA_DEBUG_LOG("[FFMPEG] Direct render enabled for h264_vita! Assigned get_buffer2_direct and set vita_h264_dr=1");
         } else {
             VITA_DEBUG_LOG("[FFMPEG] Direct render disabled; software upload path enabled");
@@ -200,6 +205,11 @@ int ffmpeg_decoder_init(FFmpegDecoderContext *ctx)
     if (requestedVitaLowDelay) {
         bool accepted = av_dict_get(opts, "vita_h264_low_delay_mode", nullptr, 0) == nullptr;
         VITA_DEBUG_LOG("[FFMPEG] vita_h264_low_delay_mode=low %s",
+                       accepted ? "accepted" : "not supported by installed FFmpeg-vita");
+    }
+    if (requestedVitaTimestampPassthrough) {
+        bool accepted = av_dict_get(opts, "vita_h264_timestamp_mode", nullptr, 0) == nullptr;
+        VITA_DEBUG_LOG("[FFMPEG] vita_h264_timestamp_mode=passthrough %s",
                        accepted ? "accepted" : "not supported by installed FFmpeg-vita");
     }
     av_dict_free(&opts);
