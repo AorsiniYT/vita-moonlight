@@ -17,6 +17,7 @@
 #include "moonmic/MoonmicPrep.hpp"
 #include "client.h"
 #include "Limelight.h"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -27,10 +28,27 @@
 #include "debug.hpp"
 #include <borealis/core/thread.hpp>
 #include <set>
-#include "video/legacy/modules/vita_globals.hpp" // For VITA_STREAM constants
 
 
 namespace {
+    constexpr int DEFAULT_STREAM_FPS = 60;
+    constexpr int DEFAULT_STREAM_BITRATE = 6000;
+    constexpr int MIN_AUTO_BITRATE = 5000;
+    constexpr int MAX_AUTO_BITRATE = 20000;
+
+    int calculateAutoBitrate(int width, int height, int fps)
+    {
+        // This yields about 10 Mbps at 720p60 and scales with the actual stream load.
+        constexpr long long BITS_PER_PIXEL_NUMERATOR = 18;
+        constexpr long long BITS_PER_PIXEL_DENOMINATOR = 100;
+        const long long pixelsPerSecond = static_cast<long long>(width) * height * fps;
+        const int bitrate = static_cast<int>(
+            pixelsPerSecond * BITS_PER_PIXEL_NUMERATOR /
+            (BITS_PER_PIXEL_DENOMINATOR * 1000));
+
+        return std::max(MIN_AUTO_BITRATE, std::min(MAX_AUTO_BITRATE, bitrate));
+    }
+
     // Hosts for which the active session dialog will be temporarily suppressed
     static std::set<std::string> g_suppressedActiveHosts;
     // Hosts for which we already show the 'resume' dialog during login
@@ -537,24 +555,18 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     
     streamConfig.width = streamSettings.streamWidth;
     streamConfig.height = streamSettings.streamHeight;
-    streamConfig.fps = streamSettings.fps > 0 ? streamSettings.fps : VITA_STREAM_DEFAULT_FPS;
+    streamConfig.fps = streamSettings.fps > 0 ? streamSettings.fps : DEFAULT_STREAM_FPS;
     
     // Build RTSP launch URL without displayWidth/displayHeight
     // Display resolution is now controlled via moonmic protocol handshake
     // which configures Sunshine's mode_remapping before streaming starts:
     
-    // Calculate bitrate: if automatic (-1), use formula based on resolution and fps
-    if (streamSettings.bitrate == -1) {
-        // Approximate formula: (range * high * fps * bits_per_pixel) / 1000000 for Mbps
-        // Using VITA_STREAM_BITS_PER_PIXEL bits per pixel as a conservative approximation for H.264
-        // Calculate step by step to avoid loss of precision
-        long long total_pixels = (long long)streamConfig.width * streamConfig.height * streamConfig.fps;
-        long long total_bits_per_second = (total_pixels * (long long)(VITA_STREAM_BITS_PER_PIXEL * 10)) / 10;
-        int calculatedBitrate = (int)(total_bits_per_second / 1000); // Convert to Kbps directly
-        // Limit to a reasonable range using global constants
-        streamConfig.bitrate = std::max(VITA_STREAM_MIN_BITRATE, std::min(VITA_STREAM_MAX_BITRATE, calculatedBitrate));
+    const bool automaticBitrate = streamSettings.bitrate == -1;
+    if (automaticBitrate) {
+        streamConfig.bitrate = calculateAutoBitrate(
+            streamConfig.width, streamConfig.height, streamConfig.fps);
     } else {
-        streamConfig.bitrate = streamSettings.bitrate > 0 ? streamSettings.bitrate : VITA_STREAM_DEFAULT_BITRATE;
+        streamConfig.bitrate = streamSettings.bitrate > 0 ? streamSettings.bitrate : DEFAULT_STREAM_BITRATE;
     }
     
     streamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
@@ -563,7 +575,8 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
     vita_log::info("[SessionAppSelect] Configuración de streaming:");
     vita_log::info("[SessionAppSelect] - Resolución: %dx%d", streamConfig.width, streamConfig.height);
     vita_log::info("[SessionAppSelect] - FPS: %d", streamConfig.fps);
-    vita_log::info("[SessionAppSelect] - Bitrate: %d Kbps", streamConfig.bitrate);
+    vita_log::info("[SessionAppSelect] - Bitrate: %d Kbps%s", streamConfig.bitrate,
+                   automaticBitrate ? " (auto por resolución/FPS)" : "");
 
     // Ensure correct packetSize and flags if they have not been set
     if (streamConfig.packetSize <= 0) {
