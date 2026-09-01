@@ -1586,8 +1586,15 @@ static bool publish_frame(FFmpegVideoContext* ctx, AVFrame* frame, uint64_t ptsU
         return false;
     }
 
-    if (!ctx->decoder_resync_pending && should_drop_stale_output(ctx, ptsUs)) {
-        return false;
+    if (!ctx->decoder_resync_pending) {
+        if (should_refresh_stale_stream(ctx, ptsUs)) {
+            ctx->decoder_resync_pending = true;
+            vita_netopt_force_idr();
+            return false;
+        }
+        if (should_drop_stale_output(ctx, ptsUs)) {
+            return false;
+        }
     }
 
     uint32_t publishStartUs = perf_now_us();
