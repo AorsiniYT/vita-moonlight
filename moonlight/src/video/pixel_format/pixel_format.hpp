@@ -1,13 +1,16 @@
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
 #include <psp2/videodec.h>
 
-namespace PixelFormat {
+#include <cstddef>
+#include <cstdint>
 
-class IPixelProcessor {
-public:
+namespace PixelFormat
+{
+
+class IPixelProcessor
+{
+  public:
     virtual ~IPixelProcessor() = default;
 
     virtual int init(int width, int height, uint32_t alignedWidth, uint32_t alignedHeight) = 0;
@@ -28,9 +31,10 @@ public:
 IPixelProcessor* createProcessor(int mode);
 void destroyProcessor(IPixelProcessor* processor);
 
-enum ProcessorMode {
+enum ProcessorMode
+{
     MODE_RGBA_HARDWARE = 0,
-    MODE_YUV_GPU = 1
+    MODE_YUV_GPU       = 1
 };
 
 // Decoder pixel format constants

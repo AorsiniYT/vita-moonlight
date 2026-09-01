@@ -2,7 +2,8 @@
 
 #include <Limelight.h>
 
-namespace controller {
+namespace controller
+{
 
 int audio_init(int audioConfiguration, const POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* audioContext, int arFlags);
 void audio_start();

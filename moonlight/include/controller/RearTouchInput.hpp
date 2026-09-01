@@ -1,12 +1,15 @@
 #pragma once
 
 #include <psp2/touch.h>
-#include "ConfigManager.hpp"
-#include "controller/GamepadState.hpp"
+
 #include <array>
 
-class RearTouchInputManager {
-public:
+#include "ConfigManager.hpp"
+#include "controller/GamepadState.hpp"
+
+class RearTouchInputManager
+{
+  public:
     RearTouchInputManager();
 
     void updateSettings(const RearTouchSettings& settings);
@@ -23,19 +26,19 @@ public:
 
     const RearTouchSettings& getSettings() const { return currentSettings; }
 
-private:
-    RearTouchSettings currentSettings{};
-    bool enabled = true;
+  private:
+    RearTouchSettings currentSettings {};
+    bool enabled             = true;
     bool swapShoulderButtons = false;
 
-    std::array<bool, 4> lastZoneActive {false, false, false, false};
+    std::array<bool, 4> lastZoneActive { false, false, false, false };
 
-    float leftNorm = 0.0f;
-    float rightNorm = 1.0f;
-    float topNorm = 0.0f;
+    float leftNorm   = 0.0f;
+    float rightNorm  = 1.0f;
+    float topNorm    = 0.0f;
     float bottomNorm = 1.0f;
-    float midX = 0.5f;
-    float midY = 0.5f;
+    float midX       = 0.5f;
+    float midY       = 0.5f;
 
     void recalcBounds();
     void handleZoneAction(std::size_t index, bool pressed, std::uint32_t code, GamepadState& state);

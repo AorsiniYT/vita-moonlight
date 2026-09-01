@@ -1,10 +1,12 @@
 #pragma once
 #include <borealis.hpp>
-#include "video/legacy/vita.hpp"
-#include "utils/overlay_utils.hpp"
 
-class VitaStreamOverlayView : public BaseOverlay {
-public:
+#include "utils/overlay_utils.hpp"
+#include "video/legacy/vita.hpp"
+
+class VitaStreamOverlayView : public BaseOverlay
+{
+  public:
     VitaStreamOverlayView();
     ~VitaStreamOverlayView() override = default;
 
@@ -13,7 +15,7 @@ public:
     brls::View* getDefaultFocus() override { return nullptr; }
     const char* describe() const { return "VitaStreamOverlayView"; }
 
-private:
+  private:
     uint64_t lastFetchMs = 0;
     VitaVideoStats cached;
 };

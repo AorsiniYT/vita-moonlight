@@ -5,12 +5,13 @@
 #include "controller/special_inputs.hpp"
 #include "view/rear_touch_calibration_overlay.hpp"
 // For vita_debug_log
-#include "debug.hpp"
-
 #include <string>
 #include <vector>
 
-RearTouchSettingsTab::RearTouchSettingsTab() {
+#include "debug.hpp"
+
+RearTouchSettingsTab::RearTouchSettingsTab()
+{
     this->inflateFromXMLRes("xml/tabs/rear_touch_settings.xml");
 
     ConfigManager config;
@@ -20,16 +21,21 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
     const auto& specialOptions = controller::getSelectableSpecialInputOptions();
     std::vector<std::string> specialOptionNames;
     specialOptionNames.reserve(specialOptions.size());
-    for (const auto& option : specialOptions) {
+    for (const auto& option : specialOptions)
+    {
         specialOptionNames.push_back(option.name);
     }
 
-    auto updateSwapWarning = [this](bool swapActive) {
-        if (rearTouchSwapWarning) {
+    auto updateSwapWarning = [this](bool swapActive)
+    {
+        if (rearTouchSwapWarning)
+        {
             rearTouchSwapWarning->setVisibility(swapActive ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
         }
-        auto setSelectorFocusable = [](brls::SelectorCell* selector, bool focusable) {
-            if (selector) {
+        auto setSelectorFocusable = [](brls::SelectorCell* selector, bool focusable)
+        {
+            if (selector)
+            {
                 selector->setFocusable(focusable);
                 selector->setAlpha(focusable ? 1.0f : 0.4f);
             }
@@ -40,53 +46,59 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
         setSelectorFocusable(rearTouchSESelector, !swapActive);
     };
 
-    auto updateRearTouchDetail = [this](const RearTouchSettings& rtSettings) {
+    auto updateRearTouchDetail = [this](const RearTouchSettings& rtSettings)
+    {
         if (!rearTouchCalibrationCell)
             return;
-        std::string detail = brls::getStr("moonlight/rear_touch/detail_top") + " " + std::to_string(rtSettings.top) +
-                              " | " + brls::getStr("moonlight/rear_touch/detail_bottom") + " " + std::to_string(rtSettings.bottom) +
-                              " | " + brls::getStr("moonlight/rear_touch/detail_left") + " " + std::to_string(rtSettings.left) +
-                              " | " + brls::getStr("moonlight/rear_touch/detail_right") + " " + std::to_string(rtSettings.right);
+        std::string detail = brls::getStr("moonlight/rear_touch/detail_top") + " " + std::to_string(rtSettings.top) + " | " + brls::getStr("moonlight/rear_touch/detail_bottom") + " " + std::to_string(rtSettings.bottom) + " | " + brls::getStr("moonlight/rear_touch/detail_left") + " " + std::to_string(rtSettings.left) + " | " + brls::getStr("moonlight/rear_touch/detail_right") + " " + std::to_string(rtSettings.right);
         rearTouchCalibrationCell->setDetailText(detail);
     };
 
-    auto applyRearTouchActions = [this](const RearTouchSettings& settings) {
-        if (rearTouchNWSelector) {
+    auto applyRearTouchActions = [this](const RearTouchSettings& settings)
+    {
+        if (rearTouchNWSelector)
+        {
             rearTouchNWSelector->setSelection(controller::getSelectableIndexForCode(settings.actionNorthWest), true);
         }
-        if (rearTouchNESelector) {
+        if (rearTouchNESelector)
+        {
             rearTouchNESelector->setSelection(controller::getSelectableIndexForCode(settings.actionNorthEast), true);
         }
-        if (rearTouchSWSelector) {
+        if (rearTouchSWSelector)
+        {
             rearTouchSWSelector->setSelection(controller::getSelectableIndexForCode(settings.actionSouthWest), true);
         }
-        if (rearTouchSESelector) {
+        if (rearTouchSESelector)
+        {
             rearTouchSESelector->setSelection(controller::getSelectableIndexForCode(settings.actionSouthEast), true);
         }
     };
 
     rearTouchToggle->init(brls::getStr("moonlight/rear_touch/toggle"), videoSettings.rear_touch.enabled,
-        [this, updateRearTouchDetail, applyRearTouchActions](bool value) {
+        [this, updateRearTouchDetail, applyRearTouchActions](bool value)
+        {
             ConfigManager config;
             config.load();
-            VideoSettings settings = config.getVideoSettings();
+            VideoSettings settings      = config.getVideoSettings();
             settings.rear_touch.enabled = value;
             config.setVideoSettings(settings);
             config.save();
-            if (g_controllerInput) {
+            if (g_controllerInput)
+            {
                 g_controllerInput->setRearTouchEnabled(value);
-                if (value) {
+                if (value)
+                {
                     g_controllerInput->applyRearTouchSettings(settings.rear_touch);
                 }
             }
             updateRearTouchDetail(settings.rear_touch);
             applyRearTouchActions(settings.rear_touch);
             brls::Application::notify(value ? brls::getStr("moonlight/rear_touch/notify_enabled")
-                                           : brls::getStr("moonlight/rear_touch/notify_disabled"));
-        }
-    );
+                                            : brls::getStr("moonlight/rear_touch/notify_disabled"));
+        });
 
-    auto configureActionSelector = [specialOptionNames, this, applyRearTouchActions](brls::SelectorCell* selector, std::uint32_t RearTouchSettings::* member) {
+    auto configureActionSelector = [specialOptionNames, this, applyRearTouchActions](brls::SelectorCell* selector, std::uint32_t RearTouchSettings::* member)
+    {
         if (!selector)
             return;
 
@@ -98,21 +110,22 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
         std::string selectorTitle = selector->title ? selector->title->getFullText() : "";
         selector->init(selectorTitle, specialOptionNames,
             controller::getSelectableIndexForCode(videoSettings.rear_touch.*member),
-            [member, applyRearTouchActions](int selected) {
+            [member, applyRearTouchActions](int selected)
+            {
                 ConfigManager config;
                 config.load();
-                VideoSettings settings = config.getVideoSettings();
+                VideoSettings settings      = config.getVideoSettings();
                 settings.rear_touch.*member = controller::getCodeForSelectableIndex(static_cast<std::size_t>(selected));
                 config.setVideoSettings(settings);
                 config.save();
-                if (g_controllerInput) {
+                if (g_controllerInput)
+                {
                     g_controllerInput->applyRearTouchSettings(settings.rear_touch);
                     g_controllerInput->setRearTouchEnabled(settings.rear_touch.enabled);
                 }
                 applyRearTouchActions(settings.rear_touch);
                 brls::Application::notify(brls::getStr("moonlight/rear_touch/notify_action_saved"));
-            }
-        );
+            });
     };
 
     configureActionSelector(rearTouchNWSelector, &RearTouchSettings::actionNorthWest);
@@ -124,7 +137,8 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
     updateRearTouchDetail(videoSettings.rear_touch);
     updateSwapWarning(videoSettings.swap_shoulder_buttons);
 
-    rearTouchCalibrationCell->registerClickAction([this, updateRearTouchDetail, applyRearTouchActions](brls::View*) {
+    rearTouchCalibrationCell->registerClickAction([this, updateRearTouchDetail, applyRearTouchActions](brls::View*)
+        {
         ConfigManager config;
         config.load();
         VideoSettings settings = config.getVideoSettings();
@@ -162,15 +176,15 @@ RearTouchSettingsTab::RearTouchSettingsTab() {
     // Use vita_debug_log for togglable Vita logging
     vita_log::info("[RearTouchSettingsTab] pushing RearTouchCalibrationOverlay - itemTitle='%s'", overlay->getAppletFrameItem()->title.c_str());
     brls::Application::pushActivity(new brls::Activity(overlay));
-        return true;
-    });
+        return true; });
 
-    this->registerAction(brls::getStr("hints/back"), brls::BUTTON_B, [](brls::View*) {
+    this->registerAction(brls::getStr("hints/back"), brls::BUTTON_B, [](brls::View*)
+        {
         brls::Application::popActivity();
-        return true;
-    });
+        return true; });
 }
 
-brls::View* RearTouchSettingsTab::create() {
+brls::View* RearTouchSettingsTab::create()
+{
     return new RearTouchSettingsTab();
 }

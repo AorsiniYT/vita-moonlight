@@ -3,6 +3,7 @@
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 
 #include "MbedTLSCryptoManager.hpp"
+
 #include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -19,31 +20,35 @@ static std::string m_loadedKeyDir;
 
 static bool _generate_new_cert_key_pair(const std::string& keyDir);
 
-
-bool MbedTLSCryptoManager::load_cert_key_pair(const std::string& keyDir) {
+bool MbedTLSCryptoManager::load_cert_key_pair(const std::string& keyDir)
+{
     std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
-    if (m_key.is_empty() || m_cert.is_empty() || m_loadedKeyDir != actualKeyDir) {
+    if (m_key.is_empty() || m_cert.is_empty() || m_loadedKeyDir != actualKeyDir)
+    {
         Data cert = Data::read_from_file(actualKeyDir + "/" + CERTIFICATE_FILE_NAME);
-        Data key = Data::read_from_file(actualKeyDir + "/" + KEY_FILE_NAME);
-        if (!cert.is_empty() && !key.is_empty()) {
-            m_cert = cert;
-            m_key = key;
+        Data key  = Data::read_from_file(actualKeyDir + "/" + KEY_FILE_NAME);
+        if (!cert.is_empty() && !key.is_empty())
+        {
+            m_cert         = cert;
+            m_key          = key;
             m_loadedKeyDir = actualKeyDir;
             return true;
         }
         m_cert = Data();
-        m_key = Data();
+        m_key  = Data();
         m_loadedKeyDir.clear();
         return false;
     }
     return true;
 }
 
-
-bool MbedTLSCryptoManager::generate_new_cert_key_pair(const std::string& keyDir) {
+bool MbedTLSCryptoManager::generate_new_cert_key_pair(const std::string& keyDir)
+{
     std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
-    if (_generate_new_cert_key_pair(actualKeyDir)) {
-        if (!m_cert.is_empty() && !m_key.is_empty()) {
+    if (_generate_new_cert_key_pair(actualKeyDir))
+    {
+        if (!m_cert.is_empty() && !m_key.is_empty())
+        {
             m_loadedKeyDir = actualKeyDir;
             return true;
         }
@@ -51,13 +56,13 @@ bool MbedTLSCryptoManager::generate_new_cert_key_pair(const std::string& keyDir)
     return false;
 }
 
-
-void MbedTLSCryptoManager::remove_cert_key_pair(const std::string& keyDir) {
+void MbedTLSCryptoManager::remove_cert_key_pair(const std::string& keyDir)
+{
     std::string actualKeyDir = keyDir.empty() ? "." : keyDir;
     remove((actualKeyDir + "/" + CERTIFICATE_FILE_NAME).c_str());
     remove((actualKeyDir + "/" + KEY_FILE_NAME).c_str());
     m_cert = Data();
-    m_key = Data();
+    m_key  = Data();
     m_loadedKeyDir.clear();
 }
 
@@ -65,48 +70,53 @@ Data MbedTLSCryptoManager::cert_data() { return m_cert; }
 
 Data MbedTLSCryptoManager::key_data() { return m_key; }
 
-
-Data MbedTLSCryptoManager::SHA1_hash_data(Data data) {
+Data MbedTLSCryptoManager::SHA1_hash_data(Data data)
+{
     unsigned char sha1[20];
     mbedtls_sha1(data.bytes(), data.size(), sha1);
     return Data(sha1, sizeof(sha1));
 }
 
-
-Data MbedTLSCryptoManager::SHA256_hash_data(Data data) {
+Data MbedTLSCryptoManager::SHA256_hash_data(Data data)
+{
     unsigned char sha256[32];
     mbedtls_sha256(data.bytes(), data.size(), sha256, 0);
     return Data(sha256, sizeof(sha256));
 }
 
-Data MbedTLSCryptoManager::create_AES_key_from_salt_SHA1(Data salted_pin) {
+Data MbedTLSCryptoManager::create_AES_key_from_salt_SHA1(Data salted_pin)
+{
     return SHA1_hash_data(salted_pin).subdata(0, 16);
 }
 
-Data MbedTLSCryptoManager::create_AES_key_from_salt_SHA256(Data salted_pin) {
+Data MbedTLSCryptoManager::create_AES_key_from_salt_SHA256(Data salted_pin)
+{
     return SHA256_hash_data(salted_pin).subdata(0, 16);
 }
 
-static int get_encrypt_size(Data data) {
+static int get_encrypt_size(Data data)
+{
     // the size is the length of the data ceiling to the nearest 16 bytes
     return (((int)data.size() + 15) / 16) * 16;
 }
 
-Data MbedTLSCryptoManager::aes_encrypt(Data data, Data key) {
+Data MbedTLSCryptoManager::aes_encrypt(Data data, Data key)
+{
     mbedtls_aes_context ctx;
     mbedtls_aes_init(&ctx);
     mbedtls_aes_setkey_enc(&ctx, key.bytes(), 128);
 
-    int size = get_encrypt_size(data);
-    unsigned char* buffer = (unsigned char*)malloc(size);
+    int size                            = get_encrypt_size(data);
+    unsigned char* buffer               = (unsigned char*)malloc(size);
     unsigned char* block_rounded_buffer = (unsigned char*)calloc(1, size);
     memcpy(block_rounded_buffer, data.bytes(), data.size());
 
     int block_offset = 0;
-    while (block_offset < size) {
+    while (block_offset < size)
+    {
         mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_ENCRYPT,
-                              block_rounded_buffer + block_offset,
-                              buffer + block_offset);
+            block_rounded_buffer + block_offset,
+            buffer + block_offset);
         block_offset += 16;
     }
 
@@ -117,17 +127,19 @@ Data MbedTLSCryptoManager::aes_encrypt(Data data, Data key) {
     return encrypted_data;
 }
 
-Data MbedTLSCryptoManager::aes_decrypt(Data data, Data key) {
+Data MbedTLSCryptoManager::aes_decrypt(Data data, Data key)
+{
     mbedtls_aes_context ctx;
     mbedtls_aes_init(&ctx);
     mbedtls_aes_setkey_dec(&ctx, key.bytes(), 128);
     unsigned char* buffer = (unsigned char*)malloc(data.size());
 
     int block_offset = 0;
-    while (block_offset < data.size()) {
+    while (block_offset < data.size())
+    {
         mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_DECRYPT,
-                              data.bytes() + block_offset,
-                              buffer + block_offset);
+            data.bytes() + block_offset,
+            buffer + block_offset);
         block_offset += 16;
     }
 
@@ -137,8 +149,8 @@ Data MbedTLSCryptoManager::aes_decrypt(Data data, Data key) {
     return decrypted_data;
 }
 
-
-Data MbedTLSCryptoManager::signature(Data cert) {
+Data MbedTLSCryptoManager::signature(Data cert)
+{
     mbedtls_x509_crt x509;
     mbedtls_x509_crt_init(&x509);
 
@@ -150,13 +162,14 @@ Data MbedTLSCryptoManager::signature(Data cert) {
 }
 
 bool MbedTLSCryptoManager::verify_signature(Data data, Data signature,
-                                            Data cert) {
+    Data cert)
+{
     // Signature verification is not implemented by the Vita backend.
     return true;
 }
 
-
-Data MbedTLSCryptoManager::sign_data(Data data, Data key) {
+Data MbedTLSCryptoManager::sign_data(Data data, Data key)
+{
     mbedtls_pk_context pk;
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
@@ -171,14 +184,15 @@ Data MbedTLSCryptoManager::sign_data(Data data, Data key) {
     mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 
     int parseRet = mbedtls_pk_parse_key(&pk, key.bytes(), key.size() + 1, NULL, 0, NULL, NULL);
-    int mdRet = mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), data.bytes(), data.size(), hash);
-    int signRet = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, sizeof(hash), buf, sizeof(buf), &sig_len, mbedtls_ctr_drbg_random, &ctr_drbg);
+    int mdRet    = mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), data.bytes(), data.size(), hash);
+    int signRet  = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, sizeof(hash), buf, sizeof(buf), &sig_len, mbedtls_ctr_drbg_random, &ctr_drbg);
 
     mbedtls_pk_free(&pk);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 
-    if (parseRet == 0 && mdRet == 0 && signRet == 0 && sig_len > 0) {
+    if (parseRet == 0 && mdRet == 0 && signRet == 0 && sig_len > 0)
+    {
         return Data(buf, sig_len);
     }
     return Data();
@@ -186,7 +200,8 @@ Data MbedTLSCryptoManager::sign_data(Data data, Data key) {
 
 // Cert and key generator
 
-static void _generate_key(mbedtls_pk_context* key) {
+static void _generate_key(mbedtls_pk_context* key)
+{
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
 
@@ -198,14 +213,15 @@ static void _generate_key(mbedtls_pk_context* key) {
 
     mbedtls_pk_setup(key, mbedtls_pk_info_from_type(MBEDTLS_PK_RSA));
     mbedtls_rsa_gen_key(mbedtls_pk_rsa(*key), mbedtls_ctr_drbg_random,
-                        &ctr_drbg, 2048, 65537);
+        &ctr_drbg, 2048, 65537);
 
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 }
 
 static void _generate_cert(mbedtls_x509write_cert* cert,
-                           mbedtls_pk_context* key) {
+    mbedtls_pk_context* key)
+{
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_mpi serial;
@@ -225,7 +241,7 @@ static void _generate_cert(mbedtls_x509write_cert* cert,
     mbedtls_x509write_crt_set_issuer_key(cert, key);
     mbedtls_x509write_crt_set_md_alg(cert, MBEDTLS_MD_SHA256);
     mbedtls_x509write_crt_set_validity(cert, "20200101000000",
-                                       "20300101000000");
+        "20300101000000");
     mbedtls_x509write_crt_set_serial(cert, &serial);
 
     // X.509 extensions disabled for maximum compatibility (Legacy style)
@@ -237,7 +253,8 @@ static void _generate_cert(mbedtls_x509write_cert* cert,
     mbedtls_entropy_free(&entropy);
 }
 
-static bool _generate_new_cert_key_pair(const std::string& keyDir) {
+static bool _generate_new_cert_key_pair(const std::string& keyDir)
+{
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
 
@@ -254,26 +271,26 @@ static bool _generate_new_cert_key_pair(const std::string& keyDir) {
     unsigned char tmp[4096];
     memset(tmp, 0, 4096);
     size_t len = 0;
-    int i = mbedtls_pk_write_key_pem(&key, tmp, 4096);
+    int i      = mbedtls_pk_write_key_pem(&key, tmp, 4096);
 
-    len = strlen((char*)tmp);
+    len   = strlen((char*)tmp);
     m_key = Data(tmp, len);
     memset(tmp, 0, 4096);
 
-    i = mbedtls_x509write_crt_pem(&cert, tmp, 4096, mbedtls_ctr_drbg_random,
-                                  &ctr_drbg);
-    len = strlen((char*)tmp);
+    i      = mbedtls_x509write_crt_pem(&cert, tmp, 4096, mbedtls_ctr_drbg_random,
+             &ctr_drbg);
+    len    = strlen((char*)tmp);
     m_cert = Data(tmp, len);
 
     mbedtls_x509write_crt_free(&cert);
     mbedtls_pk_free(&key);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
-    
+
     // Save certificate and key files
     m_cert.write_to_file(keyDir + "/" + CERTIFICATE_FILE_NAME);
     m_key.write_to_file(keyDir + "/" + KEY_FILE_NAME);
-    
+
     return true;
 }
 

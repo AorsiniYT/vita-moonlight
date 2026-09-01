@@ -1,4 +1,5 @@
 #include <string>
+
 #include "Data.hpp"
 
 #pragma once
@@ -6,7 +7,8 @@
 #define CERTIFICATE_FILE_NAME "client.pem"
 #define KEY_FILE_NAME "key.pem"
 
-class MbedTLSCryptoManager {
+class MbedTLSCryptoManager
+{
   public:
     static bool load_cert_key_pair(const std::string& keyDir);
     static bool generate_new_cert_key_pair(const std::string& keyDir);

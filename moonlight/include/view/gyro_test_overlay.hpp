@@ -3,16 +3,18 @@
 #include <borealis.hpp>
 #include <functional>
 #include <string>
+
 #include "controller/Gyro.hpp"
 
-class GyroTestCanvas : public brls::View {
-public:
+class GyroTestCanvas : public brls::View
+{
+  public:
     GyroTestCanvas(GyroManager* gyro);
 
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
     brls::View* getDefaultFocus() override { return this; }
 
-private:
+  private:
     GyroManager* gyroManager = nullptr;
 
     void drawVitaBox3D(NVGcontext* vg, float cx, float cy, float size, const MotionSensorData& data);
@@ -20,11 +22,12 @@ private:
     void drawSensorText(NVGcontext* vg, float x, float y, const MotionSensorData& data);
 };
 
-class GyroTestOverlay : public brls::AppletFrame {
-public:
+class GyroTestOverlay : public brls::AppletFrame
+{
+  public:
     GyroTestOverlay(GyroManager* gyro);
 
-private:
+  private:
     GyroTestCanvas* canvas = nullptr;
     void configureActions();
 };

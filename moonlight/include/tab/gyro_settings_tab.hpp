@@ -2,13 +2,14 @@
 
 #include <borealis.hpp>
 
-class GyroSettingsTab : public brls::Box {
-public:
+class GyroSettingsTab : public brls::Box
+{
+  public:
     GyroSettingsTab();
 
     static brls::View* create();
 
-private:
+  private:
     void updateScalarLabels();
 
     BRLS_BIND(brls::BooleanCell, motionToggle, "motionToggle");

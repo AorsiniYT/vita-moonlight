@@ -1,41 +1,52 @@
 #include "view/front_touch_preview_overlay.hpp"
 
-#include <algorithm>
 #include <string.h>
 
-namespace {
-constexpr float PANEL_WIDTH = 960.0f;
-constexpr float PANEL_HEIGHT = 544.0f;
-constexpr float MAX_TOUCH_X = 1919.0f;
-constexpr float MAX_TOUCH_Y = 1087.0f;
+#include <algorithm>
 
-inline float clamp01(float value) {
+namespace
+{
+constexpr float PANEL_WIDTH  = 960.0f;
+constexpr float PANEL_HEIGHT = 544.0f;
+constexpr float MAX_TOUCH_X  = 1919.0f;
+constexpr float MAX_TOUCH_Y  = 1087.0f;
+
+inline float clamp01(float value)
+{
     return std::max(0.0f, std::min(1.0f, value));
 }
 }
 
 FrontTouchPreviewCanvas::FrontTouchPreviewCanvas(int offset, int size)
-    : offset(offset), size(size) {
+    : offset(offset)
+    , size(size)
+{
     this->setFocusable(true);
     this->setWidth(PANEL_WIDTH);
     this->setHeight(PANEL_HEIGHT);
 }
 
-void FrontTouchPreviewCanvas::setOffset(int o) {
+void FrontTouchPreviewCanvas::setOffset(int o)
+{
     offset = o;
 }
 
-void FrontTouchPreviewCanvas::setSize(int s) {
+void FrontTouchPreviewCanvas::setSize(int s)
+{
     size = s;
 }
 
-void FrontTouchPreviewCanvas::drawZone(NVGcontext* vg, float x, float y, float w, float h, const char* label, bool active) {
+void FrontTouchPreviewCanvas::drawZone(NVGcontext* vg, float x, float y, float w, float h, const char* label, bool active)
+{
     // Zone fill
     nvgBeginPath(vg);
     nvgRect(vg, x, y, w, h);
-    if (active) {
+    if (active)
+    {
         nvgFillColor(vg, nvgRGBA(0, 200, 100, 180));
-    } else {
+    }
+    else
+    {
         nvgFillColor(vg, nvgRGBA(100, 100, 100, 120));
     }
     nvgFill(vg);
@@ -55,7 +66,8 @@ void FrontTouchPreviewCanvas::drawZone(NVGcontext* vg, float x, float y, float w
     nvgText(vg, x + w * 0.5f, y + h * 0.5f, label, nullptr);
 }
 
-void FrontTouchPreviewCanvas::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void FrontTouchPreviewCanvas::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     nvgSave(vg);
 
     // Dark background
@@ -84,19 +96,24 @@ void FrontTouchPreviewCanvas::draw(NVGcontext* vg, float x, float y, float width
     sceTouchPeek(SCE_TOUCH_PORT_FRONT, &frontData, 1);
 
     // Check which zones are active
-    bool zoneActive[4] = {false, false, false, false};
-    for (int i = 0; i < frontData.reportNum; ++i) {
+    bool zoneActive[4] = { false, false, false, false };
+    for (int i = 0; i < frontData.reportNum; ++i)
+    {
         float tx = clamp01(static_cast<float>(frontData.report[i].x) / MAX_TOUCH_X) * PANEL_WIDTH;
         float ty = clamp01(static_cast<float>(frontData.report[i].y) / MAX_TOUCH_Y) * PANEL_HEIGHT;
 
         // NW
-        if (tx >= offset && tx <= offset + size && ty >= offset && ty <= offset + size) zoneActive[0] = true;
+        if (tx >= offset && tx <= offset + size && ty >= offset && ty <= offset + size)
+            zoneActive[0] = true;
         // NE
-        if (tx >= PANEL_WIDTH - offset - size && tx <= PANEL_WIDTH - offset && ty >= offset && ty <= offset + size) zoneActive[1] = true;
+        if (tx >= PANEL_WIDTH - offset - size && tx <= PANEL_WIDTH - offset && ty >= offset && ty <= offset + size)
+            zoneActive[1] = true;
         // SW
-        if (tx >= offset && tx <= offset + size && ty >= PANEL_HEIGHT - offset - size && ty <= PANEL_HEIGHT - offset) zoneActive[2] = true;
+        if (tx >= offset && tx <= offset + size && ty >= PANEL_HEIGHT - offset - size && ty <= PANEL_HEIGHT - offset)
+            zoneActive[2] = true;
         // SE
-        if (tx >= PANEL_WIDTH - offset - size && tx <= PANEL_WIDTH - offset && ty >= PANEL_HEIGHT - offset - size && ty <= PANEL_HEIGHT - offset) zoneActive[3] = true;
+        if (tx >= PANEL_WIDTH - offset - size && tx <= PANEL_WIDTH - offset && ty >= PANEL_HEIGHT - offset - size && ty <= PANEL_HEIGHT - offset)
+            zoneActive[3] = true;
 
         // Draw touch point (scaled)
         nvgBeginPath(vg);
@@ -126,31 +143,36 @@ void FrontTouchPreviewCanvas::draw(NVGcontext* vg, float x, float y, float width
     nvgRestore(vg);
 }
 
-FrontTouchPreviewOverlay::FrontTouchPreviewOverlay(int offset, int size) {
+FrontTouchPreviewOverlay::FrontTouchPreviewOverlay(int offset, int size)
+{
     canvas = new FrontTouchPreviewCanvas(offset, size);
     this->setContentView(canvas);
     this->setTitle("Front Touch Preview");
 
 #if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
     SceTouchSamplingState currentState = SCE_TOUCH_SAMPLING_STATE_STOP;
-    if (sceTouchGetSamplingState(SCE_TOUCH_PORT_FRONT, &currentState) == 0) {
+    if (sceTouchGetSamplingState(SCE_TOUCH_PORT_FRONT, &currentState) == 0)
+    {
         previousFrontSamplingState = currentState;
-        restoreSamplingState = true;
+        restoreSamplingState       = true;
     }
-    if (currentState != SCE_TOUCH_SAMPLING_STATE_START) {
+    if (currentState != SCE_TOUCH_SAMPLING_STATE_START)
+    {
         sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
     }
 #endif
 
-    this->registerAction(brls::getStr("hints/back"), brls::BUTTON_B, [this](brls::View*) {
+    this->registerAction(brls::getStr("hints/back"), brls::BUTTON_B, [this](brls::View*)
+        {
         brls::Application::popActivity();
-        return true;
-    });
+        return true; });
 }
 
-FrontTouchPreviewOverlay::~FrontTouchPreviewOverlay() {
+FrontTouchPreviewOverlay::~FrontTouchPreviewOverlay()
+{
 #if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
-    if (restoreSamplingState) {
+    if (restoreSamplingState)
+    {
         sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, previousFrontSamplingState);
     }
 #endif

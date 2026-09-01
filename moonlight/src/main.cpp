@@ -19,14 +19,14 @@
 #include <SDL2/SDL_main.h>
 #endif
 
+#include <atomic>
 #include <borealis.hpp>
 #include <cstdlib>
-#include <atomic>
+#include <fstream>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
-#include <iostream>
-#include <fstream>
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif
@@ -34,27 +34,24 @@
 #include <windows.h>
 #endif
 
+#include "ConfigManager.hpp"
 #include "activity/main_activity.hpp"
+#include "session/vita_session.hpp"
 #include "settings.hpp"
 #include "tab/add_host_tab.hpp"
-#include "tab/settings_tab.hpp"
 #include "tab/hosts_tab.hpp"
-#include "ConfigManager.hpp"
-#include "session/vita_session.hpp"
+#include "tab/settings_tab.hpp"
 #include "utils/dialog_utils.h"
-
 #include "utils/host_search.hpp"
 // Include debug wrapper for console/Vita output testing
 #include "debug.hpp"
 // For connectivity tests/certificates
-//#include "check_test.hpp"
-
-
+// #include "check_test.hpp"
 
 #if defined(__PSV__)
 #include <psp2/kernel/threadmgr.h>
-#include <psp2/vshbridge.h>
 #include <psp2/shellutil.h>
+#include <psp2/vshbridge.h>
 #endif
 
 #if defined(__PSV__) && defined(BOREALIS_USE_OPENGL)
@@ -64,29 +61,35 @@ extern "C" unsigned int sceLibcHeapSize = 2 * 1024 * 1024;
 
 using namespace brls::literals; // for _i18n
 
-namespace {
+namespace
+{
 
 #if defined(__PSV__)
-std::atomic<bool> appBackgrounded{false};
-std::atomic<bool> resumeReconnectPending{false};
+std::atomic<bool> appBackgrounded { false };
+std::atomic<bool> resumeReconnectPending { false };
 
-struct ResumeReconnectState {
+struct ResumeReconnectState
+{
     brls::Dialog* dialog = nullptr;
     int retriesRemaining = 1;
 };
 
 void finishResumeReconnect(const std::shared_ptr<ResumeReconnectState>& state, bool reconnected)
 {
-    if (state->dialog) {
+    if (state->dialog)
+    {
         state->dialog->close();
         state->dialog = nullptr;
     }
     brls::Application::unblockInputs();
     resumeReconnectPending.store(false);
 
-    if (reconnected) {
+    if (reconnected)
+    {
         vita_log::info("[Main] Stream reconectado tras reanudar la aplicación");
-    } else {
+    }
+    else
+    {
         vita_log::error("[Main] No se pudo reconectar el stream tras reanudar la aplicación");
         brls::Application::notify(brls::getStr("moonlight/session/app_select/reconnect_failed"));
     }
@@ -95,20 +98,22 @@ void finishResumeReconnect(const std::shared_ptr<ResumeReconnectState>& state, b
 void reconnectStreamAfterResume(const std::shared_ptr<ResumeReconnectState>& state)
 {
     VitaSession* session = VitaSession::active();
-    if (!session) {
-        brls::sync([state]() {
+    if (!session)
+    {
+        brls::sync([state]()
+            {
             if (state->dialog) {
                 state->dialog->close();
                 state->dialog = nullptr;
             }
             brls::Application::unblockInputs();
-            resumeReconnectPending.store(false);
-        });
+            resumeReconnectPending.store(false); });
         return;
     }
 
     bool reconnected = session->reconnectAfterResume();
-    brls::sync([state, reconnected]() {
+    brls::sync([state, reconnected]()
+        {
         if (reconnected) {
             finishResumeReconnect(state, true);
         } else if (state->retriesRemaining > 0) {
@@ -121,13 +126,13 @@ void reconnectStreamAfterResume(const std::shared_ptr<ResumeReconnectState>& sta
             });
         } else {
             finishResumeReconnect(state, false);
-        }
-    });
+        } });
 }
 
 void beginResumeReconnect()
 {
-    if (!VitaSession::active()) {
+    if (!VitaSession::active())
+    {
         resumeReconnectPending.store(false);
         return;
     }
@@ -136,32 +141,31 @@ void beginResumeReconnect()
     brls::Application::blockInputs();
     state->dialog = createLoadingDialog(brls::getStr("moonlight/session/app_select/reconnecting"));
 
-    brls::delay(150, [state]() {
-        std::thread([state]() {
-            reconnectStreamAfterResume(state);
-        }).detach();
-    });
+    brls::delay(150, [state]()
+        { std::thread([state]()
+              { reconnectStreamAfterResume(state); })
+              .detach(); });
 }
 
 void handleWindowFocusChanged(bool focused)
 {
-    if (!focused) {
+    if (!focused)
+    {
         appBackgrounded.store(true);
         vita_log::info("[Main] Aplicación suspendida o enviada a segundo plano");
         return;
     }
 
-    if (!appBackgrounded.exchange(false) || resumeReconnectPending.exchange(true)) {
+    if (!appBackgrounded.exchange(false) || resumeReconnectPending.exchange(true))
+    {
         return;
     }
 
     vita_log::info("[Main] Aplicación reanudada; programando reconexión del stream");
     // Power callbacks run on Borealis' Vita callback thread.
-    brls::sync([]() {
-        brls::delay(750, []() {
-            beginResumeReconnect();
-        });
-    });
+    brls::sync([]()
+        { brls::delay(750, []()
+              { beginResumeReconnect(); }); });
 }
 #endif
 
@@ -171,8 +175,9 @@ int main(int argc, char* argv[])
 {
     // Create configuration directory if it does not exist
     std::string configPath = ConfigManager::getConfigPath();
-    size_t pos = configPath.find_last_of("/\\");
-    if (pos != std::string::npos) {
+    size_t pos             = configPath.find_last_of("/\\");
+    if (pos != std::string::npos)
+    {
         std::string configDir = configPath.substr(0, pos);
 #ifdef _WIN32
         CreateDirectoryA(configDir.c_str(), NULL);
@@ -184,8 +189,9 @@ int main(int argc, char* argv[])
     // Create key directory if it does not exist
     ConfigManager tempConfig;
     std::string keysDir = tempConfig.getKeysDir();
-    pos = keysDir.find_last_of("/\\");
-    if (pos != std::string::npos) {
+    pos                 = keysDir.find_last_of("/\\");
+    if (pos != std::string::npos)
+    {
         std::string keysParentDir = keysDir.substr(0, pos);
 #ifdef _WIN32
         CreateDirectoryA(keysParentDir.c_str(), NULL);
@@ -194,42 +200,47 @@ int main(int argc, char* argv[])
 #endif
     }
 
-        // Create keyboard folder in data/moonlight and copy default CSS if it doesn't exist
-        {
-        std::string cfgPath = ConfigManager::getConfigPath();
-        size_t p = cfgPath.find_last_of("/\\");
-        std::string cfgDir = (p != std::string::npos) ? cfgPath.substr(0, p) : ".";
+    // Create keyboard folder in data/moonlight and copy default CSS if it doesn't exist
+    {
+        std::string cfgPath     = ConfigManager::getConfigPath();
+        size_t p                = cfgPath.find_last_of("/\\");
+        std::string cfgDir      = (p != std::string::npos) ? cfgPath.substr(0, p) : ".";
         std::string keyboardDir = cfgDir + "/keyboard";
-    #ifdef _WIN32
+#ifdef _WIN32
         CreateDirectoryA(keyboardDir.c_str(), NULL);
-    #else
+#else
         mkdir(keyboardDir.c_str(), 0755);
-    #endif
+#endif
         std::string destCss = keyboardDir + "/style.css";
-        struct stat st{};
-        if (stat(destCss.c_str(), &st) != 0) {
+        struct stat st {};
+        if (stat(destCss.c_str(), &st) != 0)
+        {
             // CSS does not exist in data, copy from resources
             std::string srcCss = "resources/keyboard/style.css";
             std::ifstream src(srcCss, std::ios::binary);
-            if (src.is_open()) {
-            std::ofstream dst(destCss, std::ios::binary);
-            if (dst.is_open()) {
-                dst << src.rdbuf();
-    #if defined(__PSV__)
-                brls::Logger::info("[main] Copiado CSS teclado por defecto a {}", destCss);
-    #else
-                std::cout << "[main] Copiado CSS teclado por defecto a " << destCss << std::endl;
-    #endif
+            if (src.is_open())
+            {
+                std::ofstream dst(destCss, std::ios::binary);
+                if (dst.is_open())
+                {
+                    dst << src.rdbuf();
+#if defined(__PSV__)
+                    brls::Logger::info("[main] Copiado CSS teclado por defecto a {}", destCss);
+#else
+                    std::cout << "[main] Copiado CSS teclado por defecto a " << destCss << std::endl;
+#endif
+                }
             }
-            } else {
-    #if defined(__PSV__)
-            brls::Logger::info("[main] No se encontró resources/keyboard/style.css para copiar");
-    #else
-            std::cout << "[main] No se encontró resources/keyboard/style.css para copiar" << std::endl;
-    #endif
+            else
+            {
+#if defined(__PSV__)
+                brls::Logger::info("[main] No se encontró resources/keyboard/style.css para copiar");
+#else
+                std::cout << "[main] No se encontró resources/keyboard/style.css para copiar" << std::endl;
+#endif
             }
         }
-        }
+    }
 
     // Read language from config and force environment variable before initializing the app
     std::string lang = moonlight::settings::getLanguageFromConfig();
@@ -238,23 +249,29 @@ int main(int argc, char* argv[])
 #else
     std::cout << "[DEBUG] Idioma forzado desde config: " << lang << std::endl;
 #endif
-    if (!lang.empty()) {
+    if (!lang.empty())
+    {
         moonlight::settings::applyLanguageEnv(lang);
         brls::Platform::APP_LOCALE_DEFAULT = lang;
     }
 
     // We recommend to use INFO for real apps
-    for (int i = 1; i < argc; i++) {
-        if (std::strcmp(argv[i], "-d") == 0) { // Set log level (compat)
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::strcmp(argv[i], "-d") == 0)
+        { // Set log level (compat)
             vita_debug_log("[main] -d recibido: usando salida via vita_debug_log");
-        } else if (std::strcmp(argv[i], "-o") == 0) {
+        }
+        else if (std::strcmp(argv[i], "-o") == 0)
+        {
             const char* path = (i + 1 < argc) ? argv[++i] : "borealis.log";
             vita_debug_log("[main] -o ignorado (ruta solicitada: %s), salida controlada por save_debug_log", path);
-        } else if (std::strcmp(argv[i], "-v") == 0) {
+        }
+        else if (std::strcmp(argv[i], "-v") == 0)
+        {
             brls::Application::enableDebuggingView(true);
         }
     }
-
 
     // Init shell util events (for PS button capture)
 #if defined(__PSV__)
@@ -270,13 +287,15 @@ int main(int argc, char* argv[])
     }
 
     // Change locale on platform after init
-    if (!lang.empty()) {
+    if (!lang.empty())
+    {
         // For PS Vita we don't need to change the locale dynamically
         // The locale was already set before init()
     }
 
     // Load translations after applying language from config
-    if (!lang.empty()) {
+    if (!lang.empty())
+    {
         brls::loadTranslations();
 #if defined(__PSV__)
         brls::Logger::info("[DEBUG] Traducciones cargadas para idioma: {}", lang);
@@ -301,7 +320,7 @@ int main(int argc, char* argv[])
         extern bool g_debug_log_enabled; // declared in vita_globals.hpp
         ConfigManager cfg;
         cfg.load();
-        VideoSettings vs = cfg.getVideoSettings();
+        VideoSettings vs    = cfg.getVideoSettings();
         g_debug_log_enabled = vs.save_debug_log;
         // If enabled, open/truncate session log
         enable_file_logging(vs.save_debug_log);

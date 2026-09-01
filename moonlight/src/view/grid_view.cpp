@@ -1,58 +1,70 @@
-#include "debug.hpp"
 #include "view/grid_view.hpp"
-#include <borealis/views/label.hpp>
-#include <borealis/views/image.hpp>
-#include <borealis/views/button.hpp>
-#include "view/pccard.hpp"  // Add include for PCCard
 
-GridView::GridView() {
+#include <borealis/views/button.hpp>
+#include <borealis/views/image.hpp>
+#include <borealis/views/label.hpp>
+
+#include "debug.hpp"
+#include "view/pccard.hpp" // Add include for PCCard
+
+GridView::GridView()
+{
     vita_log::info("[GridView] Constructor llamado");
-    this->setAxis(brls::Axis::COLUMN);  // Switch to column for rows
-    this->columns = 4;  // 4 columns by default for PS Vita
+    this->setAxis(brls::Axis::COLUMN); // Switch to column for rows
+    this->columns = 4; // 4 columns by default for PS Vita
     this->itemNames.clear();
     this->itemIcons.clear();
     this->onItemSelect = nullptr;
 }
 
-void GridView::setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons) {
+void GridView::setItems(const std::vector<std::string>& names, const std::vector<std::string>& icons)
+{
     vita_log::info("[GridView] setItems llamado, names.size()=%u", (unsigned)names.size());
     this->itemNames = names;
     this->itemIcons = icons;
     reload();
 }
 
-void GridView::setOnItemSelect(ItemSelectCallback cb) {
+void GridView::setOnItemSelect(ItemSelectCallback cb)
+{
     this->onItemSelect = cb;
 }
 
-void GridView::setItemIcon(int index, const std::string& iconPath) {
-    if (index >= 0 && index < (int)itemViews.size()) {
+void GridView::setItemIcon(int index, const std::string& iconPath)
+{
+    if (index >= 0 && index < (int)itemViews.size())
+    {
         PCCard* card = dynamic_cast<PCCard*>(itemViews[index]);
-        if (card) {
+        if (card)
+        {
             card->setPCImage(iconPath);
         }
     }
 }
 
-void GridView::reload() {
+void GridView::reload()
+{
     vita_log::info("[GridView] reload llamado, itemNames.size()=%u", (unsigned)itemNames.size());
 
     // Clean existing views
     this->clearViews();
     itemViews.clear();
 
-    if (itemNames.empty()) {
+    if (itemNames.empty())
+    {
         vita_log::info("[GridView] reload: lista vacía, no se añaden elementos");
         return;
     }
 
     // Create row containers based on number of columns
-    size_t currentRow = 0;
+    size_t currentRow        = 0;
     brls::Box* currentRowBox = nullptr;
 
-    for (size_t i = 0; i < itemNames.size(); ++i) {
+    for (size_t i = 0; i < itemNames.size(); ++i)
+    {
         // Create new row if necessary
-        if (i % columns == 0) {
+        if (i % columns == 0)
+        {
             currentRowBox = new brls::Box(brls::Axis::ROW);
             currentRowBox->setAlignItems(brls::AlignItems::STRETCH);
             this->addView(currentRowBox);
@@ -63,31 +75,33 @@ void GridView::reload() {
         auto* card = new PCCard(itemNames[i], itemIcons.empty() ? "img/moonlight/pc.png" : itemIcons[i]);
 
         // Set click action
-        card->setClickAction([this, i]() {
+        card->setClickAction([this, i]()
+            {
             vita_log::info("[GridView] Elemento seleccionado idx=%d", i);
-            if (onItemSelect) onItemSelect(i);
-        });
+            if (onItemSelect) onItemSelect(i); });
 
         // Make focusable and configure navigation
         card->setFocusable(true);
 
         // Add margins for separation
-        if (i % columns != 0) {
-            card->setMarginLeft(12);  // Horizontal separation between elements
+        if (i % columns != 0)
+        {
+            card->setMarginLeft(12); // Horizontal separation between elements
         }
 
         // Add to current row
         currentRowBox->addView(card);
         itemViews.push_back(card);
 
-    vita_log::info("[GridView] Elemento añadido: '%s' en fila %d, columna %d",
-              itemNames[i].c_str(), currentRow, (i % columns) + 1);
+        vita_log::info("[GridView] Elemento añadido: '%s' en fila %d, columna %d",
+            itemNames[i].c_str(), currentRow, (i % columns) + 1);
     }
 
     vita_log::info("[GridView] reload finalizado, %d filas creadas", currentRow);
 }
 
-brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* currentView) {
+brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* currentView)
+{
     if (!currentView || itemViews.empty())
         return nullptr;
 
@@ -97,43 +111,52 @@ brls::View* GridView::getNextFocus(brls::FocusDirection direction, brls::View* c
         return nullptr;
 
     size_t currentIndex = std::distance(itemViews.begin(), it);
-    size_t totalItems = itemViews.size();
-    int currentRow = currentIndex / columns;
-    int currentCol = currentIndex % columns;
-    int totalRows = (totalItems + columns - 1) / columns;
+    size_t totalItems   = itemViews.size();
+    int currentRow      = currentIndex / columns;
+    int currentCol      = currentIndex % columns;
+    int totalRows       = (totalItems + columns - 1) / columns;
 
     brls::View* nextView = nullptr;
 
-    switch (direction) {
+    switch (direction)
+    {
         case brls::FocusDirection::RIGHT:
-            if (currentCol < columns - 1 && currentIndex + 1 < totalItems) {
+            if (currentCol < columns - 1 && currentIndex + 1 < totalItems)
+            {
                 nextView = itemViews[currentIndex + 1];
             }
             break;
 
         case brls::FocusDirection::LEFT:
-            if (currentCol > 0) {
+            if (currentCol > 0)
+            {
                 nextView = itemViews[currentIndex - 1];
             }
             break;
 
         case brls::FocusDirection::DOWN:
-            if (currentRow < totalRows - 1) {
+            if (currentRow < totalRows - 1)
+            {
                 int nextRowIndex = (currentRow + 1) * columns + currentCol;
-                if (nextRowIndex < (int)totalItems) {
+                if (nextRowIndex < (int)totalItems)
+                {
                     nextView = itemViews[nextRowIndex];
-                } else {
+                }
+                else
+                {
                     // If there is no element in this column, go to the last in the row
                     int lastInRow = std::min((int)totalItems - 1, (currentRow + 1) * columns + columns - 1);
-                    nextView = itemViews[lastInRow];
+                    nextView      = itemViews[lastInRow];
                 }
             }
             break;
 
         case brls::FocusDirection::UP:
-            if (currentRow > 0) {
+            if (currentRow > 0)
+            {
                 int prevRowIndex = (currentRow - 1) * columns + currentCol;
-                if (prevRowIndex < (int)totalItems) {
+                if (prevRowIndex < (int)totalItems)
+                {
                     nextView = itemViews[prevRowIndex];
                 }
             }

@@ -1,145 +1,198 @@
 #include "view/rear_touch_calibration_overlay.hpp"
+
 #include "controller/special_inputs.hpp"
 // For vita_debug_log
-#include "debug.hpp"
+#include <fmt/format.h>
+#include <psp2/touch.h>
+#include <string.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <psp2/touch.h>
-#include <string.h>
 #include <string>
 #include <utility>
 
-#include <fmt/format.h>
+#include "debug.hpp"
 
-namespace {
-constexpr float PANEL_WIDTH = 960.0f;
+namespace
+{
+constexpr float PANEL_WIDTH  = 960.0f;
 constexpr float PANEL_HEIGHT = 544.0f;
-constexpr float MAX_TOUCH_X = 1919.0f;
-constexpr float MAX_TOUCH_Y = 1087.0f;
+constexpr float MAX_TOUCH_X  = 1919.0f;
+constexpr float MAX_TOUCH_Y  = 1087.0f;
 
-std::string getEdgeLabel(int index) {
-    switch (index) {
-        case 0: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/0");
-        case 1: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/1");
-        case 2: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/2");
-        case 3: return brls::getStr("moonlight/rear_touch/calibration/edge_labels/3");
-        default: return "";
+std::string getEdgeLabel(int index)
+{
+    switch (index)
+    {
+        case 0:
+            return brls::getStr("moonlight/rear_touch/calibration/edge_labels/0");
+        case 1:
+            return brls::getStr("moonlight/rear_touch/calibration/edge_labels/1");
+        case 2:
+            return brls::getStr("moonlight/rear_touch/calibration/edge_labels/2");
+        case 3:
+            return brls::getStr("moonlight/rear_touch/calibration/edge_labels/3");
+        default:
+            return "";
     }
 }
 
-inline float clamp01(float value) {
+inline float clamp01(float value)
+{
     return std::max(0.0f, std::min(1.0f, value));
 }
 }
 
-RearTouchCalibrationCanvas::RearTouchCalibrationCanvas(const RearTouchSettings& initialSettings) {
+RearTouchCalibrationCanvas::RearTouchCalibrationCanvas(const RearTouchSettings& initialSettings)
+{
     this->setFocusable(true);
-    current = initialSettings;
+    current  = initialSettings;
     defaults = RearTouchSettings();
     clampBounds();
 }
 
-void RearTouchCalibrationCanvas::clampBounds() {
-    current.top = std::max(0, current.top);
+void RearTouchCalibrationCanvas::clampBounds()
+{
+    current.top    = std::max(0, current.top);
     current.bottom = std::max(0, current.bottom);
-    current.left = std::max(0, current.left);
-    current.right = std::max(0, current.right);
+    current.left   = std::max(0, current.left);
+    current.right  = std::max(0, current.right);
 
-    int maxTop = static_cast<int>(PANEL_HEIGHT) - current.bottom - MIN_ACTIVE_HEIGHT;
+    int maxTop    = static_cast<int>(PANEL_HEIGHT) - current.bottom - MIN_ACTIVE_HEIGHT;
     int maxBottom = static_cast<int>(PANEL_HEIGHT) - current.top - MIN_ACTIVE_HEIGHT;
-    int maxLeft = static_cast<int>(PANEL_WIDTH) - current.right - MIN_ACTIVE_WIDTH;
-    int maxRight = static_cast<int>(PANEL_WIDTH) - current.left - MIN_ACTIVE_WIDTH;
+    int maxLeft   = static_cast<int>(PANEL_WIDTH) - current.right - MIN_ACTIVE_WIDTH;
+    int maxRight  = static_cast<int>(PANEL_WIDTH) - current.left - MIN_ACTIVE_WIDTH;
 
-    maxTop = std::max(0, maxTop);
+    maxTop    = std::max(0, maxTop);
     maxBottom = std::max(0, maxBottom);
-    maxLeft = std::max(0, maxLeft);
-    maxRight = std::max(0, maxRight);
+    maxLeft   = std::max(0, maxLeft);
+    maxRight  = std::max(0, maxRight);
 
-    current.top = std::min(current.top, maxTop);
+    current.top    = std::min(current.top, maxTop);
     current.bottom = std::min(current.bottom, maxBottom);
-    current.left = std::min(current.left, maxLeft);
-    current.right = std::min(current.right, maxRight);
+    current.left   = std::min(current.left, maxLeft);
+    current.right  = std::min(current.right, maxRight);
 }
 
-void RearTouchCalibrationCanvas::adjustEdge(int edgeIndex, int delta) {
-    switch (edgeIndex) {
-        case 0: current.top += delta; break;
-        case 1: current.right += delta; break;
-        case 2: current.bottom += delta; break;
-        case 3: current.left += delta; break;
-        default: break;
+void RearTouchCalibrationCanvas::adjustEdge(int edgeIndex, int delta)
+{
+    switch (edgeIndex)
+    {
+        case 0:
+            current.top += delta;
+            break;
+        case 1:
+            current.right += delta;
+            break;
+        case 2:
+            current.bottom += delta;
+            break;
+        case 3:
+            current.left += delta;
+            break;
+        default:
+            break;
     }
     clampBounds();
     this->invalidate();
 }
 
-void RearTouchCalibrationCanvas::nextEdge() {
+void RearTouchCalibrationCanvas::nextEdge()
+{
     selectedEdge = (selectedEdge + 1) % 4;
     this->invalidate();
 }
 
-void RearTouchCalibrationCanvas::previousEdge() {
+void RearTouchCalibrationCanvas::previousEdge()
+{
     selectedEdge = (selectedEdge + 3) % 4;
     this->invalidate();
 }
 
-void RearTouchCalibrationCanvas::adjustSelected(int delta) {
+void RearTouchCalibrationCanvas::adjustSelected(int delta)
+{
     adjustEdge(selectedEdge, delta);
 }
 
-void RearTouchCalibrationCanvas::toggleEnabled() {
+void RearTouchCalibrationCanvas::toggleEnabled()
+{
     current.enabled = !current.enabled;
     this->invalidate();
 }
 
-void RearTouchCalibrationCanvas::resetToDefaults() {
+void RearTouchCalibrationCanvas::resetToDefaults()
+{
     current = defaults;
     clampBounds();
     this->invalidate();
 }
 
-std::string RearTouchCalibrationCanvas::currentEdgeLabel() const {
+std::string RearTouchCalibrationCanvas::currentEdgeLabel() const
+{
     return getEdgeLabel(selectedEdge);
 }
 
-std::uint32_t RearTouchCalibrationCanvas::getEdgeAssignment(int edgeIndex) const {
-    switch (edgeIndex) {
-        case 0: return current.actionNorthWest;
-        case 1: return current.actionNorthEast;
-        case 2: return current.actionSouthWest;
-        case 3: return current.actionSouthEast;
-        default: return 0;
+std::uint32_t RearTouchCalibrationCanvas::getEdgeAssignment(int edgeIndex) const
+{
+    switch (edgeIndex)
+    {
+        case 0:
+            return current.actionNorthWest;
+        case 1:
+            return current.actionNorthEast;
+        case 2:
+            return current.actionSouthWest;
+        case 3:
+            return current.actionSouthEast;
+        default:
+            return 0;
     }
 }
 
-void RearTouchCalibrationCanvas::setEdgeAssignment(int edgeIndex, std::uint32_t code) {
-    switch (edgeIndex) {
-        case 0: current.actionNorthWest = code; break;
-        case 1: current.actionNorthEast = code; break;
-        case 2: current.actionSouthWest = code; break;
-        case 3: current.actionSouthEast = code; break;
-        default: break;
+void RearTouchCalibrationCanvas::setEdgeAssignment(int edgeIndex, std::uint32_t code)
+{
+    switch (edgeIndex)
+    {
+        case 0:
+            current.actionNorthWest = code;
+            break;
+        case 1:
+            current.actionNorthEast = code;
+            break;
+        case 2:
+            current.actionSouthWest = code;
+            break;
+        case 3:
+            current.actionSouthEast = code;
+            break;
+        default:
+            break;
     }
 }
 
-void RearTouchCalibrationCanvas::cycleAssignment(int direction) {
-    if (direction == 0) {
+void RearTouchCalibrationCanvas::cycleAssignment(int direction)
+{
+    if (direction == 0)
+    {
         return;
     }
     const auto& options = controller::getSelectableSpecialInputOptions();
-    if (options.empty()) {
+    if (options.empty())
+    {
         return;
     }
 
     const std::uint32_t currentCode = getEdgeAssignment(selectedEdge);
-    std::size_t index = controller::getSelectableIndexForCode(currentCode);
-    const std::size_t size = options.size();
+    std::size_t index               = controller::getSelectableIndexForCode(currentCode);
+    const std::size_t size          = options.size();
 
-    if (direction > 0) {
+    if (direction > 0)
+    {
         index = (index + 1) % size;
-    } else {
+    }
+    else
+    {
         index = (index + size - 1) % size;
     }
 
@@ -147,14 +200,16 @@ void RearTouchCalibrationCanvas::cycleAssignment(int direction) {
     this->invalidate();
 }
 
-std::string RearTouchCalibrationCanvas::currentAssignmentLabel() const {
+std::string RearTouchCalibrationCanvas::currentAssignmentLabel() const
+{
     return controller::getDisplayNameForCode(getEdgeAssignment(selectedEdge));
 }
 
-void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float panelY, float width, float height, const SceTouchData& sample) {
-    const float activeLeft = panelX + (static_cast<float>(current.left) / PANEL_WIDTH) * width;
-    const float activeRight = panelX + width - (static_cast<float>(current.right) / PANEL_WIDTH) * width;
-    const float activeTop = panelY + (static_cast<float>(current.top) / PANEL_HEIGHT) * height;
+void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float panelY, float width, float height, const SceTouchData& sample)
+{
+    const float activeLeft   = panelX + (static_cast<float>(current.left) / PANEL_WIDTH) * width;
+    const float activeRight  = panelX + width - (static_cast<float>(current.right) / PANEL_WIDTH) * width;
+    const float activeTop    = panelY + (static_cast<float>(current.top) / PANEL_HEIGHT) * height;
     const float activeBottom = panelY + height - (static_cast<float>(current.bottom) / PANEL_HEIGHT) * height;
 
     // Panel exterior
@@ -183,7 +238,8 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     nvgBeginPath(vg);
     nvgStrokeWidth(vg, 4.0f);
     NVGcolor highlight = nvgRGBA(255, 215, 0, current.enabled ? 220 : 120);
-    switch (selectedEdge) {
+    switch (selectedEdge)
+    {
         case 0: // top
             nvgMoveTo(vg, activeLeft, activeTop);
             nvgLineTo(vg, activeRight, activeTop);
@@ -205,18 +261,20 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     nvgStroke(vg);
 
     // Draw touches
-    for (int i = 0; i < sample.reportNum; ++i) {
+    for (int i = 0; i < sample.reportNum; ++i)
+    {
         const float normX = clamp01(static_cast<float>(sample.report[i].x) / MAX_TOUCH_X);
         const float normY = clamp01(static_cast<float>(sample.report[i].y) / MAX_TOUCH_Y);
-        float touchX = panelX + normX * width;
-        float touchY = panelY + normY * height;
+        float touchX      = panelX + normX * width;
+        float touchY      = panelY + normY * height;
         nvgBeginPath(vg);
         nvgCircle(vg, touchX, touchY, 12.0f);
         nvgFillColor(vg, nvgRGBA(255, 180, 40, 200));
         nvgFill(vg);
     }
 
-    if (!current.enabled) {
+    if (!current.enabled)
+    {
         nvgBeginPath(vg);
         nvgRoundedRect(vg, panelX, panelY, width, height, 12.0f);
         nvgFillColor(vg, nvgRGBA(0, 0, 0, 120));
@@ -224,7 +282,8 @@ void RearTouchCalibrationCanvas::drawPanel(NVGcontext* vg, float panelX, float p
     }
 }
 
-void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     nvgSave(vg);
 
     nvgBeginPath(vg);
@@ -233,11 +292,12 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
     nvgFill(vg);
 
     const float topMargin = 40.0f;
-    float panelWidth = width * 0.7f;
-    float panelHeight = panelWidth * (PANEL_HEIGHT / PANEL_WIDTH);
-    if (panelHeight > height * 0.6f) {
+    float panelWidth      = width * 0.7f;
+    float panelHeight     = panelWidth * (PANEL_HEIGHT / PANEL_WIDTH);
+    if (panelHeight > height * 0.6f)
+    {
         panelHeight = height * 0.6f;
-        panelWidth = panelHeight * (PANEL_WIDTH / PANEL_HEIGHT);
+        panelWidth  = panelHeight * (PANEL_WIDTH / PANEL_HEIGHT);
     }
     const float panelX = x + (width - panelWidth) * 0.5f;
     const float panelY = y + topMargin;
@@ -262,26 +322,21 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
 
     // Build the margin line manually to avoid formatting issues
     std::string marginsLabel = brls::getStr("moonlight/rear_touch/calibration/margins");
-    std::string topLabel = brls::getStr("moonlight/rear_touch/detail_top");
-    std::string rightLabel = brls::getStr("moonlight/rear_touch/detail_right");
-    std::string bottomLabel = brls::getStr("moonlight/rear_touch/detail_bottom");
-    std::string leftLabel = brls::getStr("moonlight/rear_touch/detail_left");
-    std::string values = marginsLabel + " - " + topLabel + ": " + std::to_string(current.top) +
-                         " | " + rightLabel + ": " + std::to_string(current.right) +
-                         " | " + bottomLabel + ": " + std::to_string(current.bottom) +
-                         " | " + leftLabel + ": " + std::to_string(current.left);
+    std::string topLabel     = brls::getStr("moonlight/rear_touch/detail_top");
+    std::string rightLabel   = brls::getStr("moonlight/rear_touch/detail_right");
+    std::string bottomLabel  = brls::getStr("moonlight/rear_touch/detail_bottom");
+    std::string leftLabel    = brls::getStr("moonlight/rear_touch/detail_left");
+    std::string values       = marginsLabel + " - " + topLabel + ": " + std::to_string(current.top) + " | " + rightLabel + ": " + std::to_string(current.right) + " | " + bottomLabel + ": " + std::to_string(current.bottom) + " | " + leftLabel + ": " + std::to_string(current.left);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 80.0f, values.c_str(), nullptr);
 
     // Build assignments manually
-    std::string assignPrefix = brls::getStr("moonlight/rear_touch/calibration/assignments_prefix");
-    std::string nwLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/nw");
-    std::string neLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/ne");
-    std::string swLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/sw");
-    std::string seLabel = brls::getStr("moonlight/rear_touch/calibration/zone_labels/se");
-    std::string mappingTop = assignPrefix + " - " + nwLabel + ": " + controller::getDisplayNameForCode(current.actionNorthWest) +
-                             " | " + neLabel + ": " + controller::getDisplayNameForCode(current.actionNorthEast);
-    std::string mappingBottom = swLabel + ": " + controller::getDisplayNameForCode(current.actionSouthWest) +
-                                " | " + seLabel + ": " + controller::getDisplayNameForCode(current.actionSouthEast);
+    std::string assignPrefix  = brls::getStr("moonlight/rear_touch/calibration/assignments_prefix");
+    std::string nwLabel       = brls::getStr("moonlight/rear_touch/calibration/zone_labels/nw");
+    std::string neLabel       = brls::getStr("moonlight/rear_touch/calibration/zone_labels/ne");
+    std::string swLabel       = brls::getStr("moonlight/rear_touch/calibration/zone_labels/sw");
+    std::string seLabel       = brls::getStr("moonlight/rear_touch/calibration/zone_labels/se");
+    std::string mappingTop    = assignPrefix + " - " + nwLabel + ": " + controller::getDisplayNameForCode(current.actionNorthWest) + " | " + neLabel + ": " + controller::getDisplayNameForCode(current.actionNorthEast);
+    std::string mappingBottom = swLabel + ": " + controller::getDisplayNameForCode(current.actionSouthWest) + " | " + seLabel + ": " + controller::getDisplayNameForCode(current.actionSouthEast);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 105.0f, mappingTop.c_str(), nullptr);
     nvgText(vg, x + 30.0f, panelY + panelHeight + 130.0f, mappingBottom.c_str(), nullptr);
 
@@ -294,32 +349,36 @@ void RearTouchCalibrationCanvas::draw(NVGcontext* vg, float x, float y, float wi
 }
 
 RearTouchCalibrationOverlay::RearTouchCalibrationOverlay(const RearTouchSettings& initialSettings,
-                                                         SaveCallback onSave,
-                                                         CancelCallback onCancel)
-    : saveCallback(std::move(onSave)), cancelCallback(std::move(onCancel)) {
+    SaveCallback onSave,
+    CancelCallback onCancel)
+    : saveCallback(std::move(onSave))
+    , cancelCallback(std::move(onCancel))
+{
 #if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
     SceTouchSamplingState currentState = SCE_TOUCH_SAMPLING_STATE_STOP;
-    if (sceTouchGetSamplingState(SCE_TOUCH_PORT_BACK, &currentState) == 0) {
+    if (sceTouchGetSamplingState(SCE_TOUCH_PORT_BACK, &currentState) == 0)
+    {
         previousBackSamplingState = currentState;
-        restoreSamplingState = true;
+        restoreSamplingState      = true;
     }
-    if (currentState != SCE_TOUCH_SAMPLING_STATE_START) {
+    if (currentState != SCE_TOUCH_SAMPLING_STATE_START)
+    {
         sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
     }
 #endif
-        // Ensure the header shows the overlay title: set it on the root AppletFrameItem
-        std::string overlayTitle = brls::getStr("moonlight/rear_touch/calibration/overlay_title");
-        auto* root = new brls::Box(brls::Axis::COLUMN);
-        root->getAppletFrameItem()->title = overlayTitle;
-        // Also call setTitle after setContentView to override any update from children
-        this->setTitle(overlayTitle);
-        // Ensure the overlay's own AppletFrameItem carries the same title (helps logs and consistency)
-        this->getAppletFrameItem()->title = overlayTitle;
-        // Debug: log the overlay title that was just set
+    // Ensure the header shows the overlay title: set it on the root AppletFrameItem
+    std::string overlayTitle          = brls::getStr("moonlight/rear_touch/calibration/overlay_title");
+    auto* root                        = new brls::Box(brls::Axis::COLUMN);
+    root->getAppletFrameItem()->title = overlayTitle;
+    // Also call setTitle after setContentView to override any update from children
+    this->setTitle(overlayTitle);
+    // Ensure the overlay's own AppletFrameItem carries the same title (helps logs and consistency)
+    this->getAppletFrameItem()->title = overlayTitle;
+    // Debug: log the overlay title that was just set
     // Use vita_debug_log so the log can be toggled on Vita via g_debug_log_enabled
     vita_log::info("[RearTouchCalibrationOverlay] constructor set title='%s'", overlayTitle.c_str());
     root->setGrow(1.0f);
-    canvas = new RearTouchCalibrationCanvas(initialSettings);
+    canvas                              = new RearTouchCalibrationCanvas(initialSettings);
     canvas->getAppletFrameItem()->title = brls::getStr("moonlight/rear_touch/calibration/title");
     canvas->setGrow(1.0f);
     root->addView(canvas);
@@ -327,104 +386,120 @@ RearTouchCalibrationOverlay::RearTouchCalibrationOverlay(const RearTouchSettings
 
     configureActions();
 
-    brls::sync([this]() { brls::Application::giveFocus(this->canvas); });
+    brls::sync([this]()
+        { brls::Application::giveFocus(this->canvas); });
 }
 
-RearTouchCalibrationOverlay::~RearTouchCalibrationOverlay() {
+RearTouchCalibrationOverlay::~RearTouchCalibrationOverlay()
+{
 #if defined(__PSV__) || defined(__psp2__) || defined(__PSP2__)
-    if (restoreSamplingState) {
+    if (restoreSamplingState)
+    {
         sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, previousBackSamplingState);
     }
 #endif
 }
 
-void RearTouchCalibrationOverlay::configureActions() {
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/save"), brls::BUTTON_A, [this](brls::View*) {
+void RearTouchCalibrationOverlay::configureActions()
+{
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/save"), brls::BUTTON_A, [this](brls::View*)
+        {
         confirm();
-        return true;
-    });
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/cancel"), brls::BUTTON_B, [this](brls::View*) {
+        return true; });
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/cancel"), brls::BUTTON_B, [this](brls::View*)
+        {
         cancel();
-        return true;
-    });
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_edge"), brls::BUTTON_DOWN, [this](brls::View*) {
+        return true; });
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_edge"), brls::BUTTON_DOWN, [this](brls::View*)
+        {
         selectNext();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_edge"), brls::BUTTON_UP, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_edge"), brls::BUTTON_UP, [this](brls::View*)
+        {
         selectPrevious();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/increase_margin"), brls::BUTTON_RIGHT, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/increase_margin"), brls::BUTTON_RIGHT, [this](brls::View*)
+        {
         increase();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/decrease_margin"), brls::BUTTON_LEFT, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/decrease_margin"), brls::BUTTON_LEFT, [this](brls::View*)
+        {
         decrease();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_action"), brls::BUTTON_RB, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/next_action"), brls::BUTTON_RB, [this](brls::View*)
+        {
         cycleAssignmentForward();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_action"), brls::BUTTON_LB, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/prev_action"), brls::BUTTON_LB, [this](brls::View*)
+        {
         cycleAssignmentBackward();
-        return true;
-    }, true, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/toggle_enabled"), brls::BUTTON_X, [this](brls::View*) {
+        return true; }, true, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/toggle_enabled"), brls::BUTTON_X, [this](brls::View*)
+        {
         toggleEnabled();
-        return true;
-    }, true);
-    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/reset"), brls::BUTTON_Y, [this](brls::View*) {
+        return true; }, true);
+    this->registerAction(brls::getStr("moonlight/rear_touch/calibration/actions/reset"), brls::BUTTON_Y, [this](brls::View*)
+        {
         resetDefaults();
-        return true;
-    }, true);
+        return true; }, true);
 }
 
-void RearTouchCalibrationOverlay::confirm() {
-    if (saveCallback) {
+void RearTouchCalibrationOverlay::confirm()
+{
+    if (saveCallback)
+    {
         saveCallback(canvas->getSettings());
     }
     brls::Application::popActivity(brls::TransitionAnimation::FADE);
 }
 
-void RearTouchCalibrationOverlay::cancel() {
-    if (cancelCallback) {
+void RearTouchCalibrationOverlay::cancel()
+{
+    if (cancelCallback)
+    {
         cancelCallback();
     }
     brls::Application::popActivity(brls::TransitionAnimation::FADE);
 }
 
-void RearTouchCalibrationOverlay::increase() {
+void RearTouchCalibrationOverlay::increase()
+{
     constexpr int STEP_PIXELS = 10;
     canvas->adjustSelected(STEP_PIXELS);
 }
 
-void RearTouchCalibrationOverlay::decrease() {
+void RearTouchCalibrationOverlay::decrease()
+{
     constexpr int STEP_PIXELS = 10;
     canvas->adjustSelected(-STEP_PIXELS);
 }
 
-void RearTouchCalibrationOverlay::selectNext() {
+void RearTouchCalibrationOverlay::selectNext()
+{
     canvas->nextEdge();
 }
 
-void RearTouchCalibrationOverlay::selectPrevious() {
+void RearTouchCalibrationOverlay::selectPrevious()
+{
     canvas->previousEdge();
 }
 
-void RearTouchCalibrationOverlay::toggleEnabled() {
+void RearTouchCalibrationOverlay::toggleEnabled()
+{
     canvas->toggleEnabled();
 }
 
-void RearTouchCalibrationOverlay::resetDefaults() {
+void RearTouchCalibrationOverlay::resetDefaults()
+{
     canvas->resetToDefaults();
 }
 
-void RearTouchCalibrationOverlay::cycleAssignmentForward() {
+void RearTouchCalibrationOverlay::cycleAssignmentForward()
+{
     canvas->cycleAssignment(1);
 }
 
-void RearTouchCalibrationOverlay::cycleAssignmentBackward() {
+void RearTouchCalibrationOverlay::cycleAssignmentBackward()
+{
     canvas->cycleAssignment(-1);
 }

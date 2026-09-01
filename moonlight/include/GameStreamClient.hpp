@@ -2,22 +2,23 @@
 #define GAMESTREAM_CLIENT_HPP
 
 // Include Borealis first to avoid conflicts with BUTTON_* constants
+#include <chrono>
+#include <functional>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "borealis.hpp"
 
-#include <map>
-#include <string>
-#include <functional>
-#include <set>
-#include <vector>
-#include <chrono>
-
 // Limelight headers after Borealis
+#include "Limelight.h"
 #include "client.h"
 #include "errors.h"
-#include "Limelight.h"
 
 // RemoteAppInfo: lightweight structure used by the UI to list remote apps
-struct RemoteAppInfo {
+struct RemoteAppInfo
+{
     std::string id;
     std::string name;
     std::string iconUrl;
@@ -28,8 +29,9 @@ struct HostInfo; // forward
 typedef std::function<void(const std::vector<RemoteAppInfo>&)> AppListCallback;
 typedef std::function<void(bool)> BoolCallback;
 
-class GameStreamClient {
-public:
+class GameStreamClient
+{
+  public:
     static GameStreamClient& instance();
 
     // Server initialization
@@ -43,12 +45,13 @@ public:
     // Start application (returns true if started successfully)
     bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId);
     bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId, int displayWidth, int displayHeight);
-    
+
     // Enum to control startApp behavior
-    enum class StartMode {
-        AUTO = 0,        // Allow automatic resume if there is an active session
+    enum class StartMode
+    {
+        AUTO        = 0, // Allow automatic resume if there is an active session
         RESUME_ONLY = 1, // Just resume, fail if no session active
-        NEW_ONLY = 2     // Always fresh launch, ignore active session
+        NEW_ONLY    = 2 // Always fresh launch, ignore active session
     };
     bool startApp(const std::string& address, STREAM_CONFIGURATION& config, int appId, StartMode mode, int displayWidth = 0, int displayHeight = 0);
     bool resumeApp(const std::string& address, STREAM_CONFIGURATION& config, int appId);
@@ -90,7 +93,7 @@ public:
     // Returns 1 if paired, 0 if not or error
     int getSunshinePairStatus(const std::string& address);
 
-private:
+  private:
     GameStreamClient();
     ~GameStreamClient();
 
@@ -101,7 +104,8 @@ private:
     std::map<std::string, STREAM_CONFIGURATION> m_last_stream_cfg; // address -> last released config
     std::map<std::string, std::vector<RemoteAppInfo>> m_app_lists;
     std::map<std::string, std::string> m_key_dirs;
-    struct ActiveStream {
+    struct ActiveStream
+    {
         int appId;
         std::string appName;
     };

@@ -2,8 +2,9 @@
 
 #include <borealis.hpp>
 
-class RearTouchSettingsTab : public brls::Box {
-public:
+class RearTouchSettingsTab : public brls::Box
+{
+  public:
     RearTouchSettingsTab();
 
     BRLS_BIND(brls::BooleanCell, rearTouchToggle, "rearTouchToggle");

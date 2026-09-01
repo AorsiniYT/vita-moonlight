@@ -15,259 +15,294 @@
 */
 
 #include "MicrophoneManager.hpp"
-#include "ConfigManager.hpp"
-#include "debug.hpp"
+
 #include <borealis.hpp>
-#include <mutex>
 #include <chrono>
+#include <mutex>
 #include <thread>
 
-MicrophoneManager& MicrophoneManager::getInstance() {
+#include "ConfigManager.hpp"
+#include "debug.hpp"
+
+MicrophoneManager& MicrophoneManager::getInstance()
+{
     static MicrophoneManager instance;
     return instance;
 }
 
-MicrophoneManager::MicrophoneManager() {
+MicrophoneManager::MicrophoneManager()
+{
     vita_log::info("[MicrophoneManager] Initialized");
 }
 
-MicrophoneManager::~MicrophoneManager() {
+MicrophoneManager::~MicrophoneManager()
+{
     stop();
     vita_log::info("[MicrophoneManager] Destroyed");
 }
 
-bool MicrophoneManager::start(const std::string& hostIp, int port, int sampleRate, int channels, int bitrate) {
-    if (running_) {
+bool MicrophoneManager::start(const std::string& hostIp, int port, int sampleRate, int channels, int bitrate)
+{
+    if (running_)
+    {
         vita_log::warning("[MicrophoneManager] Already running");
         return true;
     }
-    
+
     // Store configuration
-    host_ip_ = hostIp;
-    port_ = port;
+    host_ip_     = hostIp;
+    port_        = port;
     sample_rate_ = sampleRate;
-    channels_ = channels;
-    bitrate_ = bitrate;
-    
-    vita_log::info("[MicrophoneManager] Starting microphone (%s:%d, %dHz, %dch, %dbps)", 
-                       host_ip_.c_str(), port_, sample_rate_, channels_, bitrate_);
-    
+    channels_    = channels;
+    bitrate_     = bitrate;
+
+    vita_log::info("[MicrophoneManager] Starting microphone (%s:%d, %dHz, %dch, %dbps)",
+        host_ip_.c_str(), port_, sample_rate_, channels_, bitrate_);
+
     vita_log::warning("[MicrophoneManager] Delaying microphone start by 3 seconds to avoid port conflict...");
-    
+
     // WORKAROUND: Delay microphone start to avoid conflict with Moonlight audio initialization
     // The streaming audio (sceAudioOut) seems to interfere with microphone (sceAudioIn) if started simultaneously
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    
+
     vita_log::info("[MicrophoneManager] Delay complete, attempting to start microphone...");
-    
+
     // Try to start immediately
-    if (startInternal()) {
+    if (startInternal())
+    {
         vita_log::info("[MicrophoneManager] Started successfully");
         return true;
     }
-    
+
     // If failed, enable retry thread
-    vita_log::warning("[MicrophoneManager] Initial start failed, enabling retry every %d seconds", 
-                          RETRY_INTERVAL_SECONDS);
-    
+    vita_log::warning("[MicrophoneManager] Initial start failed, enabling retry every %d seconds",
+        RETRY_INTERVAL_SECONDS);
+
     retry_enabled_ = true;
-    retry_thread_ = std::thread(&MicrophoneManager::retryThreadFunc, this);
-    
+    retry_thread_  = std::thread(&MicrophoneManager::retryThreadFunc, this);
+
     return false; // Not running yet, but retry enabled
 }
 
-void MicrophoneManager::stop() {
+void MicrophoneManager::stop()
+{
     vita_log::info("[MicrophoneManager] Stopping...");
-    
+
     // Stop retry thread first
     retry_enabled_ = false;
-    if (retry_thread_.joinable()) {
+    if (retry_thread_.joinable())
+    {
         retry_thread_.join();
         vita_log::debug("[MicrophoneManager] Retry thread stopped");
     }
-    
+
     // Stop microphone client
-    if (client_) {
+    if (client_)
+    {
         moonmic_destroy(client_);
-        client_ = nullptr;
+        client_  = nullptr;
         running_ = false;
         vita_log::info("[MicrophoneManager] Microphone stopped");
     }
 }
 
-bool MicrophoneManager::isRunning() const {
+bool MicrophoneManager::isRunning() const
+{
     return running_;
 }
 
-bool MicrophoneManager::isRetrying() const {
+bool MicrophoneManager::isRetrying() const
+{
     return retry_enabled_;
 }
 
-bool MicrophoneManager::isTransmitting() {
+bool MicrophoneManager::isTransmitting()
+{
     std::lock_guard<std::mutex> lock(client_mutex_);
     return client_ != nullptr && moonmic_is_connected(client_);
 }
 
-int MicrophoneManager::getRTT() {
+int MicrophoneManager::getRTT()
+{
     std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) return -1;
+    if (!client_)
+        return -1;
     return moonmic_client_get_rtt(client_);
 }
 
-std::string MicrophoneManager::getLastError() const {
+std::string MicrophoneManager::getLastError() const
+{
     std::lock_guard<std::mutex> lock(error_mutex_);
     return last_error_;
 }
 
-std::string MicrophoneManager::getHostIp() const {
+std::string MicrophoneManager::getHostIp() const
+{
     return host_ip_;
 }
 
-int MicrophoneManager::getPort() const {
+int MicrophoneManager::getPort() const
+{
     return port_;
 }
 
-bool MicrophoneManager::startInternal() {
+bool MicrophoneManager::startInternal()
+{
     // Clean up existing client if any
-    if (client_) {
+    if (client_)
+    {
         moonmic_destroy(client_);
         client_ = nullptr;
     }
-    
+
     // Clear previous error
     {
         std::lock_guard<std::mutex> lock(error_mutex_);
         last_error_.clear();
     }
-    
+
     // Load compression mode from config
     ConfigManager cfg;
     cfg.load();
     VideoSettings settings = cfg.getVideoSettings();
-    
+
     // raw_mode is INVERSE of enable_microphone_compression
     // Opus compression ON (true) → raw_mode = false (use Opus)
     // Opus compression OFF (false) → raw_mode = true (use RAW PCM)
     bool raw_mode = !settings.enable_microphone_compression;
-    
-    vita_log::info("[MicrophoneManager] Compression mode: %s (raw_mode=%d)", 
-                       settings.enable_microphone_compression ? "Opus" : "RAW PCM", 
-                       raw_mode);
-    
-    auto& bridge = moonmic::MoonmicBridge::getInstance();
-    auto sunInfo = bridge.buildSunshineValidation(host_ip_);
-    int pair_status = sunInfo.pair_status;
-    std::string uniqueid = sunInfo.uniqueid;
+
+    vita_log::info("[MicrophoneManager] Compression mode: %s (raw_mode=%d)",
+        settings.enable_microphone_compression ? "Opus" : "RAW PCM",
+        raw_mode);
+
+    auto& bridge           = moonmic::MoonmicBridge::getInstance();
+    auto sunInfo           = bridge.buildSunshineValidation(host_ip_);
+    int pair_status        = sunInfo.pair_status;
+    std::string uniqueid   = sunInfo.uniqueid;
     std::string devicename = sunInfo.devicename;
-    
+
     vita_log::info("[MicrophoneManager] Sunshine validation result: PairStatus=%d", pair_status);
     vita_log::info("[MicrophoneManager] uniqueid='%s' len=%u", uniqueid.c_str(), (unsigned)uniqueid.length());
     vita_log::info("[MicrophoneManager] devicename='%s' len=%u", devicename.c_str(), (unsigned)devicename.length());
 
     // Get display resolution from MoonmicBridge
-    bridge.loadConfig();  // Force reload from device.ini to pick up any changes
+    bridge.loadConfig(); // Force reload from device.ini to pick up any changes
     auto [target_width, target_height] = bridge.getTargetResolution();
-    
+
     // Configure moonmic
     moonmic_config_t config = {
-        .host_ip = host_ip_.c_str(),
-        .port = static_cast<uint16_t>(port_),
+        .host_ip     = host_ip_.c_str(),
+        .port        = static_cast<uint16_t>(port_),
         .sample_rate = static_cast<uint32_t>(sample_rate_),
-        .channels = static_cast<uint8_t>(channels_),
-        .bitrate = static_cast<uint32_t>(bitrate_),
-        .raw_mode = raw_mode,  // Set based on UI toggle
-        .auto_start = true,  // Start capturing immediately
-        .gain = settings.microphone_gain,  // Gain multiplier from config
-        
+        .channels    = static_cast<uint8_t>(channels_),
+        .bitrate     = static_cast<uint32_t>(bitrate_),
+        .raw_mode    = raw_mode, // Set based on UI toggle
+        .auto_start  = true, // Start capturing immediately
+        .gain        = settings.microphone_gain, // Gain multiplier from config
+
         // Sunshine validation
-        .uniqueid = uniqueid.c_str(),
-        .devicename = devicename.c_str(),
+        .uniqueid            = uniqueid.c_str(),
+        .devicename          = devicename.c_str(),
         .sunshine_https_port = 47984, // Default Sunshine port
-        .pair_status = pair_status,
-        
+        .pair_status         = pair_status,
+
         // Display resolution control (from MoonmicBridge)
-        .target_display_width = target_width,
+        .target_display_width  = target_width,
         .target_display_height = target_height
     };
-    
+
     // Create client
     client_ = moonmic_create(&config);
-    
-    if (!client_) {
+
+    if (!client_)
+    {
         std::lock_guard<std::mutex> lock(error_mutex_);
         last_error_ = "Failed to create microphone client";
         vita_log::error("[MicrophoneManager] %s", last_error_.c_str());
         return false;
     }
-    
+
     // Set error callback
     moonmic_set_error_callback(client_, &MicrophoneManager::errorCallback, this);
-    
+
     // Success
-    running_ = true;
+    running_       = true;
     retry_enabled_ = false; // Stop retry thread if it was running
-    
+
     vita_log::info("[MicrophoneManager] Client created successfully");
     return true;
 }
 
-void MicrophoneManager::retryThreadFunc() {
+void MicrophoneManager::retryThreadFunc()
+{
     vita_log::info("[MicrophoneManager] Retry thread started");
-    
-    while (retry_enabled_) {
+
+    while (retry_enabled_)
+    {
         // Sleep for retry interval
-        for (int i = 0; i < RETRY_INTERVAL_SECONDS && retry_enabled_; ++i) {
+        for (int i = 0; i < RETRY_INTERVAL_SECONDS && retry_enabled_; ++i)
+        {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-        
-        if (!retry_enabled_) break;
-        
+
+        if (!retry_enabled_)
+            break;
+
         vita_log::info("[MicrophoneManager] Retrying connection to %s:%d", host_ip_.c_str(), port_);
-        
+
         // Attempt to start
-        if (startInternal()) {
+        if (startInternal())
+        {
             vita_log::info("[MicrophoneManager] Retry successful - microphone now running");
             break; // Exit retry loop
-        } else {
-            vita_log::warning("[MicrophoneManager] Retry failed, will try again in %d seconds", 
-                                  RETRY_INTERVAL_SECONDS);
+        }
+        else
+        {
+            vita_log::warning("[MicrophoneManager] Retry failed, will try again in %d seconds",
+                RETRY_INTERVAL_SECONDS);
         }
     }
-    
+
     vita_log::info("[MicrophoneManager] Retry thread stopped");
 }
 
-void MicrophoneManager::errorCallback(const char* error, void* userData) {
+void MicrophoneManager::errorCallback(const char* error, void* userData)
+{
     auto* mgr = static_cast<MicrophoneManager*>(userData);
-    if (!mgr) return;
-    
+    if (!mgr)
+        return;
+
     {
         std::lock_guard<std::mutex> lock(mgr->error_mutex_);
         mgr->last_error_ = error ? error : "Unknown error";
     }
-    
-    vita_log::error("[MicrophoneManager] moonmic error: %s", 
-                        error ? error : "Unknown error");
+
+    vita_log::error("[MicrophoneManager] moonmic error: %s",
+        error ? error : "Unknown error");
 }
 
-void MicrophoneManager::setGain(float gain) {
+void MicrophoneManager::setGain(float gain)
+{
     // Update gain for future startInternal() calls
     ConfigManager config;
     config.load();
-    VideoSettings settings = config.getVideoSettings();
+    VideoSettings settings   = config.getVideoSettings();
     settings.microphone_gain = gain;
     config.setVideoSettings(settings);
     config.save();
-    
+
     // If currently running, update the client's gain immediately
-    if (running_ && client_) {
+    if (running_ && client_)
+    {
         moonmic_set_gain(client_, gain);
         vita_log::info("[MicrophoneManager] Updated gain to %.1fx during transmission", gain);
     }
 }
 
-bool MicrophoneManager::isConnected() const {
-    if (!running_ || !client_) {
+bool MicrophoneManager::isConnected() const
+{
+    if (!running_ || !client_)
+    {
         return false;
     }
     return moonmic_is_connected(client_);

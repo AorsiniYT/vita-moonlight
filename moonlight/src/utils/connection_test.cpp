@@ -1,12 +1,14 @@
 #include "utils/connection_test.hpp"
+
+#include <atomic>
 #include <borealis.hpp>
+#include <cmath>
 #include <moonbeam.hpp>
-#include "debug.hpp"
+#include <numeric>
 #include <thread>
 #include <vector>
-#include <atomic>
-#include <numeric>
-#include <cmath>
+
+#include "debug.hpp"
 
 #ifdef __PSV__
 #include <psp2/kernel/clib.h>
@@ -15,9 +17,11 @@
 #define VITALOG(...) ((void)0)
 #endif
 
-namespace utils {
+namespace utils
+{
 
-void startConnectionTest(const HostInfo& host) {
+void startConnectionTest(const HostInfo& host)
+{
     brls::Box* content = new brls::Box(brls::Axis::COLUMN);
     content->setAlignItems(brls::AlignItems::CENTER);
     content->setJustifyContent(brls::JustifyContent::CENTER);
@@ -52,10 +56,10 @@ void startConnectionTest(const HostInfo& host) {
 
     // Create the tester instance
     std::string currentLocale = brls::Application::getLocale();
-    bool limit24G = false;
-    std::string deviceName = "Device";
+    bool limit24G             = false;
+    std::string deviceName    = "Device";
 #ifdef __PSV__
-    limit24G = true; // PS Vita is hardware-limited to 2.4GHz
+    limit24G   = true; // PS Vita is hardware-limited to 2.4GHz
     deviceName = "PS Vita";
 #elif defined(__SWITCH__)
     deviceName = "Nintendo Switch";
@@ -64,22 +68,22 @@ void startConnectionTest(const HostInfo& host) {
 #endif
     auto tester = std::make_shared<moonbeam::ConnectionTester>(host.ip, limit24G, deviceName, currentLocale);
 
-    progressDialog->addButton(brls::getStr("host_dialog/connection_test/cancel"), [tester, statusLabel]() {
+    progressDialog->addButton(brls::getStr("host_dialog/connection_test/cancel"), [tester, statusLabel]()
+        {
         statusLabel->setText(brls::getStr("host_dialog/connection_test/cancelling"));
-        tester->cancel();
-    });
+        tester->cancel(); });
 
     progressDialog->open();
 
-    tester->setProgressCallback([statusLabel, pctLabel](float progress, const std::string& status) {
-        brls::sync([statusLabel, pctLabel, progress, status]() {
+    tester->setProgressCallback([statusLabel, pctLabel](float progress, const std::string& status)
+        { brls::sync([statusLabel, pctLabel, progress, status]()
+              {
             statusLabel->setText(status);
             int percent = static_cast<int>(progress * 100.0f);
-            pctLabel->setText(std::to_string(percent) + "%");
-        });
-    });
+            pctLabel->setText(std::to_string(percent) + "%"); }); });
 
-    std::thread([tester, progressDialog, host, currentLocale]() {
+    std::thread([tester, progressDialog, host, currentLocale]()
+        {
         bool is_es = (currentLocale == "es");
         auto result = tester->run();
 
@@ -259,8 +263,8 @@ void startConnectionTest(const HostInfo& host) {
                 reportDialog->addButton(brls::getStr("host_dialog/dialog/ok"), []() {});
                 reportDialog->open();
             });
-        });
-    }).detach();
+        }); })
+        .detach();
 }
 
 } // namespace utils

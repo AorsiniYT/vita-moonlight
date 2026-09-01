@@ -15,11 +15,13 @@
 */
 #pragma once
 #include <borealis.hpp>
-#include "utils/host_search.hpp"
-#include "model/HostStorage.hpp" // For HostInfo
 
-class HostsTab : public brls::Box {
-public:
+#include "model/HostStorage.hpp" // For HostInfo
+#include "utils/host_search.hpp"
+
+class HostsTab : public brls::Box
+{
+  public:
     HostsTab();
     static brls::View* create();
     void refreshHostsList();
@@ -35,7 +37,8 @@ public:
 #include <psp2/kernel/threadmgr.h>
 #endif
 
-namespace check_host {
+namespace check_host
+{
 #if defined(__PSV__)
 void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int));
 void stopVitaDiscovery();

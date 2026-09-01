@@ -1,7 +1,9 @@
 #include "utils/overlay_utils.hpp"
+
 #include <borealis.hpp>
 
-BaseOverlay::BaseOverlay() {
+BaseOverlay::BaseOverlay()
+{
     this->setFocusable(true);
     this->setHideHighlight(true);
     // Do not set background color to maintain transparency
@@ -15,33 +17,35 @@ BaseOverlay::BaseOverlay() {
     this->addView(focusDummy);
 
     // Register actions in focusDummy
-    if (focusDummy) {
-        focusDummy->registerAction("", brls::BUTTON_NAV_UP, [this](brls::View*) {
+    if (focusDummy)
+    {
+        focusDummy->registerAction("", brls::BUTTON_NAV_UP, [this](brls::View*)
+            {
             this->moveFocus(-1);
-            return true;
-        });
-        focusDummy->registerAction("", brls::BUTTON_NAV_DOWN, [this](brls::View*) {
+            return true; });
+        focusDummy->registerAction("", brls::BUTTON_NAV_DOWN, [this](brls::View*)
+            {
             this->moveFocus(1);
-            return true;
-        });
-        focusDummy->registerAction("", brls::BUTTON_A, [this](brls::View*) {
+            return true; });
+        focusDummy->registerAction("", brls::BUTTON_A, [this](brls::View*)
+            {
             this->activateFocused();
-            return true;
-        });
-        focusDummy->registerAction(brls::getStr("global/back"), brls::BUTTON_B, [this](brls::View*) {
+            return true; });
+        focusDummy->registerAction(brls::getStr("global/back"), brls::BUTTON_B, [this](brls::View*)
+            {
             // By default, activate as if it were resume (index 0)
             if (activateCallback) activateCallback(0);
-            return true;
-        });
-        focusDummy->registerAction("Cerrar", brls::BUTTON_START, [this](brls::View*) {
+            return true; });
+        focusDummy->registerAction("Cerrar", brls::BUTTON_START, [this](brls::View*)
+            {
             // By default, activate as if it were resume
             if (activateCallback) activateCallback(0);
-            return true;
-        });
+            return true; });
     }
 
     // Add gesture recognizer for haptic touches on buttons
-    brls::TapGestureRecognizer* tapRecognizer = new brls::TapGestureRecognizer([this](brls::TapGestureStatus status, brls::Sound* sound) {
+    brls::TapGestureRecognizer* tapRecognizer = new brls::TapGestureRecognizer([this](brls::TapGestureStatus status, brls::Sound* sound)
+        {
         if (status.state == brls::GestureState::END) {
             float tapX = status.position.x;
             float tapY = status.position.y;
@@ -59,76 +63,92 @@ BaseOverlay::BaseOverlay() {
                     }
                 }
             }
-        }
-    });
+        } });
     this->addGestureRecognizer(tapRecognizer);
 
     // Don't use brls::sync here - focusDummy may not be valid later
     // Let willAppear() handle initial focus
 }
 
-BaseOverlay::~BaseOverlay() {
+BaseOverlay::~BaseOverlay()
+{
     // focusDummy is automatically removed because it is a child
 }
 
-void BaseOverlay::setButtons(const std::vector<std::string>& labels) {
+void BaseOverlay::setButtons(const std::vector<std::string>& labels)
+{
     buttonLabels = labels;
 }
 
-void BaseOverlay::moveFocus(int delta) {
+void BaseOverlay::moveFocus(int delta)
+{
     int numButtons = buttonLabels.size();
-    if (numButtons == 0) return;
+    if (numButtons == 0)
+        return;
     focusedIndex = (focusedIndex + delta + numButtons) % numButtons;
 }
 
-void BaseOverlay::activateFocused(int index) {
-    if (index == -1) index = focusedIndex;
-    if (activateCallback && index >= 0 && index < (int)buttonLabels.size()) {
+void BaseOverlay::activateFocused(int index)
+{
+    if (index == -1)
+        index = focusedIndex;
+    if (activateCallback && index >= 0 && index < (int)buttonLabels.size())
+    {
         activateCallback(index);
     }
 }
 
-void BaseOverlay::setActivateCallback(std::function<void(int index)> callback) {
+void BaseOverlay::setActivateCallback(std::function<void(int index)> callback)
+{
     activateCallback = std::move(callback);
 }
 
-void BaseOverlay::setHeaderText(const std::string& text) {
+void BaseOverlay::setHeaderText(const std::string& text)
+{
     headerText = text;
 }
 
-void BaseOverlay::setFooterText(const std::string& text) {
+void BaseOverlay::setFooterText(const std::string& text)
+{
     footerText = text;
 }
 
-void BaseOverlay::setPanelPosition(float x, float y) {
+void BaseOverlay::setPanelPosition(float x, float y)
+{
     panelX = x;
     panelY = y;
 }
 
-void BaseOverlay::setPanelSize(float w, float h) {
+void BaseOverlay::setPanelSize(float w, float h)
+{
     panelW = w;
     panelH = h;
 }
 
-void BaseOverlay::setPanelAlpha(float alpha) {
+void BaseOverlay::setPanelAlpha(float alpha)
+{
     panelAlpha = alpha;
 }
 
-void BaseOverlay::onLayout() {
+void BaseOverlay::onLayout()
+{
     // No children to layout, as we're using pure NVG drawing
 }
 
-void BaseOverlay::willAppear(bool resetState) {
+void BaseOverlay::willAppear(bool resetState)
+{
     Box::willAppear(resetState);
     focusedIndex = 0;
-    
+
     // Give focus surely if focusDummy exists
-    if (focusDummy) {
+    if (focusDummy)
+    {
         brls::Application::giveFocus(focusDummy);
     }
 }
 
-void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     nvgBeginPath(vg);
     nvgRoundedRect(vg, panelX, panelY, panelW, panelH, 8.0f);
     NVGcolor bgColor = nvgRGBA(18, 20, 24, (int)(panelAlpha * 255.0f));
@@ -136,7 +156,8 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     nvgFill(vg);
 
     // Draw header if configured
-    if (!headerText.empty()) {
+    if (!headerText.empty())
+    {
         nvgFontSize(vg, 28.0f);
         nvgFontFaceId(vg, 0);
         nvgFillColor(vg, textColor);
@@ -147,7 +168,8 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     float btnY = panelY + btnYStart;
     nvgFontSize(vg, 22.0f);
     nvgFontFaceId(vg, 0); // Use font ID as in test
-    for (size_t i = 0; i < buttonLabels.size(); ++i) {
+    for (size_t i = 0; i < buttonLabels.size(); ++i)
+    {
         float btnX = panelX + btnXOffset;
 
         // button background
@@ -169,7 +191,8 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     }
 
     // Draw footer if configured
-    if (!footerText.empty()) {
+    if (!footerText.empty())
+    {
         nvgFontSize(vg, 18.0f);
         nvgFontFaceId(vg, 0);
         nvgFillColor(vg, nvgRGBA(200, 200, 200, 255)); // Softer color for footer
@@ -180,14 +203,17 @@ void BaseOverlay::draw(NVGcontext* vg, float x, float y, float width, float heig
     Box::draw(vg, x, y, width, height, style, ctx);
 }
 
-void BaseOverlay::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void BaseOverlay::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     // Do not draw the default focus of Borealis
 }
 
-void FocusDummy::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void FocusDummy::draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     // Don't draw anything
 }
 
-void FocusDummy::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) {
+void FocusDummy::drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx)
+{
     // Don't draw focus
 }

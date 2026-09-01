@@ -14,14 +14,15 @@
     limitations under the License.
 */
 #pragma once
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
-struct HostInfo {
+struct HostInfo
+{
     std::string name;
     std::string ip;
-    int port = 47989; // Sunshine Default Port
+    int port    = 47989; // Sunshine Default Port
     bool paired = false;
     // Host MAC address (optional, can be empty)
     std::string mac;
@@ -34,8 +35,9 @@ struct HostInfo {
 // Generate a "safe" identifier to use as a folder name
 std::string makeSafeHostId(const std::string& raw);
 
-class HostStorage {
-public:
+class HostStorage
+{
+  public:
     // Load all hosts by reading device.ini from each folder
     static std::vector<HostInfo> loadHosts();
     // Not implemented (not used with device.ini)

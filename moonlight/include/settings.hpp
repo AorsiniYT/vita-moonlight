@@ -18,15 +18,18 @@
 #include <string>
 #include <vector>
 
-namespace moonlight {
+namespace moonlight
+{
 
-struct LanguageOption {
+struct LanguageOption
+{
     const char* locale;
     const char* label;
 };
 
-class settings {
-public:
+class settings
+{
+  public:
     static void loadSettingsFromConfig();
     static void saveSettingsToConfig();
     static void applySwapInterval(int swapInterval);

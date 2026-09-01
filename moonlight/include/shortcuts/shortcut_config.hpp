@@ -6,33 +6,39 @@
 #include <string>
 #include <vector>
 
-namespace shortcuts {
+namespace shortcuts
+{
 
-enum class ShortcutAction : std::uint32_t {
-    Pause = 0,
+enum class ShortcutAction : std::uint32_t
+{
+    Pause    = 0,
     Keyboard = 1,
 };
 
 inline constexpr std::size_t MAX_SHORTCUT_BUTTONS = 3;
 
-struct ShortcutCombo {
-    std::array<std::uint32_t, MAX_SHORTCUT_BUTTONS> buttons{};
+struct ShortcutCombo
+{
+    std::array<std::uint32_t, MAX_SHORTCUT_BUTTONS> buttons {};
 };
 
-struct ShortcutEntry {
+struct ShortcutEntry
+{
     ShortcutAction action = ShortcutAction::Keyboard;
-    ShortcutCombo combo{};
+    ShortcutCombo combo {};
     std::string name;
 };
 
-struct ShortcutConfig {
+struct ShortcutConfig
+{
     ShortcutCombo pause;
     ShortcutCombo keyboard;
     std::vector<ShortcutEntry> customShortcuts;
     int schemaVersion = 3;
 };
 
-struct ButtonOption {
+struct ButtonOption
+{
     std::uint32_t mask;
     const char* token;
     const char* label;
@@ -52,8 +58,9 @@ bool parseShortcutAction(const std::string& text, ShortcutAction& outAction);
 
 ShortcutConfig defaultShortcutConfig();
 
-class ShortcutConfigStore {
-public:
+class ShortcutConfigStore
+{
+  public:
     std::string getConfigPath() const;
     bool load(ShortcutConfig& outConfig) const;
     bool save(const ShortcutConfig& config) const;

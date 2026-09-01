@@ -1,17 +1,19 @@
 #pragma once
 #include <borealis.hpp>
-#include <string>
-#include "model/HostStorage.hpp"
 #include <borealis/views/cells/cell_input.hpp>
+#include <string>
 
-class EditHostTab : public brls::Box {
-public:
+#include "model/HostStorage.hpp"
+
+class EditHostTab : public brls::Box
+{
+  public:
     EditHostTab(const HostInfo& hostToEdit);
     virtual ~EditHostTab();
     static brls::View* create(const HostInfo& hostToEdit);
     void saveChanges();
 
-private:
+  private:
     HostInfo originalHost;
     BRLS_BIND(brls::InputCell, ipField, "ip_field");
     BRLS_BIND(brls::InputCell, nameField, "name_field");

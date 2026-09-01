@@ -1,27 +1,33 @@
-#include "debug.hpp"
 #include "MoonmicPrep.hpp"
-#include "moonmic/MoonmicBridge.hpp"
-#include "GameStreamClient.hpp"
+
 #include <borealis.hpp>
-#include <thread>
 #include <chrono>
 #include <cstdio>
-#include <vector>
 #include <future>
+#include <thread>
+#include <vector>
 
-namespace moonmic {
-namespace {
+#include "GameStreamClient.hpp"
+#include "debug.hpp"
+#include "moonmic/MoonmicBridge.hpp"
 
-// Forward declaration
-void waitForApps(const HostInfo host, const PrepCallbacks callbacks);
+namespace moonmic
+{
+namespace
+{
 
-void continueHandshake(bool userWantedSwitch, 
-                       int hostW, int hostH,
-                       const HostInfo host,
-                       const std::string micHost, int micPort,
-                       const PrepCallbacks callbacks) {
-    
-    brls::async([=]() {
+    // Forward declaration
+    void waitForApps(const HostInfo host, const PrepCallbacks callbacks);
+
+    void continueHandshake(bool userWantedSwitch,
+        int hostW, int hostH,
+        const HostInfo host,
+        const std::string micHost, int micPort,
+        const PrepCallbacks callbacks)
+    {
+
+        brls::async([=]()
+            {
         auto& bridge = moonmic::MoonmicBridge::getInstance();
         
         if (userWantedSwitch) {
@@ -39,49 +45,55 @@ void continueHandshake(bool userWantedSwitch,
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         // Proceed to wait for apps
-        waitForApps(host, callbacks);
-    });
-}
-
-void waitForApps(const HostInfo host, const PrepCallbacks callbacks) {
-    // This runs in async thread already (called from continueHandshake or startHandshake)
-    // But to be safe and consistent with recursive structure, we can ensure we are async logic.
-    // Since we are moving logic here, just put the loop body.
-    
-    bool appsReady = false;
-    for (int i = 0; i < 8; ++i) { // Increased retries for restart time
-        bool connected = GameStreamClient::instance().connect(host);
-        if (!connected) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(800));
-            continue;
-        }
-
-        std::vector<RemoteAppInfo> apps;
-        GameStreamClient::instance().getAppList(host.ip, [&apps](const std::vector<RemoteAppInfo>& a){ apps = a; });
-        if (!apps.empty()) {
-            appsReady = true;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(800));
+        waitForApps(host, callbacks); });
     }
 
-    brls::sync([appsReady, callbacks]() {
+    void waitForApps(const HostInfo host, const PrepCallbacks callbacks)
+    {
+        // This runs in async thread already (called from continueHandshake or startHandshake)
+        // But to be safe and consistent with recursive structure, we can ensure we are async logic.
+        // Since we are moving logic here, just put the loop body.
+
+        bool appsReady = false;
+        for (int i = 0; i < 8; ++i)
+        { // Increased retries for restart time
+            bool connected = GameStreamClient::instance().connect(host);
+            if (!connected)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(800));
+                continue;
+            }
+
+            std::vector<RemoteAppInfo> apps;
+            GameStreamClient::instance().getAppList(host.ip, [&apps](const std::vector<RemoteAppInfo>& a)
+                { apps = a; });
+            if (!apps.empty())
+            {
+                appsReady = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(800));
+        }
+
+        brls::sync([appsReady, callbacks]()
+            {
         if (callbacks.onDone)
-            callbacks.onDone(appsReady);
-    });
-}
+            callbacks.onDone(appsReady); });
+    }
 
-void startHandshake(const HostInfo hostCopy,
-                    const StreamConfiguration sc,
-                    const VideoSettings vs,
-                    const PrepCallbacks callbacks) {
-  if (callbacks.onStart)
-    callbacks.onStart();
+    void startHandshake(const HostInfo hostCopy,
+        const StreamConfiguration sc,
+        const VideoSettings vs,
+        const PrepCallbacks callbacks)
+    {
+        if (callbacks.onStart)
+            callbacks.onStart();
 
-  std::string micHost = vs.microphone_host_ip.empty() ? hostCopy.ip : vs.microphone_host_ip;
-  int micPort = vs.microphone_port > 0 ? vs.microphone_port : MOONMIC_DEFAULT_PORT;
+        std::string micHost = vs.microphone_host_ip.empty() ? hostCopy.ip : vs.microphone_host_ip;
+        int micPort         = vs.microphone_port > 0 ? vs.microphone_port : MOONMIC_DEFAULT_PORT;
 
-  brls::async([hostCopy, sc, vs, micHost, micPort, callbacks]() {
+        brls::async([hostCopy, sc, vs, micHost, micPort, callbacks]()
+            {
     auto& bridge = moonmic::MoonmicBridge::getInstance();
     bridge.loadConfig();
     if (sc.width > 0 && sc.height > 0) {
@@ -166,86 +178,89 @@ void startHandshake(const HostInfo hostCopy,
         brls::sync([callbacks]() {
             if (callbacks.onDone) callbacks.onDone(false);
         });
+    } });
     }
-  });
-}
 
 } // namespace
 
 void ensureSunshineReadyWithPrompt(const HostInfo& host,
-                                   const StreamConfiguration& streamCfg,
-                                   const VideoSettings& videoCfg,
-                                   bool& resolutionPromptShown,
-                                   const PrepCallbacks& callbacks) {
-  // Disable blind prompt. We now use interactive handshake check.
-  bool shouldPrompt = false; 
-  /*
-  bool shouldPrompt = (!resolutionPromptShown && streamCfg.width > 0 && streamCfg.height > 0 &&
-                       !(streamCfg.width == 1280 && streamCfg.height == 720));
-  */
+    const StreamConfiguration& streamCfg,
+    const VideoSettings& videoCfg,
+    bool& resolutionPromptShown,
+    const PrepCallbacks& callbacks)
+{
+    // Disable blind prompt. We now use interactive handshake check.
+    bool shouldPrompt = false;
+    /*
+    bool shouldPrompt = (!resolutionPromptShown && streamCfg.width > 0 && streamCfg.height > 0 &&
+                         !(streamCfg.width == 1280 && streamCfg.height == 720));
+    */
 
-  auto beginHandshake = [host, streamCfg, videoCfg, callbacks]() {
-    startHandshake(host, streamCfg, videoCfg, callbacks);
-  };
-
-  if (shouldPrompt) {
-    resolutionPromptShown = true;
-
-    std::string msg = brls::getStr("moonlight/session/app_select/resolution_prompt_body");
+    auto beginHandshake = [host, streamCfg, videoCfg, callbacks]()
     {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%ux%u", streamCfg.width, streamCfg.height);
-      size_t pos = msg.find("$(res)");
-      if (pos != std::string::npos) msg.replace(pos, 6, buf);
-    }
+        startHandshake(host, streamCfg, videoCfg, callbacks);
+    };
 
-    auto* holder = new brls::Box(brls::Axis::COLUMN);
-    auto* label = new brls::Label();
-    label->setText(msg);
-    label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
-    label->setMarginBottom(18);
-    holder->addView(label);
+    if (shouldPrompt)
+    {
+        resolutionPromptShown = true;
 
-    auto* btnRow = new brls::Box(brls::Axis::ROW);
-    btnRow->setJustifyContent(brls::JustifyContent::CENTER);
-    btnRow->setAlignItems(brls::AlignItems::CENTER);
+        std::string msg = brls::getStr("moonlight/session/app_select/resolution_prompt_body");
+        {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%ux%u", streamCfg.width, streamCfg.height);
+            size_t pos = msg.find("$(res)");
+            if (pos != std::string::npos)
+                msg.replace(pos, 6, buf);
+        }
 
-    auto* btnContinue = new brls::Button();
-    btnContinue->setText(brls::getStr("moonlight/session/app_select/resolution_prompt_continue"));
-    btnContinue->setStyle(&brls::BUTTONSTYLE_HIGHLIGHT);
-    btnContinue->setMargins(0, 8, 8, 0);
+        auto* holder = new brls::Box(brls::Axis::COLUMN);
+        auto* label  = new brls::Label();
+        label->setText(msg);
+        label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+        label->setMarginBottom(18);
+        holder->addView(label);
 
-    auto* btnCancel = new brls::Button();
-    btnCancel->setText(brls::getStr("moonlight/session/app_select/resolution_prompt_cancel"));
-    btnCancel->setStyle(&brls::BUTTONSTYLE_PRIMARY);
+        auto* btnRow = new brls::Box(brls::Axis::ROW);
+        btnRow->setJustifyContent(brls::JustifyContent::CENTER);
+        btnRow->setAlignItems(brls::AlignItems::CENTER);
 
-    btnRow->addView(btnContinue);
-    btnRow->addView(btnCancel);
-    holder->addView(btnRow);
-    holder->setPadding(18,18,18,18);
+        auto* btnContinue = new brls::Button();
+        btnContinue->setText(brls::getStr("moonlight/session/app_select/resolution_prompt_continue"));
+        btnContinue->setStyle(&brls::BUTTONSTYLE_HIGHLIGHT);
+        btnContinue->setMargins(0, 8, 8, 0);
 
-    auto* dialog = new brls::Dialog(holder);
-    dialog->setCancelable(true);
+        auto* btnCancel = new brls::Button();
+        btnCancel->setText(brls::getStr("moonlight/session/app_select/resolution_prompt_cancel"));
+        btnCancel->setStyle(&brls::BUTTONSTYLE_PRIMARY);
 
-    btnContinue->registerClickAction([dialog, beginHandshake](brls::View*) -> bool {
+        btnRow->addView(btnContinue);
+        btnRow->addView(btnCancel);
+        holder->addView(btnRow);
+        holder->setPadding(18, 18, 18, 18);
+
+        auto* dialog = new brls::Dialog(holder);
+        dialog->setCancelable(true);
+
+        btnContinue->registerClickAction([dialog, beginHandshake](brls::View*) -> bool
+            {
       dialog->dismiss();
       beginHandshake();
-      return true;
-    });
+      return true; });
 
-    btnCancel->registerClickAction([dialog, callbacks](brls::View*) -> bool {
+        btnCancel->registerClickAction([dialog, callbacks](brls::View*) -> bool
+            {
       dialog->dismiss();
       if (callbacks.onCancel)
         callbacks.onCancel();
-      return true;
-    });
+      return true; });
 
-    dialog->open();
-    return;
-  }
+        dialog->open();
+        return;
+    }
 
-  resolutionPromptShown = true;
-  beginHandshake();
+    resolutionPromptShown = true;
+    beginHandshake();
 }
 
 } // namespace moonmic

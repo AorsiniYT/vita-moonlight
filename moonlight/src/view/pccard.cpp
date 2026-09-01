@@ -14,14 +14,16 @@
     limitations under the License.
 */
 
-
 #include "view/pccard.hpp"
+
 #include <borealis/core/application.hpp>
 
 // Helper function to measure text width
-float measureTextWidth(int font, float fontSize, const std::string& text) {
+float measureTextWidth(int font, float fontSize, const std::string& text)
+{
     NVGcontext* vg = brls::Application::getNVGContext();
-    if (!vg) {
+    if (!vg)
+    {
         // Safe Fallback: If no NVG context is available (can occur in stages
         // early initialization on Vita), we approximate the width with a simple rule.
         // This avoids crashes and returns a reasonable value for the truncation logic.
@@ -36,7 +38,9 @@ float measureTextWidth(int font, float fontSize, const std::string& text) {
 }
 
 // Visual card as large reusable button
-PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Button() {
+PCCard::PCCard(const std::string& name, const std::string& imagePath)
+    : brls::Button()
+{
     this->setText("");
     this->setWidth(180);
     this->setHeight(140);
@@ -57,16 +61,19 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     // Make the card focusable so navigation selects the card (restore selection UX)
     this->setFocusable(true);
 
-    image = new brls::Image();
+    image           = new brls::Image();
     bool isExternal = (imagePath.rfind("ux0:", 0) == 0 || imagePath.rfind("/", 0) == 0 || imagePath.rfind("cache/", 0) == 0);
-    if (isExternal) {
+    if (isExternal)
+    {
         image->setImageFromFile(imagePath);
         image->setWidth(140);
         image->setHeight(80);
         image->setScalingType(brls::ImageScalingType::FIT);
         image->setMarginTop(10);
         image->setMarginBottom(10);
-    } else {
+    }
+    else
+    {
         std::string fixedPath = (imagePath == "resources/img/moonlight/pc.png") ? "img/moonlight/pc.png" : imagePath;
         image->setImageFromRes(fixedPath);
         image->setWidth(48);
@@ -81,15 +88,18 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     label->setFontSize(16);
     label->setMargins(0, 0, 0, 0); // The upper margin is already given by the image
     label->setWidth(160); // A little less than the card for padding
-    label->setTextColor(nvgRGB(255,255,255));
+    label->setTextColor(nvgRGB(255, 255, 255));
     label->setSingleLine(true); // Required for animation
     label->setAutoAnimate(false); // We disable auto-animation by focus
     // Manual calculation of text width to decide animation and alignment using new public API
     float textWidth = measureTextWidth(label->getFont(), label->getFontSize(), name);
-    if (textWidth > 160) {
+    if (textWidth > 160)
+    {
         label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
         label->setAnimated(true); // Animate if truncated
-    } else {
+    }
+    else
+    {
         label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
         label->setAnimated(false);
     }
@@ -99,20 +109,22 @@ PCCard::PCCard(const std::string& name, const std::string& imagePath) : brls::Bu
     this->addView(box);
     this->label = label;
 
-    this->registerClickAction([this](brls::View*) {
+    this->registerClickAction([this](brls::View*)
+        {
         if (clickCb) clickCb();
-        return true;
-    });
+        return true; });
 }
 
-
-
-void PCCard::setPCName(const std::string& name) {
-    if (label) {
+void PCCard::setPCName(const std::string& name)
+{
+    if (label)
+    {
         label->setText(name);
-        if (name.empty()) {
+        if (name.empty())
+        {
             // If there is no name, we hide the image to avoid leaving a card with only a photo
-            if (image) {
+            if (image)
+            {
                 image->setVisibility(brls::Visibility::GONE);
             }
             // Disable animation if there is no text
@@ -121,34 +133,43 @@ void PCCard::setPCName(const std::string& name) {
             return;
         }
         // Recalculate animation and alignment if you change name using new public API
-        if (image) image->setVisibility(brls::Visibility::VISIBLE);
+        if (image)
+            image->setVisibility(brls::Visibility::VISIBLE);
         float textWidth = measureTextWidth(label->getFont(), label->getFontSize(), name);
-        if (textWidth > 160) {
+        if (textWidth > 160)
+        {
             label->setHorizontalAlign(brls::HorizontalAlign::LEFT);
             label->setAnimated(true);
-        } else {
+        }
+        else
+        {
             label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
             label->setAnimated(false);
         }
     }
 }
 
-
-void PCCard::setPCImage(const std::string& imagePath) {
-    if (image) {
-        if (imagePath.empty()) {
+void PCCard::setPCImage(const std::string& imagePath)
+{
+    if (image)
+    {
+        if (imagePath.empty())
+        {
             image->setVisibility(brls::Visibility::GONE);
             return;
         }
         bool isExternal = (imagePath.rfind("ux0:", 0) == 0 || imagePath.rfind("/", 0) == 0 || imagePath.rfind("cache/", 0) == 0);
-        if (isExternal) {
+        if (isExternal)
+        {
             image->setImageFromFile(imagePath);
             image->setWidth(140);
             image->setHeight(80);
             image->setScalingType(brls::ImageScalingType::FIT);
             image->setMarginTop(10);
             image->setMarginBottom(10);
-        } else {
+        }
+        else
+        {
             std::string fixedPath = (imagePath == "resources/img/moonlight/pc.png") ? "img/moonlight/pc.png" : imagePath;
             image->setImageFromRes(fixedPath);
             image->setWidth(48);
@@ -160,7 +181,7 @@ void PCCard::setPCImage(const std::string& imagePath) {
     }
 }
 
-
-void PCCard::setClickAction(std::function<void()> cb) {
+void PCCard::setClickAction(std::function<void()> cb)
+{
     clickCb = cb;
 }

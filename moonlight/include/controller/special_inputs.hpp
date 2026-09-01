@@ -4,15 +4,17 @@
 #include <string>
 #include <vector>
 
-namespace controller {
+namespace controller
+{
 
-struct SpecialInputOption {
+struct SpecialInputOption
+{
     std::uint32_t code;
     const char* name;
     bool selectable;
 };
 
-inline constexpr std::uint32_t INPUT_SPECIAL_KEY_PAUSE = 0;
+inline constexpr std::uint32_t INPUT_SPECIAL_KEY_PAUSE    = 0;
 inline constexpr std::uint32_t INPUT_SPECIAL_KEY_KEYBOARD = 1;
 
 // Returns the entire list (includes non-selectable headers)

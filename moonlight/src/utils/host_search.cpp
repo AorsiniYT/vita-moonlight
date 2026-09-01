@@ -14,12 +14,14 @@
     limitations under the License.
 */
 #include "utils/host_search.hpp"
-#include <fstream>
+
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <cstring>
+
 #include <borealis/core/logger.hpp>
+#include <cstring>
+#include <fstream>
 #include <vector>
 #ifdef _WIN32
 #include <direct.h>
@@ -34,52 +36,63 @@
 
 #ifdef __PSV__
 // Vita implementation: loadHostsVita() with struct HostInfoVita (char[])
-std::vector<HostInfoVita> loadHostsVita() {
+std::vector<HostInfoVita> loadHostsVita()
+{
     std::vector<HostInfoVita> hosts;
     VITALOG("[loadHostsVita] Dirección de hosts vector: %p\n", (void*)&hosts);
     std::string baseDir = "ux0:data/moonlight/devices/";
-    DIR* dir = opendir(baseDir.c_str());
-    if (!dir) return hosts;
+    DIR* dir            = opendir(baseDir.c_str());
+    if (!dir)
+        return hosts;
     struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        char folder[64] = {0};
-        strncpy(folder, entry->d_name, sizeof(folder)-1);
+    while ((entry = readdir(dir)) != nullptr)
+    {
+        char folder[64] = { 0 };
+        strncpy(folder, entry->d_name, sizeof(folder) - 1);
         VITALOG("[loadHostsVita] Leyendo carpeta: '%s', longitud: %d\n", folder, (int)strlen(folder));
-        if (strlen(folder) == 0 || strcmp(folder, ".") == 0 || strcmp(folder, "..") == 0 || strlen(folder) > 60) {
+        if (strlen(folder) == 0 || strcmp(folder, ".") == 0 || strcmp(folder, "..") == 0 || strlen(folder) > 60)
+        {
             VITALOG("[loadHostsVita] Carpeta ignorada: '%s'\n", folder);
             continue;
         }
         std::string path = baseDir + folder;
         struct stat st;
-        if (stat(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+        if (stat(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
+        {
             VITALOG("[loadHostsVita] '%s' no es un directorio válido\n", path.c_str());
             continue;
         }
         std::string iniPath = path + "/device.ini";
         std::ifstream ini(iniPath);
-        if (!ini.is_open()) {
+        if (!ini.is_open())
+        {
             VITALOG("[loadHostsVita] No se pudo abrir INI: %s\n", iniPath.c_str());
             continue;
         }
-        HostInfoVita host = {0};
-        strncpy(host.name, folder, sizeof(host.name)-1);
+        HostInfoVita host = { 0 };
+        strncpy(host.name, folder, sizeof(host.name) - 1);
         std::string line;
-        while (std::getline(ini, line)) {
+        while (std::getline(ini, line))
+        {
             VITALOG("[loadHostsVita] Línea INI: '%s'\n", line.c_str());
             // Allow both 'internal = ...' and 'internal=...'
             std::string key, value;
             size_t eqPos = line.find('=');
-            if (eqPos != std::string::npos) {
-                key = line.substr(0, eqPos);
+            if (eqPos != std::string::npos)
+            {
+                key   = line.substr(0, eqPos);
                 value = line.substr(eqPos + 1);
                 // Remove spaces around
                 key.erase(0, key.find_first_not_of(" \t"));
                 key.erase(key.find_last_not_of(" \t") + 1);
                 value.erase(0, value.find_first_not_of(" \t"));
                 value.erase(value.find_last_not_of(" \t") + 1);
-                if (key == "internal") {
-                    strncpy(host.ip, value.c_str(), sizeof(host.ip)-1);
-                } else if (key == "prefer_external") {
+                if (key == "internal")
+                {
+                    strncpy(host.ip, value.c_str(), sizeof(host.ip) - 1);
+                }
+                else if (key == "prefer_external")
+                {
                     host.preferExternal = (value == "true");
                 }
             }
@@ -90,7 +103,8 @@ std::vector<HostInfoVita> loadHostsVita() {
         VITALOG("[loadHostsVita] tras push_back: dirección hosts=%p, size=%lu\n", (void*)&hosts, (unsigned long)hosts.size());
     }
     unsigned long safeSize = (unsigned long)hosts.size();
-    if (safeSize > 1000) {
+    if (safeSize > 1000)
+    {
         VITALOG("[loadHostsVita] ERROR: Tamaño de hosts.size() corrupto: %lu\n", safeSize);
         return std::vector<HostInfoVita>();
     }
@@ -102,13 +116,16 @@ std::vector<HostInfoVita> loadHostsVita() {
 }
 #else
 // Cross-platform implementation (non-Vita): loadHosts() with std::string
-std::vector<SearchHostInfo> loadHosts() {
+std::vector<SearchHostInfo> loadHosts()
+{
     std::vector<SearchHostInfo> hosts;
     std::string baseDir = "devices/";
-    DIR* dir = opendir(baseDir.c_str());
-    if (!dir) return hosts;
+    DIR* dir            = opendir(baseDir.c_str());
+    if (!dir)
+        return hosts;
     struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
+    while ((entry = readdir(dir)) != nullptr)
+    {
         std::string folder = entry->d_name;
         if (folder.empty() || folder == "." || folder == ".." || folder.length() > 60)
             continue;
@@ -123,13 +140,17 @@ std::vector<SearchHostInfo> loadHosts() {
         SearchHostInfo host;
         host.name = folder;
         std::string line;
-        while (std::getline(ini, line)) {
-            if (line.find("internal = ") == 0) {
+        while (std::getline(ini, line))
+        {
+            if (line.find("internal = ") == 0)
+            {
                 size_t prefixLen = strlen("internal = ");
-                host.ip = line.substr(prefixLen);
-            } else if (line.find("prefer_external = ") == 0) {
-                size_t prefixLen = strlen("prefer_external = ");
-                std::string val = line.substr(prefixLen);
+                host.ip          = line.substr(prefixLen);
+            }
+            else if (line.find("prefer_external = ") == 0)
+            {
+                size_t prefixLen    = strlen("prefer_external = ");
+                std::string val     = line.substr(prefixLen);
                 host.preferExternal = (val == "true");
             }
         }
@@ -138,6 +159,3 @@ std::vector<SearchHostInfo> loadHosts() {
     return hosts;
 }
 #endif
-
-
-

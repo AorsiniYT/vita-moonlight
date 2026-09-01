@@ -1,9 +1,9 @@
 #pragma once
 
-#include <stdint.h>
+#include <Limelight.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <Limelight.h>
+#include <stdint.h>
 
 #include "ffmpeg/modules/ffmpeg_decoder.hpp"
 
@@ -16,29 +16,31 @@ typedef struct _APP_LIST APP_LIST, *PAPP_LIST;
 struct SwsContext;
 struct GxmTexture;
 
-typedef struct {
-    GxmTexture *texture;
+typedef struct
+{
+    GxmTexture* texture;
     int width;
     int height;
     bool has_frame;
     bool direct_memory;
 } FFmpegVideoFrame;
 
-typedef struct FFmpegVideoContext {
+typedef struct FFmpegVideoContext
+{
     FFmpegDecoderContext decoder;
     FFmpegVideoFrame current_frame;
-    void *dr_textures[3];
+    void* dr_textures[3];
     int dr_front_idx;
     int dr_back_idx;
     int dr_spare_idx;
-    SwsContext *sws_context;
+    SwsContext* sws_context;
     int sws_src_w;
     int sws_src_h;
     int sws_src_fmt;
-    GxmTexture *sw_textures[3];
+    GxmTexture* sw_textures[3];
     int sw_write_idx;
     int sw_last_present_idx;
-    GxmTexture *sw_texture;
+    GxmTexture* sw_texture;
     int sw_texture_width;
     int sw_texture_height;
     int sw_texture_stride;
@@ -54,7 +56,7 @@ typedef struct FFmpegVideoContext {
     uint32_t output_age_floor_us;
     bool using_direct_memory;
     bool is_legacy_mode;
-    const char *render_mode;
+    const char* render_mode;
     bool output_age_floor_valid;
     bool decoder_prime_pending;
     bool decoder_resync_pending;
@@ -63,29 +65,30 @@ typedef struct FFmpegVideoContext {
 
 // FFmpeg Video System Features
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// Initialization and cleanup
-int ffmpeg_video_init(FFmpegVideoContext *context, int width, int height, int frame_rate);
-void ffmpeg_video_cleanup(FFmpegVideoContext *context);
+    // Initialization and cleanup
+    int ffmpeg_video_init(FFmpegVideoContext* context, int width, int height, int frame_rate);
+    void ffmpeg_video_cleanup(FFmpegVideoContext* context);
 
-// Video control
-void ffmpeg_video_start(FFmpegVideoContext *context);
-void ffmpeg_video_stop(FFmpegVideoContext *context);
+    // Video control
+    void ffmpeg_video_start(FFmpegVideoContext* context);
+    void ffmpeg_video_stop(FFmpegVideoContext* context);
 
-// Frame decoding
-int ffmpeg_video_decode(FFmpegVideoContext *context, unsigned char *data, int size, int frame_type);
-void ffmpeg_video_render(FFmpegVideoContext *context);
+    // Frame decoding
+    int ffmpeg_video_decode(FFmpegVideoContext* context, unsigned char* data, int size, int frame_type);
+    void ffmpeg_video_render(FFmpegVideoContext* context);
 
-// Limelight callbacks.
-DECODER_RENDERER_CALLBACKS get_ffmpeg_video_callbacks(void);
-void ffmpeg_process_deferred_releases(void);
-void ffmpeg_video_watchdog_tick(void);
+    // Limelight callbacks.
+    DECODER_RENDERER_CALLBACKS get_ffmpeg_video_callbacks(void);
+    void ffmpeg_process_deferred_releases(void);
+    void ffmpeg_video_watchdog_tick(void);
 
-// Utilidades
-void ffmpeg_video_set_render_mode(FFmpegVideoContext *context, const char *mode);
-const char* ffmpeg_video_get_render_mode(FFmpegVideoContext *context);
+    // Utilidades
+    void ffmpeg_video_set_render_mode(FFmpegVideoContext* context, const char* mode);
+    const char* ffmpeg_video_get_render_mode(FFmpegVideoContext* context);
 
 #ifdef __cplusplus
 }

@@ -1,17 +1,19 @@
 #pragma once
 
-#include <string>
 #include <memory>
-#include "Limelight.h"
+#include <string>
+
 #include "ConfigManager.hpp"
-#include "legacy/vita.hpp"
+#include "Limelight.h"
 #include "ffmpeg/ffmpeg.hpp"
+#include "legacy/vita.hpp"
 
 extern bool g_gpu_yuv_experimental_enabled;
 
 // VideoManager - Manage video system selection and configuration
-class VideoManager {
-public:
+class VideoManager
+{
+  public:
     VideoManager();
     ~VideoManager();
 
@@ -38,9 +40,9 @@ public:
     // Estado
     bool isInitialized() const { return _initialized; }
 
-private:
+  private:
     // Video contexts
-    FFmpegVideoContext *_ffmpegContext;
+    FFmpegVideoContext* _ffmpegContext;
 
     // Estado
     std::string _currentMode;

@@ -17,16 +17,17 @@
 #include <string>
 #include <vector>
 
-
 #ifdef __PSV__
-struct HostInfoVita {
+struct HostInfoVita
+{
     char name[64];
     char ip[32];
     bool preferExternal;
 };
 std::vector<HostInfoVita> loadHostsVita();
 #else
-struct SearchHostInfo {
+struct SearchHostInfo
+{
     std::string name;
     std::string ip;
     bool preferExternal;

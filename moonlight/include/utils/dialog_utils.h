@@ -1,17 +1,18 @@
 #pragma once
 #include <borealis.hpp>
-#include <vector>
 #include <string>
+#include <vector>
 
 // Options to customize dialogs
-struct DialogOptions {
-    float contentPadding = 0.0f;           // Content padding (0 = no padding)
-    float contentWidth = 0.0f;             // Content width (0 = auto)
-    brls::AlignItems alignItems = brls::AlignItems::AUTO;
+struct DialogOptions
+{
+    float contentPadding                = 0.0f; // Content padding (0 = no padding)
+    float contentWidth                  = 0.0f; // Content width (0 = auto)
+    brls::AlignItems alignItems         = brls::AlignItems::AUTO;
     brls::JustifyContent justifyContent = brls::JustifyContent::FLEX_START;
-    bool cancelable = true;                // Does pressing B close the dialog?
-    bool focusable = false;               // Dialog itself not focusable, focus goes to buttons
-    bool hideHighlight = false;
+    bool cancelable                     = true; // Does pressing B close the dialog?
+    bool focusable                      = false; // Dialog itself not focusable, focus goes to buttons
+    bool hideHighlight                  = false;
 };
 
 // Create a custom dialog with Box content
@@ -19,12 +20,12 @@ brls::Dialog* createCustomDialog(brls::Box* content, const DialogOptions& option
 
 // Create a custom label
 brls::Label* createLabel(const std::string& text, float fontSize = 20.0f,
-                         brls::HorizontalAlign align = brls::HorizontalAlign::LEFT,
-                         float marginBottom = 0.0f);
+    brls::HorizontalAlign align = brls::HorizontalAlign::LEFT,
+    float marginBottom          = 0.0f);
 
 // Create an Information Box with rows (key: value)
 brls::Box* createInfoBox(const std::vector<std::pair<std::string, std::string>>& rows,
-                         float fontSize = 20.0f, float rowSpacing = 10.0f);
+    float fontSize = 20.0f, float rowSpacing = 10.0f);
 
 // Original features
 brls::Dialog* createLoadingDialog(const std::string& message);

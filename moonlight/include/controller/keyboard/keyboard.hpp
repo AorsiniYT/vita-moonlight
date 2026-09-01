@@ -1,29 +1,40 @@
 #pragma once
 
-#include "controller/keyboard/IKeyboard.hpp"
-#include "utils/overlay_utils.hpp"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "controller/keyboard/IKeyboard.hpp"
+#include "utils/overlay_utils.hpp"
+
 // Forward declare NVGcontext for draw override
 struct NVGcontext;
 
 // Key definition with variable width support
-struct KeyDef {
-    std::string label;    // Display label
-    std::string action;   // Action identifier (same as label by default)
-    float widthMult;      // Width multiplier (1.0 = normal key width)
+struct KeyDef
+{
+    std::string label; // Display label
+    std::string action; // Action identifier (same as label by default)
+    float widthMult; // Width multiplier (1.0 = normal key width)
 
     KeyDef(const std::string& lbl, float wMult = 1.0f)
-        : label(lbl), action(lbl), widthMult(wMult) {}
+        : label(lbl)
+        , action(lbl)
+        , widthMult(wMult)
+    {
+    }
     KeyDef(const std::string& lbl, const std::string& act, float wMult = 1.0f)
-        : label(lbl), action(act), widthMult(wMult) {}
+        : label(lbl)
+        , action(act)
+        , widthMult(wMult)
+    {
+    }
 };
 
-class KeyboardOverlay : public BaseOverlay, public IKeyboard {
-public:
+class KeyboardOverlay : public BaseOverlay, public IKeyboard
+{
+  public:
     KeyboardOverlay(const std::string& cssPath);
     ~KeyboardOverlay() override;
 
@@ -52,7 +63,7 @@ public:
     // Draw custom keyboard grid
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
 
-private:
+  private:
     // Key layout (rows of KeyDef)
     std::vector<std::vector<KeyDef>> keyRows;
     void initDefaultLayout();
@@ -75,15 +86,15 @@ private:
     // Calculate the total row width for a given row
     float calcRowWidth(const std::vector<KeyDef>& row, float baseW) const;
     void recalculateKeyMetrics();
-    
+
     std::string cssPath;
     std::unordered_map<std::string, std::string> properties;
-    bool loaded = false;
+    bool loaded  = false;
     bool visible = false;
 
     // Local copy of panel alpha (BaseOverlay::panelAlpha is private)
     float localPanelAlpha = 1.0f;
-    float baseBtnH = 0.0f;
+    float baseBtnH        = 0.0f;
 
     // Shift State — toggle when the Shift key is pressed
     bool shiftActive = false;
@@ -98,38 +109,38 @@ private:
 
     // Modern layout options
     bool showNumbersRow = true;
-    bool showArrowKeys = true;
+    bool showArrowKeys  = true;
 
     // Combo mode state
-    bool comboModeActive = false;
+    bool comboModeActive   = false;
     unsigned int comboMods = 0;
     std::string comboKeyLabel;
-    int comboKeyVk = -1;
-    bool comboHasKey = false;
-    float comboOverlayX = 0.0f;
-    float comboOverlayY = 0.0f;
-    float comboOverlayW = 0.0f;
-    float comboOverlayH = 0.0f;
-    float comboClearX = 0.0f;
-    float comboClearY = 0.0f;
-    float comboClearW = 0.0f;
-    float comboClearH = 0.0f;
+    int comboKeyVk           = -1;
+    bool comboHasKey         = false;
+    float comboOverlayX      = 0.0f;
+    float comboOverlayY      = 0.0f;
+    float comboOverlayW      = 0.0f;
+    float comboOverlayH      = 0.0f;
+    float comboClearX        = 0.0f;
+    float comboClearY        = 0.0f;
+    float comboClearW        = 0.0f;
+    float comboClearH        = 0.0f;
     bool comboOverlayVisible = false;
 
     // Visual feedback: index of last tapped key
-    int highlightRow = -1;
-    int highlightCol = -1;
+    int highlightRow    = -1;
+    int highlightCol    = -1;
     int highlightFrames = 0;
 
     // Pressed state and repeat handling
-    int pressedRow = -1;
-    int pressedCol = -1;
+    int pressedRow     = -1;
+    int pressedCol     = -1;
     bool pressedActive = false;
     std::string repeatAction;
-    bool repeatActive = false;
+    bool repeatActive           = false;
     std::uint64_t repeatStartUs = 0;
-    std::uint64_t repeatLastUs = 0;
-    bool closePending = false;
+    std::uint64_t repeatLastUs  = 0;
+    bool closePending           = false;
 
     // Persistent key states
     bool keyStates[256];

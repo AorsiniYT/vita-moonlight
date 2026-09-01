@@ -2,8 +2,9 @@
 
 #include <borealis.hpp>
 
-class FrontTouchSettingsTab : public brls::Box {
-public:
+class FrontTouchSettingsTab : public brls::Box
+{
+  public:
     FrontTouchSettingsTab();
 
     BRLS_BIND(brls::BooleanCell, frontTouchToggle, "frontTouchToggle");

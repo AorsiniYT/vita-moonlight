@@ -20,7 +20,8 @@
 #endif
 #include <functional>
 
-namespace check_host {
+namespace check_host
+{
 #if defined(__PSV__)
 void startVitaDiscovery(void (*hostFoundCb)(int, const char*, const char*, const char*, int));
 void stopVitaDiscovery();

@@ -3,59 +3,60 @@
     Autor: aorsini + comunidad
 */
 #include "session/session_app_select.hpp"
+
 #include <sys/stat.h>
-#include "view/pccard.hpp"
-#include "utils/dialog_utils.h"
-#include "model/HostStorage.hpp"
-#include "GameStreamClient.hpp"
-#include "session/session_main.hpp"
-#include "session/vita_session.hpp"
-#include "ConfigManager.hpp"
-#include "GameStreamClient.hpp"
-#include "audio/MicrophoneManager.hpp"
-#include "moonmic/MoonmicBridge.hpp"
-#include "moonmic/MoonmicPrep.hpp"
-#include "client.h"
-#include "Limelight.h"
+
 #include <algorithm>
+#include <borealis/core/application.hpp>
+#include <borealis/core/thread.hpp>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cstdio>
-#include <string>
-#include <chrono>
-#include <thread>
-#include <borealis/core/application.hpp>
-#include "debug.hpp"
-#include <borealis/core/thread.hpp>
 #include <set>
+#include <string>
+#include <thread>
 
+#include "ConfigManager.hpp"
+#include "GameStreamClient.hpp"
+#include "Limelight.h"
+#include "audio/MicrophoneManager.hpp"
+#include "client.h"
+#include "debug.hpp"
+#include "model/HostStorage.hpp"
+#include "moonmic/MoonmicBridge.hpp"
+#include "moonmic/MoonmicPrep.hpp"
+#include "session/session_main.hpp"
+#include "session/vita_session.hpp"
+#include "utils/dialog_utils.h"
+#include "view/pccard.hpp"
 
-namespace {
-    constexpr int DEFAULT_STREAM_FPS = 60;
-    constexpr int DEFAULT_STREAM_BITRATE = 6000;
-    constexpr int MIN_AUTO_BITRATE = 5000;
-    constexpr int MAX_AUTO_BITRATE = 20000;
+namespace
+{
+constexpr int DEFAULT_STREAM_FPS     = 60;
+constexpr int DEFAULT_STREAM_BITRATE = 6000;
+constexpr int MIN_AUTO_BITRATE       = 5000;
+constexpr int MAX_AUTO_BITRATE       = 20000;
 
-    int calculateAutoBitrate(int width, int height, int fps)
-    {
-        // This yields about 10 Mbps at 720p60 and scales with the actual stream load.
-        constexpr long long BITS_PER_PIXEL_NUMERATOR = 18;
-        constexpr long long BITS_PER_PIXEL_DENOMINATOR = 100;
-        const long long pixelsPerSecond = static_cast<long long>(width) * height * fps;
-        const int bitrate = static_cast<int>(
-            pixelsPerSecond * BITS_PER_PIXEL_NUMERATOR /
-            (BITS_PER_PIXEL_DENOMINATOR * 1000));
+int calculateAutoBitrate(int width, int height, int fps)
+{
+    // This yields about 10 Mbps at 720p60 and scales with the actual stream load.
+    constexpr long long BITS_PER_PIXEL_NUMERATOR   = 18;
+    constexpr long long BITS_PER_PIXEL_DENOMINATOR = 100;
+    const long long pixelsPerSecond                = static_cast<long long>(width) * height * fps;
+    const int bitrate                              = static_cast<int>(
+        pixelsPerSecond * BITS_PER_PIXEL_NUMERATOR / (BITS_PER_PIXEL_DENOMINATOR * 1000));
 
-        return std::max(MIN_AUTO_BITRATE, std::min(MAX_AUTO_BITRATE, bitrate));
-    }
+    return std::max(MIN_AUTO_BITRATE, std::min(MAX_AUTO_BITRATE, bitrate));
+}
 
-    // Hosts for which the active session dialog will be temporarily suppressed
-    static std::set<std::string> g_suppressedActiveHosts;
-    // Hosts for which we already show the 'resume' dialog during login
-    static std::set<std::string> g_resumeShownHosts;
+// Hosts for which the active session dialog will be temporarily suppressed
+static std::set<std::string> g_suppressedActiveHosts;
+// Hosts for which we already show the 'resume' dialog during login
+static std::set<std::string> g_resumeShownHosts;
 
-    // NOTE: Implementations moved to class methods so they can access
-    // private members (gridView) directly.
+// NOTE: Implementations moved to class methods so they can access
+// private members (gridView) directly.
 }
 
 brls::Dialog* SessionAppSelect::showConnectingDialog(const std::string& msg, brls::Visibility& outPrevGridVis)
@@ -63,7 +64,8 @@ brls::Dialog* SessionAppSelect::showConnectingDialog(const std::string& msg, brl
     outPrevGridVis = brls::Visibility::GONE;
     brls::Application::blockInputs();
 
-    if (this->gridView) {
+    if (this->gridView)
+    {
         outPrevGridVis = this->gridView->getVisibility();
         // Completely hide the GridView and remove focus/highlight
         this->gridView->setVisibility(brls::Visibility::GONE);
@@ -75,19 +77,24 @@ brls::Dialog* SessionAppSelect::showConnectingDialog(const std::string& msg, brl
 
         // Hide highlights from all descendants
         std::function<void(brls::View*)> walkHideLocal;
-        walkHideLocal = [&walkHideLocal](brls::View* v) {
-            if (!v) return;
+        walkHideLocal = [&walkHideLocal](brls::View* v)
+        {
+            if (!v)
+                return;
             v->setHideHighlight(true);
             v->setHideHighlightBackground(true);
             v->setHideHighlightBorder(true);
             v->setFocusable(false);
             brls::Box* box = dynamic_cast<brls::Box*>(v);
-            if (!box) return;
+            if (!box)
+                return;
             auto ch = box->getChildren();
-            for (auto* cc : ch) walkHideLocal(cc);
+            for (auto* cc : ch)
+                walkHideLocal(cc);
         };
         auto rows = this->gridView->getChildren();
-        for (auto* row : rows) walkHideLocal(row);
+        for (auto* row : rows)
+            walkHideLocal(row);
     }
 
     return createLoadingDialog(msg);
@@ -96,7 +103,8 @@ brls::Dialog* SessionAppSelect::showConnectingDialog(const std::string& msg, brl
 void SessionAppSelect::restoreGridViewAndInputs(brls::Visibility prevGridVis)
 {
     brls::Application::unblockInputs();
-    if (this->gridView) {
+    if (this->gridView)
+    {
         this->gridView->setHideHighlight(false);
         this->gridView->setHideHighlightBackground(false);
         this->gridView->setHideHighlightBorder(false);
@@ -106,35 +114,44 @@ void SessionAppSelect::restoreGridViewAndInputs(brls::Visibility prevGridVis)
         this->gridView->setVisibility(prevGridVis);
 
         std::function<void(brls::View*)> walkRestoreLocal;
-        walkRestoreLocal = [&walkRestoreLocal](brls::View* v) {
-            if (!v) return;
+        walkRestoreLocal = [&walkRestoreLocal](brls::View* v)
+        {
+            if (!v)
+                return;
             v->setHideHighlight(false);
             v->setHideHighlightBackground(false);
             v->setHideHighlightBorder(false);
             v->setFocusable(true);
             brls::Box* box = dynamic_cast<brls::Box*>(v);
-            if (!box) return;
+            if (!box)
+                return;
             auto ch = box->getChildren();
-            for (auto* cc : ch) walkRestoreLocal(cc);
+            for (auto* cc : ch)
+                walkRestoreLocal(cc);
         };
         auto rows2 = this->gridView->getChildren();
-        for (auto* row : rows2) walkRestoreLocal(row);
+        for (auto* row : rows2)
+            walkRestoreLocal(row);
     }
 }
 
 using namespace brls::literals;
 
-
 SessionAppSelect::SessionAppSelect(const std::string& hostName)
-    : brls::Box(brls::Axis::COLUMN), host() {
+    : brls::Box(brls::Axis::COLUMN)
+    , host()
+{
     this->isAlive = std::make_shared<bool>(true);
     vita_log::info("View: SessionAppSelect para host: %s", hostName.c_str());
 
     // Find the real host by name
     auto found = HostStorage::findHost(hostName);
-    if (found) {
+    if (found)
+    {
         this->host = *found;
-    } else {
+    }
+    else
+    {
         vita_log::error("[SessionAppSelect] No se encontró el host '%s' en HostStorage", hostName.c_str());
         // Leave host empty, will show error in populateAppList
     }
@@ -149,7 +166,7 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
 
     // Create and configure the GridView dynamically
     gridView = new GridView();
-    gridView->setColumns(3);  // 3 columns for PS Vita (best fit)
+    gridView->setColumns(3); // 3 columns for PS Vita (best fit)
     gridView->setWidth(brls::Box::AUTO);
     gridView->setGrow(1.0f);
     grid_placeholder->addView(gridView);
@@ -157,14 +174,16 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
     // Set the spinner with appropriate size
     BRLS_BIND(brls::ProgressSpinner, loading_spinner, "loading_spinner");
     spinner = loading_spinner;
-    if (!spinner) {
+    if (!spinner)
+    {
         spinner = new brls::ProgressSpinner(brls::ProgressSpinnerSize::NORMAL);
     }
 
     // Check if an active session exists — delegating logic to GameStreamClient
     HostInfo hostCopy = this->host;
-    auto isAliveCopy = this->isAlive;
-    brls::async([this, hostCopy, isAliveCopy]() mutable {
+    auto isAliveCopy  = this->isAlive;
+    brls::async([this, hostCopy, isAliveCopy]() mutable
+        {
         RemoteAppInfo running;
         bool active = GameStreamClient::instance().probeActiveSession(hostCopy, running);
         if (active) {
@@ -296,34 +315,41 @@ SessionAppSelect::SessionAppSelect(const std::string& hostName)
                 if (!*isAliveCopy) return;
                 this->populateAppList();
             });
-        }
-    });
+        } });
 }
 
-SessionAppSelect::~SessionAppSelect() {
+SessionAppSelect::~SessionAppSelect()
+{
     *this->isAlive = false;
     // The view destructor is responsible for freeing the children (gridView, spinner, etc.)
     // Clear the global flag so that the next entry to the host can show the dialog again.
-    try {
+    try
+    {
         if (!this->host.ip.empty() && g_resumeShownHosts.count(this->host.ip))
             g_resumeShownHosts.erase(this->host.ip);
         if (!this->host.ip.empty() && g_suppressedActiveHosts.count(this->host.ip))
             g_suppressedActiveHosts.erase(this->host.ip);
-    } catch (...) {
+    }
+    catch (...)
+    {
         // Don't do anything if it were a spear (I shouldn't)
     }
 }
 
-void SessionAppSelect::onLayout() {
+void SessionAppSelect::onLayout()
+{
     Box::onLayout();
 }
 
-void SessionAppSelect::populateAppList() {
+void SessionAppSelect::populateAppList()
+{
     vita_log::info("[SessionAppSelect] populateAppList llamado para host: %s (ip: %s)", host.name.c_str(), host.ip.c_str());
 
     // Wait for Moonmic to confirm/prepare Sunshine before requesting the app list
-    if (!sunshineReady) {
-        if (sunshineCheckInFlight) {
+    if (!sunshineReady)
+    {
+        if (sunshineCheckInFlight)
+        {
             vita_log::info("[SessionAppSelect] Esperando señal de Moonmic/Sunshine (spinner activo)");
             return;
         }
@@ -332,31 +358,41 @@ void SessionAppSelect::populateAppList() {
 
         ConfigManager cfg;
         cfg.load();
-        VideoSettings vs = cfg.getVideoSettings();
+        VideoSettings vs       = cfg.getVideoSettings();
         StreamConfiguration sc = cfg.getStreamConfig();
 
         auto isAliveCopy = this->isAlive;
         moonmic::PrepCallbacks callbacks;
-        callbacks.onStart = [this, isAliveCopy]() {
-            if (!*isAliveCopy) return;
+        callbacks.onStart = [this, isAliveCopy]()
+        {
+            if (!*isAliveCopy)
+                return;
             sunshineCheckInFlight = true;
-            if (spinner) spinner->setVisibility(brls::Visibility::VISIBLE);
-            if (gridView) gridView->setVisibility(brls::Visibility::INVISIBLE);
-            if (app_select_empty) app_select_empty->setVisibility(brls::Visibility::GONE);
+            if (spinner)
+                spinner->setVisibility(brls::Visibility::VISIBLE);
+            if (gridView)
+                gridView->setVisibility(brls::Visibility::INVISIBLE);
+            if (app_select_empty)
+                app_select_empty->setVisibility(brls::Visibility::GONE);
         };
 
-        callbacks.onDone = [this, isAliveCopy](bool ok) {
-            if (!*isAliveCopy) return;
+        callbacks.onDone = [this, isAliveCopy](bool ok)
+        {
+            if (!*isAliveCopy)
+                return;
             sunshineCheckInFlight = false;
-            if (!ok) {
+            if (!ok)
+            {
                 sunshineReady = true; // Mark check as fully handled (don't retry endlessly)
-                if (!moonmicNotified) {
+                if (!moonmicNotified)
+                {
                     brls::Application::notify(brls::getStr("moonlight/session/app_select/moonmic_not_connected"));
                     moonmicLastStatus = false;
-                    moonmicNotified = true;
+                    moonmicNotified   = true;
                 }
-                if (spinner) spinner->setVisibility(brls::Visibility::GONE);
-                
+                if (spinner)
+                    spinner->setVisibility(brls::Visibility::GONE);
+
                 // Fallback: Proceed even if Moonmic is not active
                 vita_log::warning("[SessionAppSelect] Moonmic handshake failed, proceeding with normal connection...");
                 this->populateAppList();
@@ -364,10 +400,11 @@ void SessionAppSelect::populateAppList() {
             }
 
             sunshineReady = true;
-            if (!moonmicNotified) {
+            if (!moonmicNotified)
+            {
                 brls::Application::notify(brls::getStr("moonlight/session/app_select/moonmic_host_active"));
                 moonmicLastStatus = true;
-                moonmicNotified = true;
+                moonmicNotified   = true;
             }
 
             auto [currentTargetW, currentTargetH] = moonmic::MoonmicBridge::getInstance().getTargetResolution();
@@ -376,8 +413,10 @@ void SessionAppSelect::populateAppList() {
             this->populateAppList();
         };
 
-        callbacks.onCancel = [this, isAliveCopy]() {
-            if (!*isAliveCopy) return;
+        callbacks.onCancel = [this, isAliveCopy]()
+        {
+            if (!*isAliveCopy)
+                return;
             sunshineCheckInFlight = false;
             brls::Application::notify(brls::getStr("moonlight/session/app_select/error_start_app"));
             brls::Application::popActivity();
@@ -388,13 +427,19 @@ void SessionAppSelect::populateAppList() {
     }
 
     // Show spinner and hide content
-    if (spinner) spinner->setVisibility(brls::Visibility::VISIBLE);
-    if (gridView) gridView->setVisibility(brls::Visibility::INVISIBLE);
-    if (app_select_empty) app_select_empty->setVisibility(brls::Visibility::GONE);
+    if (spinner)
+        spinner->setVisibility(brls::Visibility::VISIBLE);
+    if (gridView)
+        gridView->setVisibility(brls::Visibility::INVISIBLE);
+    if (app_select_empty)
+        app_select_empty->setVisibility(brls::Visibility::GONE);
 
-    if (host.name.empty() || host.ip.empty()) {
-        if (spinner) spinner->setVisibility(brls::Visibility::GONE);
-        if (app_select_empty) {
+    if (host.name.empty() || host.ip.empty())
+    {
+        if (spinner)
+            spinner->setVisibility(brls::Visibility::GONE);
+        if (app_select_empty)
+        {
             app_select_empty->setText(brls::getStr("moonlight/session/app_select/error_no_host"));
             app_select_empty->setVisibility(brls::Visibility::VISIBLE);
         }
@@ -402,7 +447,8 @@ void SessionAppSelect::populateAppList() {
     }
 
     auto isAliveCopy = this->isAlive;
-    brls::async([this, isAliveCopy]() {
+    brls::async([this, isAliveCopy]()
+        {
     vita_log::info("[SessionAppSelect] Llamando a GameStreamClient::getAppList para host: %s (ip: %s)", host.name.c_str(), host.ip.c_str());
     std::vector<RemoteAppInfo> apps;
     GameStreamClient::instance().getAppList(this->host.ip, [&apps](const std::vector<RemoteAppInfo>& a){ apps = a; });
@@ -513,103 +559,112 @@ void SessionAppSelect::populateAppList() {
                     });
                 });
             }
-        });
-    });
+        }); });
 }
 
-void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
+void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart)
+{
     vita_log::info("App seleccionada: %s (ID: %s)", app.name.c_str(), app.id.c_str());
 
     // Encapsulated startup flow so you can confirm it before
-    auto startFlow = [this, app, forceStart]() {
-
-    // Prepare streaming setup for PS Vita
-    STREAM_CONFIGURATION streamConfig;
-    memset(&streamConfig, 0, sizeof(streamConfig));
-    
-    // Load user configuration
-    ConfigManager configManager;
-    if (!configManager.load()) {
-        vita_log::warning("[SessionAppSelect] No se pudo cargar configuración, usando valores por defecto");
-    }
-    
-    StreamConfiguration streamSettings = configManager.getStreamConfig();
-    VideoSettings videoSettings = configManager.getVideoSettings();
-
-    // Send Moonmic handshake to configure Sunshine remapping only after confirmation
+    auto startFlow = [this, app, forceStart]()
     {
-        std::string micHost = videoSettings.microphone_host_ip.empty() ? this->host.ip : videoSettings.microphone_host_ip;
-        int micPort = videoSettings.microphone_port > 0 ? videoSettings.microphone_port : MOONMIC_DEFAULT_PORT;
-        auto& bridge = moonmic::MoonmicBridge::getInstance();
-        bridge.loadConfig();
-        if (streamSettings.width > 0 && streamSettings.height > 0) {
-            bridge.setTargetResolution(static_cast<uint16_t>(streamSettings.width), static_cast<uint16_t>(streamSettings.height));
+        // Prepare streaming setup for PS Vita
+        STREAM_CONFIGURATION streamConfig;
+        memset(&streamConfig, 0, sizeof(streamConfig));
+
+        // Load user configuration
+        ConfigManager configManager;
+        if (!configManager.load())
+        {
+            vita_log::warning("[SessionAppSelect] No se pudo cargar configuración, usando valores por defecto");
         }
-        auto hsResult = bridge.sendResolutionHandshake(micHost, micPort);
-        vita_log::info("[SessionAppSelect] Moonmic handshake %s (%s:%d)", hsResult.success ? "OK" : "FAIL", micHost.c_str(), micPort);
-    }
-    
-    vita_log::info("[SessionAppSelect] Stream %dx%d @ %dfps, bitrate=%d, render_mode=%d",
-                   streamSettings.streamWidth, streamSettings.streamHeight,
-                   streamSettings.fps, streamSettings.bitrate, videoSettings.render_mode);
-    
-    streamConfig.width = streamSettings.streamWidth;
-    streamConfig.height = streamSettings.streamHeight;
-    streamConfig.fps = streamSettings.fps > 0 ? streamSettings.fps : DEFAULT_STREAM_FPS;
-    
-    // Build RTSP launch URL without displayWidth/displayHeight
-    // Display resolution is now controlled via moonmic protocol handshake
-    // which configures Sunshine's mode_remapping before streaming starts:
-    
-    const bool automaticBitrate = streamSettings.bitrate == -1;
-    if (automaticBitrate) {
-        streamConfig.bitrate = calculateAutoBitrate(
-            streamConfig.width, streamConfig.height, streamConfig.fps);
-    } else {
-        streamConfig.bitrate = streamSettings.bitrate > 0 ? streamSettings.bitrate : DEFAULT_STREAM_BITRATE;
-    }
-    
-    streamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
-    streamConfig.encryptionFlags = ENCFLG_NONE;  // No encryption for now
 
-    vita_log::info("[SessionAppSelect] Configuración de streaming:");
-    vita_log::info("[SessionAppSelect] - Resolución: %dx%d", streamConfig.width, streamConfig.height);
-    vita_log::info("[SessionAppSelect] - FPS: %d", streamConfig.fps);
-    vita_log::info("[SessionAppSelect] - Bitrate: %d Kbps%s", streamConfig.bitrate,
-                   automaticBitrate ? " (auto por resolución/FPS)" : "");
+        StreamConfiguration streamSettings = configManager.getStreamConfig();
+        VideoSettings videoSettings        = configManager.getVideoSettings();
 
-    // Ensure correct packetSize and flags if they have not been set
-    if (streamConfig.packetSize <= 0) {
-        streamConfig.packetSize = 1024; // safe default value
-        vita_log::info("[SessionAppSelect] packetSize no definido -> usando 1024");
-    }
-    if (streamConfig.streamingRemotely == 0 && streamConfig.streamingRemotely != STREAM_CFG_LOCAL && streamConfig.streamingRemotely != STREAM_CFG_REMOTE && streamConfig.streamingRemotely != STREAM_CFG_AUTO) {
-        streamConfig.streamingRemotely = STREAM_CFG_AUTO; // let the core decide
-        vita_log::info("[SessionAppSelect] streamingRemotely no definido -> AUTO");
-    }
-    if (streamConfig.supportedVideoFormats == 0) {
+        // Send Moonmic handshake to configure Sunshine remapping only after confirmation
+        {
+            std::string micHost = videoSettings.microphone_host_ip.empty() ? this->host.ip : videoSettings.microphone_host_ip;
+            int micPort         = videoSettings.microphone_port > 0 ? videoSettings.microphone_port : MOONMIC_DEFAULT_PORT;
+            auto& bridge        = moonmic::MoonmicBridge::getInstance();
+            bridge.loadConfig();
+            if (streamSettings.width > 0 && streamSettings.height > 0)
+            {
+                bridge.setTargetResolution(static_cast<uint16_t>(streamSettings.width), static_cast<uint16_t>(streamSettings.height));
+            }
+            auto hsResult = bridge.sendResolutionHandshake(micHost, micPort);
+            vita_log::info("[SessionAppSelect] Moonmic handshake %s (%s:%d)", hsResult.success ? "OK" : "FAIL", micHost.c_str(), micPort);
+        }
+
+        vita_log::info("[SessionAppSelect] Stream %dx%d @ %dfps, bitrate=%d, render_mode=%d",
+            streamSettings.streamWidth, streamSettings.streamHeight,
+            streamSettings.fps, streamSettings.bitrate, videoSettings.render_mode);
+
+        streamConfig.width  = streamSettings.streamWidth;
+        streamConfig.height = streamSettings.streamHeight;
+        streamConfig.fps    = streamSettings.fps > 0 ? streamSettings.fps : DEFAULT_STREAM_FPS;
+
+        // Build RTSP launch URL without displayWidth/displayHeight
+        // Display resolution is now controlled via moonmic protocol handshake
+        // which configures Sunshine's mode_remapping before streaming starts:
+
+        const bool automaticBitrate = streamSettings.bitrate == -1;
+        if (automaticBitrate)
+        {
+            streamConfig.bitrate = calculateAutoBitrate(
+                streamConfig.width, streamConfig.height, streamConfig.fps);
+        }
+        else
+        {
+            streamConfig.bitrate = streamSettings.bitrate > 0 ? streamSettings.bitrate : DEFAULT_STREAM_BITRATE;
+        }
+
+        streamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
+        streamConfig.encryptionFlags    = ENCFLG_NONE; // No encryption for now
+
+        vita_log::info("[SessionAppSelect] Configuración de streaming:");
+        vita_log::info("[SessionAppSelect] - Resolución: %dx%d", streamConfig.width, streamConfig.height);
+        vita_log::info("[SessionAppSelect] - FPS: %d", streamConfig.fps);
+        vita_log::info("[SessionAppSelect] - Bitrate: %d Kbps%s", streamConfig.bitrate,
+            automaticBitrate ? " (auto por resolución/FPS)" : "");
+
+        // Ensure correct packetSize and flags if they have not been set
+        if (streamConfig.packetSize <= 0)
+        {
+            streamConfig.packetSize = 1024; // safe default value
+            vita_log::info("[SessionAppSelect] packetSize no definido -> usando 1024");
+        }
+        if (streamConfig.streamingRemotely == 0 && streamConfig.streamingRemotely != STREAM_CFG_LOCAL && streamConfig.streamingRemotely != STREAM_CFG_REMOTE && streamConfig.streamingRemotely != STREAM_CFG_AUTO)
+        {
+            streamConfig.streamingRemotely = STREAM_CFG_AUTO; // let the core decide
+            vita_log::info("[SessionAppSelect] streamingRemotely no definido -> AUTO");
+        }
+        if (streamConfig.supportedVideoFormats == 0)
+        {
 #ifdef VIDEO_FORMAT_H264
-        streamConfig.supportedVideoFormats = VIDEO_FORMAT_H264;
-        vita_log::info("[SessionAppSelect] supportedVideoFormats vacío -> set H264");
+            streamConfig.supportedVideoFormats = VIDEO_FORMAT_H264;
+            vita_log::info("[SessionAppSelect] supportedVideoFormats vacío -> set H264");
 #endif
-    }
-    vita_log::info("[SessionAppSelect] - packetSize: %d streamingRemotely=%d formats=0x%X",
-                      streamConfig.packetSize, streamConfig.streamingRemotely, streamConfig.supportedVideoFormats);
+        }
+        vita_log::info("[SessionAppSelect] - packetSize: %d streamingRemotely=%d formats=0x%X",
+            streamConfig.packetSize, streamConfig.streamingRemotely, streamConfig.supportedVideoFormats);
 
-    // Initialize server using GameStreamClient (Moonlight-Switch pattern)
+        // Initialize server using GameStreamClient (Moonlight-Switch pattern)
 
-    // Show modal dialog with spinner indicating connection progress
-    brls::Visibility prevGridVis = brls::Visibility::GONE;
-    std::string connectingMsg = brls::getStr("moonlight/session/app_select/connecting");
-    auto* loadingDialog = this->showConnectingDialog(connectingMsg, prevGridVis);
+        // Show modal dialog with spinner indicating connection progress
+        brls::Visibility prevGridVis = brls::Visibility::GONE;
+        std::string connectingMsg    = brls::getStr("moonlight/session/app_select/connecting");
+        auto* loadingDialog          = this->showConnectingDialog(connectingMsg, prevGridVis);
 
-    // Run the connection and startup sequence in a background thread
-    // We capture by value the necessary data to avoid using `this` in the background
-    HostInfo hostCopy = this->host;
-    RemoteAppInfo appCopy = app;
-    STREAM_CONFIGURATION cfgCopy = streamConfig;
-    auto isAliveCopy = this->isAlive;
-    std::thread([hostCopy, appCopy, cfgCopy, loadingDialog, this, prevGridVis, forceStart, isAliveCopy]() mutable {
+        // Run the connection and startup sequence in a background thread
+        // We capture by value the necessary data to avoid using `this` in the background
+        HostInfo hostCopy            = this->host;
+        RemoteAppInfo appCopy        = app;
+        STREAM_CONFIGURATION cfgCopy = streamConfig;
+        auto isAliveCopy             = this->isAlive;
+        std::thread([hostCopy, appCopy, cfgCopy, loadingDialog, this, prevGridVis, forceStart, isAliveCopy]() mutable
+            {
         vita_log::info("[SessionAppSelect][async] Iniciando conexión en hilo de fondo para %s", hostCopy.ip.c_str());
         bool connected = GameStreamClient::instance().connect(hostCopy);
         // Update UI in main thread
@@ -693,8 +748,8 @@ void SessionAppSelect::AppSelected(const RemoteAppInfo& app, bool forceStart) {
                     brls::Application::pushActivity(new brls::Activity(sessionView), brls::TransitionAnimation::NONE);
                 });
             }).detach();
-        });
-    }).detach();
+        }); })
+            .detach();
     };
 
     startFlow();

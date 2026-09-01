@@ -3,18 +3,21 @@
 #include <cstring>
 
 // Keyboard state structure for polling-based keyboards
-struct KeyboardState {
+struct KeyboardState
+{
     bool keys[256];
-    
-    KeyboardState() {
+
+    KeyboardState()
+    {
         memset(keys, 0, sizeof(keys));
     }
 };
 
 // Abstract interface for keyboard implementations.
 // Both Legacy (SCE IME) and Modern (Borealis overlay) keyboards implement this.
-class IKeyboard {
-public:
+class IKeyboard
+{
+  public:
     virtual ~IKeyboard() = default;
 
     // Open/show the keyboard
@@ -29,11 +32,12 @@ public:
     // Called every frame from the main thread (ControllerInputManager::handleInput).
     // Legacy keyboard uses this to call sceImeUpdate().
     // Modern keyboard does nothing here (it draws via Borealis).
-    virtual void update() {}
+    virtual void update() { }
 
     // Get current keyboard state for polling (Modern keyboard only).
     // Legacy keyboard returns empty state since it sends keys directly.
-    virtual KeyboardState getKeyboardState() const {
+    virtual KeyboardState getKeyboardState() const
+    {
         KeyboardState s;
         return s;
     }
@@ -51,4 +55,3 @@ public:
     // (e.g. Borealis View lifecycle). If false, ControllerInputManager will delete it.
     virtual bool selfDestructs() const { return false; }
 };
-

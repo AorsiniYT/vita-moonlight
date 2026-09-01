@@ -1,18 +1,20 @@
 #include "tab/host_menu_tab.hpp"
-#include "tab/hosts_tab.hpp"
-#include "tab/edit_host_tab.hpp"
-#include "session/session_app_select.hpp"
-#include "utils/wol.hpp"
-#include "utils/connection_test.hpp"
-#include <moonbeam.hpp>
-#include "utils/dialog_utils.h"
-#include "GameStreamClient.hpp"
-#include "ConfigManager.hpp"
+
 #include <borealis/core/application.hpp>
 #include <borealis/views/applet_frame.hpp>
 #include <borealis/views/progress_spinner.hpp>
-#include <thread>
 #include <filesystem>
+#include <moonbeam.hpp>
+#include <thread>
+
+#include "ConfigManager.hpp"
+#include "GameStreamClient.hpp"
+#include "session/session_app_select.hpp"
+#include "tab/edit_host_tab.hpp"
+#include "tab/hosts_tab.hpp"
+#include "utils/connection_test.hpp"
+#include "utils/dialog_utils.h"
+#include "utils/wol.hpp"
 
 #ifdef __PSV__
 #include <psp2/kernel/clib.h>
@@ -23,7 +25,9 @@
 
 using namespace brls::literals;
 
-HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
+HostMenuTab::HostMenuTab(const HostInfo& hostInfo)
+    : host(hostInfo)
+{
     // Column layout containing both columns or lists
     this->setAxis(brls::Axis::ROW);
     this->setAlignItems(brls::AlignItems::CENTER);
@@ -41,14 +45,14 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     leftCol->setMarginRight(20.0f);
 
     brls::Label* infoTitle = createLabel(brls::getStr("host_dialog/info/title"),
-                                         style["brls/applet_frame/header_title_font_size"] * 0.9f,
-                                         brls::HorizontalAlign::LEFT, 20.0f);
+        style["brls/applet_frame/header_title_font_size"] * 0.9f,
+        brls::HorizontalAlign::LEFT, 20.0f);
     leftCol->addView(infoTitle);
 
     std::vector<std::pair<std::string, std::string>> infoRows = {
-        {brls::getStr("host_dialog/info/name"), host.name},
-        {brls::getStr("host_dialog/info/ip"), host.ip},
-        {brls::getStr("host_dialog/info/mac"), host.mac.empty() ? "-" : host.mac}
+        { brls::getStr("host_dialog/info/name"), host.name },
+        { brls::getStr("host_dialog/info/ip"), host.ip },
+        { brls::getStr("host_dialog/info/mac"), host.mac.empty() ? "-" : host.mac }
     };
     brls::Box* infoBox = createInfoBox(infoRows, style["brls/label/default_font_size"], 12.0f);
     leftCol->addView(infoBox);
@@ -66,7 +70,8 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     connectBtn->setText(brls::getStr("host_dialog/dialog/connect"));
     connectBtn->setWidth(400.0f);
     connectBtn->setMarginBottom(12.0f);
-    connectBtn->registerClickAction([this](brls::View*) {
+    connectBtn->registerClickAction([this](brls::View*)
+        {
         std::string hostName = this->host.name;
         brls::sync([hostName]() {
             // Pop the host menu activity
@@ -86,8 +91,7 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
                 }
             });
         });
-        return true;
-    });
+        return true; });
     rightCol->addView(connectBtn);
 
     // 2. Test Connection Button
@@ -95,21 +99,23 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     testBtn->setText(brls::getStr("host_dialog/dialog/test_connection"));
     testBtn->setWidth(400.0f);
     testBtn->setMarginBottom(12.0f);
-    testBtn->registerClickAction([this](brls::View*) {
+    testBtn->registerClickAction([this](brls::View*)
+        {
         brls::sync([this]() {
             utils::startConnectionTest(this->host);
         });
-        return true;
-    });
+        return true; });
     rightCol->addView(testBtn);
 
     // 3. Wake-on-LAN Button (only if mac exists)
-    if (!host.mac.empty()) {
+    if (!host.mac.empty())
+    {
         brls::Button* wolBtn = new brls::Button();
         wolBtn->setText(brls::getStr("host_dialog/wol/button"));
         wolBtn->setWidth(400.0f);
         wolBtn->setMarginBottom(12.0f);
-        wolBtn->registerClickAction([this](brls::View*) {
+        wolBtn->registerClickAction([this](brls::View*)
+            {
             brls::sync([this]() {
                 bool ok = utils::sendWOLPacket(this->host.mac, this->host.ip);
                 if (ok) {
@@ -118,8 +124,7 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
                     brls::Application::notify(brls::getStr("host_dialog/wol/failure"));
                 }
             });
-            return true;
-        });
+            return true; });
         rightCol->addView(wolBtn);
     }
 
@@ -128,15 +133,15 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     editBtn->setText(brls::getStr("host_dialog/dropdown/edit_host"));
     editBtn->setWidth(400.0f);
     editBtn->setMarginBottom(12.0f);
-    editBtn->registerClickAction([this](brls::View*) {
+    editBtn->registerClickAction([this](brls::View*)
+        {
         brls::sync([this]() {
             auto* editView = EditHostTab::create(this->host);
             auto* frame = new brls::AppletFrame(editView);
             frame->setTitle(brls::getStr("host_dialog/edit_host_title"));
             brls::Application::pushActivity(new brls::Activity(frame));
         });
-        return true;
-    });
+        return true; });
     rightCol->addView(editBtn);
 
     // 5. Delete Host Button
@@ -144,7 +149,8 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
     deleteBtn->setText(brls::getStr("host_dialog/dropdown/delete"));
     deleteBtn->setWidth(400.0f);
     deleteBtn->setMarginBottom(12.0f);
-    deleteBtn->registerClickAction([this](brls::View*) {
+    deleteBtn->registerClickAction([this](brls::View*)
+        {
         std::string hostNameCopy = this->host.name;
         brls::sync([this, hostNameCopy]() {
             std::string confirmMsg = brls::getStr("host_dialog/confirm_delete_msg") + "\n" + hostNameCopy;
@@ -223,16 +229,17 @@ HostMenuTab::HostMenuTab(const HostInfo& hostInfo) : host(hostInfo) {
             confirm->addButton(brls::getStr("host_dialog/no"), [confirm]() { confirm->close(); });
             confirm->open();
         });
-        return true;
-    });
+        return true; });
     rightCol->addView(deleteBtn);
 
     this->addView(rightCol);
 }
 
-HostMenuTab::~HostMenuTab() {
+HostMenuTab::~HostMenuTab()
+{
 }
 
-brls::View* HostMenuTab::create(const HostInfo& host) {
+brls::View* HostMenuTab::create(const HostInfo& host)
+{
     return new HostMenuTab(host);
 }

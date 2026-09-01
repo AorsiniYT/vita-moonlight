@@ -1,20 +1,20 @@
 #pragma once
 
 #include <borealis.hpp>
-
 #include <cstddef>
 #include <string>
 #include <vector>
 
 #include "shortcuts/shortcut_config.hpp"
 
-class ShortcutsSettingsTab : public brls::Box {
-public:
+class ShortcutsSettingsTab : public brls::Box
+{
+  public:
     ShortcutsSettingsTab();
 
     static brls::View* create();
 
-private:
+  private:
     void rebuildShortcutList();
     void openShortcutEditor(std::size_t index, bool creatingNew);
 

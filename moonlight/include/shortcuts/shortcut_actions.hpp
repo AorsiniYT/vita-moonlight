@@ -5,7 +5,8 @@
 
 #include "shortcuts/shortcut_config.hpp"
 
-namespace shortcuts {
+namespace shortcuts
+{
 
 using ShortcutCallback = std::function<void()>;
 

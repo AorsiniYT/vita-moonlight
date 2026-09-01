@@ -15,17 +15,20 @@
 */
 
 #include "activity/main_activity.hpp"
+
 #include "controller/ControllerInput.hpp"
 
 // Ensures virtual destructor is defined to avoid vtable error
-MainActivity::MainActivity() {
+MainActivity::MainActivity()
+{
     // Initialize input manager if it does not exist
-    if (!g_controllerInput) {
+    if (!g_controllerInput)
+    {
         g_controllerInput = new ControllerInputManager();
     }
-    
+
     // Resetear focus al default
     brls::Application::giveFocus(this->getDefaultFocus());
 }
 
-MainActivity::~MainActivity() {}
+MainActivity::~MainActivity() { }

@@ -1,21 +1,24 @@
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <functional>
 #include <psp2/ctrl.h>
-#include "controller/TouchInput.hpp"
-#include "controller/RearTouchInput.hpp"
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <functional>
+
+#include "ConfigManager.hpp"
 #include "controller/FrontTouchInput.hpp"
+#include "controller/GamepadState.hpp"
+#include "controller/RearTouchInput.hpp"
+#include "controller/TouchInput.hpp"
 #include "controller/keyboard/IKeyboard.hpp"
 #include "debug.hpp"
-#include "controller/GamepadState.hpp"
-#include "ConfigManager.hpp"
 
 // Forward declare Gyro manager
 class GyroManager;
 
-struct VitaMouseState {
+struct VitaMouseState
+{
     uint16_t buttonFlags;
     unsigned char leftTrigger;
     unsigned char rightTrigger;
@@ -26,8 +29,9 @@ struct VitaMouseState {
 };
 
 // Class to handle input on PS Vita
-class ControllerInputManager {
-public:
+class ControllerInputManager
+{
+  public:
     ControllerInputManager();
     ~ControllerInputManager();
 
@@ -82,13 +86,13 @@ public:
     void unlockPSButton();
     void setStreamingActive(bool active);
 
-private:
+  private:
     bool inputEnabled;
     bool streamingActive = false;
     bool inputDropped;
-    bool touchSuppressed = false;
+    bool touchSuppressed          = false;
     uint64_t touchSuppressUntilUs = 0;
-    bool lastKeyboardOpen = false;
+    bool lastKeyboardOpen         = false;
 
     // Previous states to detect changes
     GamepadState lastGamepadState;
@@ -105,7 +109,7 @@ private:
     std::function<void()> pauseCallback;
 
     // Active keyboard for polling
-    IKeyboard* activeKeyboard = nullptr;
+    IKeyboard* activeKeyboard   = nullptr;
     bool activeKeyboardSeenOpen = false;
 
     // Current gamepad type
@@ -114,7 +118,8 @@ private:
     // Swap shoulder buttons state
     bool swapShoulderButtons = false;
 
-    struct ButtonMapping {
+    struct ButtonMapping
+    {
         uint32_t btnDpadUp;
         uint32_t btnDpadDown;
         uint32_t btnDpadLeft;
@@ -142,10 +147,10 @@ private:
     GyroManager* gyroManager = nullptr;
 
     // PS button state
-    bool psButtonLocked = false;
-    bool psButtonWasPressed = false;
+    bool psButtonLocked            = false;
+    bool psButtonWasPressed        = false;
     uint64_t psButtonPressedTimeUs = 0;
-    bool psButtonSpecialActive = false;
+    bool psButtonSpecialActive     = false;
 
     void initMapping();
     GamepadState buildGamepadState(const SceCtrlData& ctrlData) const;

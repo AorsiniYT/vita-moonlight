@@ -3,14 +3,15 @@
 #include <borealis.hpp>
 #include <memory>
 
-class KeyboardSettingsTab : public brls::Box {
-public:
+class KeyboardSettingsTab : public brls::Box
+{
+  public:
     KeyboardSettingsTab();
     ~KeyboardSettingsTab() override = default;
-    
+
     static brls::View* create();
 
-private:
+  private:
     // UI Elements
     BRLS_BIND(brls::SelectorCell, keyboardModeSelector, "keyboard_mode_selector");
     BRLS_BIND(brls::Header, keyboardLayoutHeader, "keyboard_layout_header");
@@ -23,7 +24,7 @@ private:
     BRLS_BIND(brls::DetailCell, themePreviewCell, "theme_preview");
     BRLS_BIND(brls::DetailCell, themeEditorCell, "theme_editor");
     BRLS_BIND(brls::Label, keyboardThemeInfo, "keyboard_theme_info");
-    
+
     // Lifetime management
     std::shared_ptr<bool> aliveToken = std::make_shared<bool>(true);
 };

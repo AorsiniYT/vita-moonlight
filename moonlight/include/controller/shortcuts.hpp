@@ -1,6 +1,7 @@
 // shortcuts.hpp
 #pragma once
 #include <psp2/ctrl.h>
+
 #include <cstdint>
 #include <functional>
 

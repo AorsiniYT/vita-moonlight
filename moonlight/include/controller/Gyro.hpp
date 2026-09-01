@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-struct MotionSensorData {
+struct MotionSensorData
+{
     // Gyroscope (deg/s)
     float gyroX = 0.0f, gyroY = 0.0f, gyroZ = 0.0f;
     // Accelerometer (m/s^2)
@@ -17,8 +18,9 @@ struct MotionSensorData {
     uint64_t hostTimestamp = 0;
 };
 
-class GyroManager {
-public:
+class GyroManager
+{
+  public:
     GyroManager();
 
     // Called every input poll to sample sensors and send motion events when needed
@@ -29,12 +31,12 @@ public:
 
     bool isSensorAvailable() const { return sensorAvailable; }
 
-private:
-    uint64_t lastSendUs = 0;
-    bool initialized = false;
+  private:
+    uint64_t lastSendUs  = 0;
+    bool initialized     = false;
     bool sensorAvailable = false;
 
     // Platform-specific sensor read implementation (gyro + accelerometer)
     bool readPlatformSensor(float& gx, float& gy, float& gz,
-                            float& ax, float& ay, float& az);
+        float& ax, float& ay, float& az);
 };

@@ -1,51 +1,62 @@
 #include "controller/Gyro.hpp"
-#include "Limelight.h"
-#include "ConfigManager.hpp"
-#include "debug.hpp"
+
 #include <psp2/motion.h>
+
 #include <chrono>
 #include <cmath>
+
+#include "ConfigManager.hpp"
+#include "Limelight.h"
+#include "debug.hpp"
 
 using namespace std::chrono;
 static constexpr float kGyroBaseScale = 28.0f;
 
-GyroManager::GyroManager() {
+GyroManager::GyroManager()
+{
     sceMotionReset();
 
     int res = sceMotionStartSampling();
-    if (res < 0 && res != (int)SCE_MOTION_ERROR_ALREADY_SAMPLING) {
+    if (res < 0 && res != (int)SCE_MOTION_ERROR_ALREADY_SAMPLING)
+    {
         vita_log::error("[Gyro] sceMotionStartSampling failed: 0x%08X", res);
         sensorAvailable = false;
-        initialized = false;
+        initialized     = false;
         return;
     }
 
     sensorAvailable = true;
-    initialized = true;
+    initialized     = true;
     vita_log::info("[Gyro] Motion sensor ready");
 }
 
-static uint64_t nowUs() {
+static uint64_t nowUs()
+{
     return (uint64_t)duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch()).count();
 }
 
-void GyroManager::update() {
-    if (!initialized || !sensorAvailable) return;
+void GyroManager::update()
+{
+    if (!initialized || !sensorAvailable)
+        return;
 
     // Rate limit sends to ~125Hz by default (matches input polling)
-    const uint64_t now = nowUs();
+    const uint64_t now           = nowUs();
     const uint64_t minIntervalUs = 8000; // 125Hz
-    if (lastSendUs != 0 && (now - lastSendUs) < minIntervalUs) return;
+    if (lastSendUs != 0 && (now - lastSendUs) < minIntervalUs)
+        return;
 
     extern ::VideoSettings g_video_settings_snapshot;
-    if (!g_video_settings_snapshot.enable_motion_controls) {
+    if (!g_video_settings_snapshot.enable_motion_controls)
+    {
         return;
     }
 
     const ::VideoSettings& settings = g_video_settings_snapshot;
     float gx = 0.0f, gy = 0.0f, gz = 0.0f;
     float ax = 0.0f, ay = 0.0f, az = 0.0f;
-    if (!readPlatformSensor(gx, gy, gz, ax, ay, az)) {
+    if (!readPlatformSensor(gx, gy, gz, ax, ay, az))
+    {
         return;
     }
 
@@ -58,7 +69,8 @@ void GyroManager::update() {
     float sz_v = gz * kGyroBaseScale;
 
     // Send gyroscope (deg/s)
-    if (LiSendControllerMotionEvent(0, LI_MOTION_TYPE_GYRO, sx_v, sy_v, sz_v) != 0) {
+    if (LiSendControllerMotionEvent(0, LI_MOTION_TYPE_GYRO, sx_v, sy_v, sz_v) != 0)
+    {
         vita_log::error("[Gyro] LiSendControllerMotionEvent (gyro) fallo");
     }
 
@@ -67,21 +79,25 @@ void GyroManager::update() {
     float ay_v = ay * kGyroBaseScale * sy;
     float az_v = az * kGyroBaseScale;
 
-    if (LiSendControllerMotionEvent(0, LI_MOTION_TYPE_ACCEL, ax_v, ay_v, az_v) != 0) {
+    if (LiSendControllerMotionEvent(0, LI_MOTION_TYPE_ACCEL, ax_v, ay_v, az_v) != 0)
+    {
         vita_log::error("[Gyro] LiSendControllerMotionEvent (accel) fallo");
     }
 
     lastSendUs = now;
 }
 
-bool GyroManager::readMotionData(MotionSensorData& out) {
-    if (!sensorAvailable) {
+bool GyroManager::readMotionData(MotionSensorData& out)
+{
+    if (!sensorAvailable)
+    {
         return false;
     }
 
     SceMotionState motionState;
     int res = sceMotionGetState(&motionState);
-    if (res < 0) {
+    if (res < 0)
+    {
         vita_log::error("[Gyro] sceMotionGetState failed: 0x%08X", res);
         return false;
     }
@@ -117,9 +133,11 @@ bool GyroManager::readMotionData(MotionSensorData& out) {
 }
 
 bool GyroManager::readPlatformSensor(float& gx, float& gy, float& gz,
-                                     float& ax, float& ay, float& az) {
+    float& ax, float& ay, float& az)
+{
     MotionSensorData data;
-    if (!readMotionData(data)) {
+    if (!readMotionData(data))
+    {
         return false;
     }
     gx = data.gyroX;

@@ -3,14 +3,16 @@
 #include <cstdint>
 
 // Result of a VK mapping lookup: the Windows Virtual Key code plus required modifiers
-struct VkMapping {
-    int vk = 0;
+struct VkMapping
+{
+    int vk           = 0;
     bool needs_shift = false;
     bool needs_altgr = false;
 };
 
 // Enumeration of supported keyboard layouts (works for both client display and host mapping)
-enum KeyboardLayout {
+enum KeyboardLayout
+{
     KB_LAYOUT_EN_US = 0,
     KB_LAYOUT_ES_ES,
     KB_LAYOUT_ES_LATAM,

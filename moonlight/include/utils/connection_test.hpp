@@ -1,7 +1,8 @@
 #pragma once
 #include "model/HostStorage.hpp"
 
-namespace utils {
+namespace utils
+{
 
 void startConnectionTest(const HostInfo& host);
 

@@ -1,11 +1,12 @@
 #ifndef VITA_GLOBALS_H
 #define VITA_GLOBALS_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
 #include <memory>
 
 // Zero-copy eliminated: pipeline uses GxmTexture (no vita2d)
@@ -14,9 +15,9 @@
 // (basic includes already moved above)
 
 // VitaSDK headers
+#include <psp2/display.h>
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
-#include <psp2/display.h>
 #include <psp2/videodec.h>
 
 // Direct GXM texture allocator (replaces vita2d)
@@ -24,10 +25,12 @@
 
 // Project headers
 #include <Limelight.h>
+
 #include "ConfigManager.hpp"
 #include "debug.hpp"
 #ifdef __cplusplus
 #include <mutex>
+
 #include "gamestream/sps.h"
 extern gs::SpsContext* g_sps_ctx; // SPS context (raw pointer)
 #endif
@@ -78,7 +81,8 @@ extern int SCREEN_HEIGHT;
 #define PURE_COPY_FAILURE_THRESHOLD 3
 
 // Video status info structure
-typedef struct {
+typedef struct
+{
     VideoStatus status;
     uint32_t framesRendered;
     uint32_t framesDropped;
@@ -114,8 +118,8 @@ extern GxmTexture* frame_textures[3];
 // three write targets so a recently displayed texture is not reused immediately.
 extern int frame_display_idx;
 extern int frame_write_idx;
-#define FRAME_FRONT()  (frame_textures[frame_display_idx])
-#define FRAME_BACK()   (frame_textures[frame_write_idx])
+#define FRAME_FRONT() (frame_textures[frame_display_idx])
+#define FRAME_BACK() (frame_textures[frame_write_idx])
 #ifdef __cplusplus
 extern std::mutex g_frame_slots_mutex;
 #endif
@@ -201,7 +205,7 @@ void vitavideo_update_scaling_settings(int width, int height);
 void yuv_write_canaries();
 bool yuv_check_canaries();
 uint64_t vita_monotonic_ms();
-int vita_pacer_thread_main(SceSize args, void *argp);
+int vita_pacer_thread_main(SceSize args, void* argp);
 int vitavideo_init_1080p_internal_api(int width, int height, SceVideodecQueryInitInfoHwAvcdec* init);
 
 #endif // VITA_GLOBALS_H

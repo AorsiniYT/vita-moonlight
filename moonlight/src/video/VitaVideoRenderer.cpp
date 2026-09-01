@@ -1,94 +1,114 @@
 #include "VitaVideoRenderer.hpp"
-#include "legacy/modules/vita_globals.hpp"
 
+#include <borealis/extern/nanovg/nanovg.h>
+#include <borealis/extern/nanovg/nanovg_gxm.h>
 #include <psp2/gxm.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
-#include <borealis/core/application.hpp>
-#include <borealis/extern/nanovg/nanovg.h>
-#include <borealis/extern/nanovg/nanovg_gxm.h>
-
 #include <stdlib.h>
+
+#include <borealis/core/application.hpp>
 #include <mutex>
 
-namespace {
-    uint32_t s_presentWindowFrames = 0;
-    uint64_t s_cachedStatsStart = 0;
-    uint32_t s_prevDecodedCount = 0;
+#include "legacy/modules/vita_globals.hpp"
 
-    bool is_gpu_yuv_experimental_enabled() {
-        extern bool g_gpu_yuv_experimental_enabled;
-        return g_gpu_yuv_experimental_enabled;
-    }
+namespace
+{
+uint32_t s_presentWindowFrames = 0;
+uint64_t s_cachedStatsStart    = 0;
+uint32_t s_prevDecodedCount    = 0;
 
-    bool is_yuv_gxm_format(uint32_t fmt) {
-        return fmt == (uint32_t)SCE_GXM_TEXTURE_FORMAT_YUV420P3_CSC0 ||
-               fmt == (uint32_t)SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC0;
-    }
-
-    uint32_t s_e2e_sum_us = 0;
-    uint32_t s_e2e_min_us = 999999;
-    uint32_t s_e2e_max_us = 0;
-    uint32_t s_e2e_count = 0;
+bool is_gpu_yuv_experimental_enabled()
+{
+    extern bool g_gpu_yuv_experimental_enabled;
+    return g_gpu_yuv_experimental_enabled;
 }
 
-VitaVideoRenderer& VitaVideoRenderer::instance() {
+bool is_yuv_gxm_format(uint32_t fmt)
+{
+    return fmt == (uint32_t)SCE_GXM_TEXTURE_FORMAT_YUV420P3_CSC0 || fmt == (uint32_t)SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC0;
+}
+
+uint32_t s_e2e_sum_us = 0;
+uint32_t s_e2e_min_us = 999999;
+uint32_t s_e2e_max_us = 0;
+uint32_t s_e2e_count  = 0;
+}
+
+VitaVideoRenderer& VitaVideoRenderer::instance()
+{
     static VitaVideoRenderer inst;
     return inst;
 }
 
-void VitaVideoRenderer::setFullscreenStretch(bool stretch) {
-    fullscreenStretch = stretch;
+void VitaVideoRenderer::setFullscreenStretch(bool stretch)
+{
+    fullscreenStretch        = stretch;
     video_fullscreen_stretch = stretch;
 }
 
-void VitaVideoRenderer::draw(struct NVGcontext* vg, float viewportW, float viewportH, float alpha) {
-    if (vg) {
+void VitaVideoRenderer::draw(struct NVGcontext* vg, float viewportW, float viewportH, float alpha)
+{
+    if (vg)
+    {
         drawNVG(vg, viewportW, viewportH, alpha);
-    } else {
+    }
+    else
+    {
         draw(viewportW, viewportH);
     }
 }
 
-void VitaVideoRenderer::draw(float, float) {
+void VitaVideoRenderer::draw(float, float)
+{
     static bool logged = false;
-    if (!logged) {
+    if (!logged)
+    {
         VITA_DEBUG_LOG("[Video][DRAW] Non-NVG draw path called, skipping (vita2d removed)");
         logged = true;
     }
 }
 
-void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH, float alpha) {
-    if (!vg) {
+void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH, float alpha)
+{
+    if (!vg)
+    {
         draw(viewportW, viewportH);
         return;
     }
-    if (g_stats.frames_decoded == 0) return;
+    if (g_stats.frames_decoded == 0)
+        return;
 
     int displayIdx = __atomic_load_n(&frame_display_idx, __ATOMIC_ACQUIRE);
 
     const GxmTexture* tex = frame_textures[displayIdx];
-    if (!tex) return;
+    if (!tex)
+        return;
 
     SceGxmTexture gxmTexSnapshot = tex->gxm_tex;
-    const SceGxmTexture* gxmTex = &gxmTexSnapshot;
-    const void* currentData = sceGxmTextureGetData(const_cast<SceGxmTexture*>(gxmTex));
-    uint32_t currentFmt = (uint32_t)sceGxmTextureGetFormat(const_cast<SceGxmTexture*>(gxmTex));
-    bool isYuvTexture = is_yuv_gxm_format(currentFmt);
-    if (currentFmt != (uint32_t)SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR && !isYuvTexture) {
+    const SceGxmTexture* gxmTex  = &gxmTexSnapshot;
+    const void* currentData      = sceGxmTextureGetData(const_cast<SceGxmTexture*>(gxmTex));
+    uint32_t currentFmt          = (uint32_t)sceGxmTextureGetFormat(const_cast<SceGxmTexture*>(gxmTex));
+    bool isYuvTexture            = is_yuv_gxm_format(currentFmt);
+    if (currentFmt != (uint32_t)SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR && !isYuvTexture)
+    {
         static uint32_t yuvFallbackLogCounter = 0;
-        if ((yuvFallbackLogCounter++ % 180) == 0) {
+        if ((yuvFallbackLogCounter++ % 180) == 0)
+        {
             VITA_DEBUG_LOG("[Video][NVG][SAFE] formato 0x%08X no-RGBA/no-YUV; skip frame", (unsigned)currentFmt);
         }
         return;
     }
 
     // Set YUV profile only once (not every frame)
-    if (isYuvTexture) {
+    if (isYuvTexture)
+    {
         static bool yuvProfileSet = false;
-        if (!yuvProfileSet) {
+        if (!yuvProfileSet)
+        {
             NVGXMwindow* win = gxmGetWindow();
-            if (win && win->context) {
+            if (win && win->context)
+            {
                 sceGxmSetYuvProfile(win->context, 0, SCE_GXM_YUV_PROFILE_BT709_STANDARD);
                 yuvProfileSet = true;
                 VITA_DEBUG_LOG("[Video][NVG] YUV profile BT709 set (one-time)");
@@ -96,75 +116,92 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
         }
     }
 
-    if (!image_scaling.enabled) return;
+    if (!image_scaling.enabled)
+        return;
 
     uint32_t texW = image_scaling.texture_width;
     uint32_t texH = image_scaling.texture_height;
-    if (texW == 0 || texH == 0) return;
+    if (texW == 0 || texH == 0)
+        return;
 
     // nvgxmCreateImageFromHandle copies the texture descriptor, so update the
     // cached descriptor when FFmpeg rotates a new VRAM frame into the same slot.
     int foundIdx = -1;
-    for (int i = 0; i < imageCacheSize; i++) {
-        if (imageCache[i].tex == tex) {
+    for (int i = 0; i < imageCacheSize; i++)
+    {
+        if (imageCache[i].tex == tex)
+        {
             foundIdx = i;
             break;
         }
     }
 
     int useImageId = -1;
-    if (foundIdx >= 0) {
-        bool needRecreate = (imageCache[foundIdx].width  != (int)texW  ||
-                             imageCache[foundIdx].height != (int)texH  ||
-                             imageCache[foundIdx].format != currentFmt);
-        if (needRecreate) {
+    if (foundIdx >= 0)
+    {
+        bool needRecreate = (imageCache[foundIdx].width != (int)texW || imageCache[foundIdx].height != (int)texH || imageCache[foundIdx].format != currentFmt);
+        if (needRecreate)
+        {
             nvgDeleteImage(vg, imageCache[foundIdx].imageId);
             int newId = nvgxmCreateImageFromHandle(vg, const_cast<SceGxmTexture*>(gxmTex));
-            if (newId > 0) {
+            if (newId > 0)
+            {
                 imageCache[foundIdx].imageId = newId;
-                imageCache[foundIdx].width  = (int)texW;
-                imageCache[foundIdx].height = (int)texH;
-                imageCache[foundIdx].data   = currentData;
-                imageCache[foundIdx].format = currentFmt;
-                useImageId = newId;
+                imageCache[foundIdx].width   = (int)texW;
+                imageCache[foundIdx].height  = (int)texH;
+                imageCache[foundIdx].data    = currentData;
+                imageCache[foundIdx].format  = currentFmt;
+                useImageId                   = newId;
             }
-        } else if (imageCache[foundIdx].data != currentData) {
+        }
+        else if (imageCache[foundIdx].data != currentData)
+        {
             NVGXMtexture* nvgTex = nvgxmImageHandle(vg, imageCache[foundIdx].imageId);
-            if (nvgTex) {
-                nvgTex->tex  = *gxmTex;
-                nvgTex->data = (uint8_t*)currentData;
+            if (nvgTex)
+            {
+                nvgTex->tex               = *gxmTex;
+                nvgTex->data              = (uint8_t*)currentData;
                 imageCache[foundIdx].data = currentData;
             }
             useImageId = imageCache[foundIdx].imageId;
-        } else {
+        }
+        else
+        {
             useImageId = imageCache[foundIdx].imageId;
         }
-    } else {
+    }
+    else
+    {
         int newId = nvgxmCreateImageFromHandle(vg, const_cast<SceGxmTexture*>(gxmTex));
-        if (newId > 0) {
-            if (imageCacheSize < 4) {
-                int idx = imageCacheSize++;
-                imageCache[idx].tex    = tex;
+        if (newId > 0)
+        {
+            if (imageCacheSize < 4)
+            {
+                int idx                 = imageCacheSize++;
+                imageCache[idx].tex     = tex;
                 imageCache[idx].imageId = newId;
-                imageCache[idx].width  = (int)texW;
-                imageCache[idx].height = (int)texH;
-                imageCache[idx].data   = currentData;
-                imageCache[idx].format = currentFmt;
-                useImageId = newId;
-            } else {
+                imageCache[idx].width   = (int)texW;
+                imageCache[idx].height  = (int)texH;
+                imageCache[idx].data    = currentData;
+                imageCache[idx].format  = currentFmt;
+                useImageId              = newId;
+            }
+            else
+            {
                 nvgDeleteImage(vg, imageCache[0].imageId);
-                imageCache[0].tex    = tex;
+                imageCache[0].tex     = tex;
                 imageCache[0].imageId = newId;
-                imageCache[0].width  = (int)texW;
-                imageCache[0].height = (int)texH;
-                imageCache[0].data   = currentData;
-                imageCache[0].format = currentFmt;
-                useImageId = newId;
+                imageCache[0].width   = (int)texW;
+                imageCache[0].height  = (int)texH;
+                imageCache[0].data    = currentData;
+                imageCache[0].format  = currentFmt;
+                useImageId            = newId;
             }
         }
     }
 
-    if (useImageId <= 0) {
+    if (useImageId <= 0)
+    {
         VITA_DEBUG_LOG("[Video][DRAW NVG][ERR] Failed to get/create image for tex=%p", tex);
         return;
     }
@@ -173,7 +210,8 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
     int dh = fullscreenStretch ? (int)viewportH : image_scaling.display_height;
     int ox = fullscreenStretch ? 0 : image_scaling.offset_x;
     int oy = fullscreenStretch ? 0 : image_scaling.offset_y;
-    if (dw <= 0 || dh <= 0) return;
+    if (dw <= 0 || dh <= 0)
+        return;
 
     // Draw complete frame at once
     NVGpaint paint = nvgImagePattern(vg, (float)ox, (float)oy, (float)dw, (float)dh, 0.0f, useImageId, alpha);
@@ -184,17 +222,21 @@ void VitaVideoRenderer::drawNVG(NVGcontext* vg, float viewportW, float viewportH
 
     g_stats.frames_presented++;
     onFramePresented(currentData);
-
 }
 
-void VitaVideoRenderer::destroyImage(NVGcontext* vg) {
-    if (!vg) {
+void VitaVideoRenderer::destroyImage(NVGcontext* vg)
+{
+    if (!vg)
+    {
         vg = brls::Application::getNVGContext();
     }
 
-    if (vg) {
-        for (int i = 0; i < imageCacheSize; i++) {
-            if (imageCache[i].imageId >= 0) {
+    if (vg)
+    {
+        for (int i = 0; i < imageCacheSize; i++)
+        {
+            if (imageCache[i].imageId >= 0)
+            {
                 nvgDeleteImage(vg, imageCache[i].imageId);
             }
         }
@@ -207,18 +249,22 @@ extern "C" void ffmpeg_increment_presented_frames(void);
 extern "C" void ffmpeg_mark_direct_buffer_presented(const void* data);
 extern "C" void ffmpeg_video_watchdog_tick(void);
 
-void VitaVideoRenderer::onFramePresented(const void* textureData) {
+void VitaVideoRenderer::onFramePresented(const void* textureData)
+{
     // Count each published frame once across both presentation paths.
     {
         static uint32_t s_last_measured_ts = 0;
-        uint32_t publishTimeUs = __atomic_load_n(&frame_publish_timestamp_us, __ATOMIC_ACQUIRE);
-        if (publishTimeUs > 0 && publishTimeUs != s_last_measured_ts) {
+        uint32_t publishTimeUs             = __atomic_load_n(&frame_publish_timestamp_us, __ATOMIC_ACQUIRE);
+        if (publishTimeUs > 0 && publishTimeUs != s_last_measured_ts)
+        {
             s_last_measured_ts = publishTimeUs;
-            uint32_t nowUs = sceKernelGetProcessTimeLow();
-            uint32_t diffUs = nowUs - publishTimeUs;
+            uint32_t nowUs     = sceKernelGetProcessTimeLow();
+            uint32_t diffUs    = nowUs - publishTimeUs;
             s_e2e_sum_us += diffUs;
-            if (diffUs < s_e2e_min_us) s_e2e_min_us = diffUs;
-            if (diffUs > s_e2e_max_us) s_e2e_max_us = diffUs;
+            if (diffUs < s_e2e_min_us)
+                s_e2e_min_us = diffUs;
+            if (diffUs > s_e2e_max_us)
+                s_e2e_max_us = diffUs;
             s_e2e_count++;
         }
     }
@@ -226,82 +272,97 @@ void VitaVideoRenderer::onFramePresented(const void* textureData) {
     // Only process ffmpeg deferred releases when in ffmpeg mode.
     // In legacy mode, the deferred list is always empty but we'd still
     // pay for a mutex lock+unlock on every single frame for nothing.
-    if (g_video_settings_snapshot.render_mode == 1) {
+    if (g_video_settings_snapshot.render_mode == 1)
+    {
         ffmpeg_video_watchdog_tick();
         ffmpeg_mark_direct_buffer_presented(textureData);
         ffmpeg_increment_presented_frames();
         ffmpeg_process_deferred_releases();
     }
     uint64_t now = vita_monotonic_ms();
-    if (stats_start_ms == 0) {
+    if (stats_start_ms == 0)
+    {
         stats_start_ms = now;
     }
 
-    if (stats_start_ms != 0 && stats_start_ms != s_cachedStatsStart) {
-        s_cachedStatsStart = stats_start_ms;
+    if (stats_start_ms != 0 && stats_start_ms != s_cachedStatsStart)
+    {
+        s_cachedStatsStart    = stats_start_ms;
         s_presentWindowFrames = 0;
-        last_fps_window_ms = stats_start_ms;
+        last_fps_window_ms    = stats_start_ms;
         // Reset decoding window counter in sync with the present window for easier comparison
         s_prevDecodedCount = g_stats.frames_decoded;
     }
 
-    if (last_fps_window_ms == 0) {
+    if (last_fps_window_ms == 0)
+    {
         last_fps_window_ms = now;
     }
 
     s_presentWindowFrames++;
 
-    if (stats_start_ms <= now) {
+    if (stats_start_ms <= now)
+    {
         g_stats.session_ms = now - stats_start_ms;
     }
 
     uint64_t elapsed = now - last_fps_window_ms;
-    if (elapsed >= 1000) {
-        if (elapsed == 0) elapsed = 1;
+    if (elapsed >= 1000)
+    {
+        if (elapsed == 0)
+            elapsed = 1;
         g_stats.current_fps = (uint32_t)((uint64_t)s_presentWindowFrames * 1000ULL / elapsed);
-        curr_fps[0] = g_stats.current_fps;
+        curr_fps[0]         = g_stats.current_fps;
         // Compute decode FPS using the global decoded frames counter and the same time window
         uint32_t nowDecCount = g_stats.frames_decoded;
         uint32_t decInWindow = nowDecCount - s_prevDecodedCount;
-        g_stats.decoded_fps = (uint32_t)((uint64_t)decInWindow * 1000ULL / elapsed);
-        s_prevDecodedCount = nowDecCount;
+        g_stats.decoded_fps  = (uint32_t)((uint64_t)decInWindow * 1000ULL / elapsed);
+        s_prevDecodedCount   = nowDecCount;
 
-        if (g_decode_count > 0) {
-            uint32_t avg = g_decode_sum_ms / g_decode_count;
-            uint32_t estRtt = 0;
+        if (g_decode_count > 0)
+        {
+            uint32_t avg       = g_decode_sum_ms / g_decode_count;
+            uint32_t estRtt    = 0;
             uint32_t estRttVar = 0;
-            if (!g_session_stopping && LiGetEstimatedRttInfo(&estRtt, &estRttVar)) {
+            if (!g_session_stopping && LiGetEstimatedRttInfo(&estRtt, &estRttVar))
+            {
                 // Log warning if RTT variance is high or FPS is low
-                if (estRttVar > 5 || g_decode_count < 55) {
+                if (estRttVar > 5 || g_decode_count < 55)
+                {
                     VITA_DEBUG_LOG("[PERF][DECODE] WARNING: Latency (min/avg/max): %u/%u/%u ms (frames in window: %u) - RTT: %u ms (var: %u)",
-                                   g_decode_min_ms, avg, g_decode_max_ms, g_decode_count, estRtt, estRttVar);
-                } else {
-                    VITA_DEBUG_LOG("[PERF][DECODE] Latency (min/avg/max): %u/%u/%u ms (frames in window: %u) - RTT: %u ms (var: %u)",
-                                   g_decode_min_ms, avg, g_decode_max_ms, g_decode_count, estRtt, estRttVar);
+                        g_decode_min_ms, avg, g_decode_max_ms, g_decode_count, estRtt, estRttVar);
                 }
-            } else {
+                else
+                {
+                    VITA_DEBUG_LOG("[PERF][DECODE] Latency (min/avg/max): %u/%u/%u ms (frames in window: %u) - RTT: %u ms (var: %u)",
+                        g_decode_min_ms, avg, g_decode_max_ms, g_decode_count, estRtt, estRttVar);
+                }
+            }
+            else
+            {
                 VITA_DEBUG_LOG("[PERF][DECODE] Latency (min/avg/max): %u/%u/%u ms (frames in window: %u)",
-                               g_decode_min_ms, avg, g_decode_max_ms, g_decode_count);
+                    g_decode_min_ms, avg, g_decode_max_ms, g_decode_count);
             }
             g_decode_min_ms = 999999;
             g_decode_max_ms = 0;
             g_decode_sum_ms = 0;
-            g_decode_count = 0;
+            g_decode_count  = 0;
         }
 
-        if (s_e2e_count > 0) {
+        if (s_e2e_count > 0)
+        {
             uint32_t e2eAvgUs = s_e2e_sum_us / s_e2e_count;
             uint32_t e2eMinUs = s_e2e_min_us == 999999 ? 0 : s_e2e_min_us;
             uint32_t e2eMaxUs = s_e2e_max_us;
             VITA_DEBUG_LOG("[PERF][RENDER] End-to-End Latency (min/avg/max): %.2f/%.2f/%.2f ms (frames: %u)",
-                           (float)e2eMinUs / 1000.0f, (float)e2eAvgUs / 1000.0f, (float)e2eMaxUs / 1000.0f, s_e2e_count);
+                (float)e2eMinUs / 1000.0f, (float)e2eAvgUs / 1000.0f, (float)e2eMaxUs / 1000.0f, s_e2e_count);
             s_e2e_sum_us = 0;
             s_e2e_min_us = 999999;
             s_e2e_max_us = 0;
-            s_e2e_count = 0;
+            s_e2e_count  = 0;
         }
 
-        last_fps_window_ms = now;
+        last_fps_window_ms    = now;
         s_presentWindowFrames = 0;
     }
 }

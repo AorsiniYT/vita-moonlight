@@ -1,12 +1,16 @@
 #include <stdio.h>
+
 #include <string>
 #pragma once
 
-class Data {
+class Data
+{
   public:
-    Data() : Data(0){};
+    Data()
+        : Data(0) { };
     Data(unsigned char* bytes, size_t size);
-    Data(char* bytes, size_t size) : Data((unsigned char*)bytes, size){};
+    Data(char* bytes, size_t size)
+        : Data((unsigned char*)bytes, size) { };
     Data(size_t capacity);
 
     ~Data();
@@ -32,5 +36,5 @@ class Data {
 
   private:
     unsigned char* m_bytes = nullptr;
-    size_t m_size = 0;
+    size_t m_size          = 0;
 };

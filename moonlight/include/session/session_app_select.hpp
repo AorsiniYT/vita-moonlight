@@ -15,14 +15,14 @@
 */
 #pragma once
 
-#include "view/grid_view.hpp"
-#include "model/HostStorage.hpp"
-#include "borealis.hpp"
-
 #include <memory>
 
 #include "GameStreamClient.hpp"
-class SessionAppSelect : public brls::Box {
+#include "borealis.hpp"
+#include "model/HostStorage.hpp"
+#include "view/grid_view.hpp"
+class SessionAppSelect : public brls::Box
+{
   public:
     SessionAppSelect(const std::string& hostName);
     ~SessionAppSelect();
@@ -31,7 +31,7 @@ class SessionAppSelect : public brls::Box {
 
   private:
     void populateAppList();
-  void AppSelected(const RemoteAppInfo& app, bool forceStart = false);
+    void AppSelected(const RemoteAppInfo& app, bool forceStart = false);
     // Helpers to show/hide the connection dialog and manage the GridView
     brls::Dialog* showConnectingDialog(const std::string& msg, brls::Visibility& outPrevGridVis);
     void restoreGridViewAndInputs(brls::Visibility prevGridVis);
@@ -44,20 +44,20 @@ class SessionAppSelect : public brls::Box {
     BRLS_BIND(brls::ProgressSpinner, loading_spinner, "loading_spinner");
 
     HostInfo host;
-    GridView* gridView = nullptr;
+    GridView* gridView             = nullptr;
     brls::ProgressSpinner* spinner = nullptr;
-  // Avoid displaying the active session dialog if the user has already managed it
-  bool suppressActiveDialog = false;
-  // Avoid showing the active session dialog more than once within the same instance
-  bool activeDialogShown = false;
-  // Controls waiting before loading apps until Moonmic/Sunshine responds
-  bool sunshineReady = false;
-  bool sunshineCheckInFlight = false;
-  bool moonmicNotified = false;
-  bool moonmicLastStatus = false;
-  // Resolution prompt (displayed when entering the host, not when launching the app)
-  bool resolutionPromptShown = false;
+    // Avoid displaying the active session dialog if the user has already managed it
+    bool suppressActiveDialog = false;
+    // Avoid showing the active session dialog more than once within the same instance
+    bool activeDialogShown = false;
+    // Controls waiting before loading apps until Moonmic/Sunshine responds
+    bool sunshineReady         = false;
+    bool sunshineCheckInFlight = false;
+    bool moonmicNotified       = false;
+    bool moonmicLastStatus     = false;
+    // Resolution prompt (displayed when entering the host, not when launching the app)
+    bool resolutionPromptShown = false;
 
-  // Track if view is still alive to prevent async callbacks from accessing destroyed 'this'
-  std::shared_ptr<bool> isAlive;
+    // Track if view is still alive to prevent async callbacks from accessing destroyed 'this'
+    std::shared_ptr<bool> isAlive;
 };

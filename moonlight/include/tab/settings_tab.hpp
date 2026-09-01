@@ -70,7 +70,7 @@ class SettingsTab : public brls::Box
     BRLS_BIND(brls::DetailCell, rearTouchSettingsEntry, "rearTouchSettingsEntry");
     BRLS_BIND(brls::DetailCell, frontTouchSettingsEntry, "frontTouchSettingsEntry");
     BRLS_BIND(brls::DetailCell, trackpadSettingsEntry, "trackpadSettingsEntry");
-    
+
     // Microphone settings
     BRLS_BIND(brls::BooleanCell, microphoneToggle, "microphoneToggle");
     BRLS_BIND(brls::DetailCell, microphoneConfigureCell, "microphoneConfigureCell");
@@ -78,8 +78,8 @@ class SettingsTab : public brls::Box
     static inline brls::SelectorCell* languageSelectorPtr = nullptr;
 
     static brls::View* create();
-    
-private:
+
+  private:
     std::shared_ptr<bool> aliveToken = std::make_shared<bool>(true);
     void initAsync();
 };

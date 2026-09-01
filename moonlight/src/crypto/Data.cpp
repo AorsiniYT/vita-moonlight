@@ -1,41 +1,53 @@
-#include "debug.hpp"
 #include "Data.hpp"
-#include <borealis.hpp>
-#include <cstdlib>
+
 #include <string.h>
 
-Data::Data(unsigned char* bytes, size_t size) {
-    if (bytes && size > 0) {
-        m_bytes = (unsigned char*)malloc(size + 1);
+#include <borealis.hpp>
+#include <cstdlib>
+
+#include "debug.hpp"
+
+Data::Data(unsigned char* bytes, size_t size)
+{
+    if (bytes && size > 0)
+    {
+        m_bytes       = (unsigned char*)malloc(size + 1);
         m_bytes[size] = '\0';
         memcpy(m_bytes, bytes, size);
         m_size = size;
     }
 }
 
-Data::Data(size_t capacity) {
+Data::Data(size_t capacity)
+{
     m_bytes = (unsigned char*)malloc(capacity + 1);
     memset(m_bytes, 0, capacity + 1);
     m_bytes[capacity] = '\0';
-    m_size = capacity;
+    m_size            = capacity;
 }
 
-Data::~Data() {
-    if (m_bytes) {
+Data::~Data()
+{
+    if (m_bytes)
+    {
         free(m_bytes);
     }
 }
 
-Data Data::subdata(size_t start, size_t size) {
-    if (start + size > m_size) {
+Data Data::subdata(size_t start, size_t size)
+{
+    if (start + size > m_size)
+    {
         vita_log::error("Data: Invalid data length...");
         exit(-1);
     }
     return Data(&m_bytes[start], size);
 }
 
-Data Data::append(Data other) {
-    if (is_empty()) {
+Data Data::append(Data other)
+{
+    if (is_empty())
+    {
         return other;
     }
 
@@ -45,39 +57,47 @@ Data Data::append(Data other) {
     return data;
 }
 
-Data::Data(const Data& that) : Data(0) {
-    if (m_bytes) {
+Data::Data(const Data& that)
+    : Data(0)
+{
+    if (m_bytes)
+    {
         free(m_bytes);
     }
 
     m_bytes = (unsigned char*)malloc(that.size() + 1);
     memcpy(m_bytes, that.m_bytes, that.m_size);
     m_bytes[that.m_size] = '\0';
-    m_size = that.m_size;
+    m_size               = that.m_size;
 }
 
-Data& Data::operator=(const Data& that) {
-    if (this != &that) {
-        if (m_bytes) {
+Data& Data::operator=(const Data& that)
+{
+    if (this != &that)
+    {
+        if (m_bytes)
+        {
             free(m_bytes);
         }
 
         m_bytes = (unsigned char*)malloc(that.m_size + 1);
         memcpy(m_bytes, that.m_bytes, that.m_size);
         m_bytes[that.m_size] = '\0';
-        m_size = that.m_size;
+        m_size               = that.m_size;
     }
     return *this;
 }
 
-Data Data::random_bytes(size_t size) {
+Data Data::random_bytes(size_t size)
+{
     unsigned char* bytes = (unsigned char*)malloc(sizeof(char) * size);
 
 #ifndef _WIN32
     srand(time(NULL));
 #endif
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         bytes[i] = rand() % 255;
     }
 
@@ -87,9 +107,11 @@ Data Data::random_bytes(size_t size) {
     return random_data;
 }
 
-Data Data::read_from_file(std::string path) {
+Data Data::read_from_file(std::string path)
+{
     FILE* f = fopen(path.c_str(), "r");
-    if (f) {
+    if (f)
+    {
         fseek(f, 0, SEEK_END);
         int size = (int)ftell(f);
         fseek(f, 0, SEEK_SET);
@@ -105,41 +127,50 @@ Data Data::read_from_file(std::string path) {
     return Data();
 }
 
-void Data::write_to_file(std::string path) {
+void Data::write_to_file(std::string path)
+{
     FILE* f = fopen(path.c_str(), "w");
-    if (f) {
+    if (f)
+    {
         fwrite(m_bytes, m_size, 1, f);
         fclose(f);
-    } else {
+    }
+    else
+    {
         vita_log::error("Data: Path not found: %s", path.c_str());
     }
 }
 
-Data Data::hex_to_bytes() const {
+Data Data::hex_to_bytes() const
+{
     Data data(m_size / 2);
-    char byte_chars[3] = {'\0', '\0', '\0'};
+    char byte_chars[3] = { '\0', '\0', '\0' };
     unsigned long whole_byte;
 
     int i = 0, counter = 0;
-    while (i < m_size) {
-        byte_chars[0] = m_bytes[i++];
-        byte_chars[1] = m_bytes[i++];
-        whole_byte = strtoul(byte_chars, NULL, 16);
+    while (i < m_size)
+    {
+        byte_chars[0]           = m_bytes[i++];
+        byte_chars[1]           = m_bytes[i++];
+        whole_byte              = strtoul(byte_chars, NULL, 16);
         data.m_bytes[counter++] = whole_byte;
     }
     return data;
 }
 
-Data Data::hex() const {
-    if (!m_size) {
+Data Data::hex() const
+{
+    if (!m_size)
+    {
         char end = '\n';
         return Data(&end, 1);
     }
 
     int counter = 0;
     Data hex(m_size * 2);
-    char fmt[3] = {'\0', '\0', '\0'};
-    for (int i = 0; i < m_size; i++) {
+    char fmt[3] = { '\0', '\0', '\0' };
+    for (int i = 0; i < m_size; i++)
+    {
         sprintf(fmt, "%02X", m_bytes[i]);
         hex.m_bytes[counter++] = fmt[0];
         hex.m_bytes[counter++] = fmt[1];

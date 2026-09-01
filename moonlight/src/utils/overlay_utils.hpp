@@ -1,22 +1,24 @@
 #pragma once
 
 #include <borealis.hpp>
-#include <functional>
-#include <vector>
-#include <string>
 #include <cstdint>
+#include <functional>
+#include <string>
+#include <vector>
 
 // Dummy class for focus without visual indicator
-class FocusDummy : public brls::View {
-public:
+class FocusDummy : public brls::View
+{
+  public:
     void draw(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx) override;
 
     void drawFocus(NVGcontext* vg, float x, float y, float width, float height, brls::Style style, brls::FrameContext* ctx);
 };
 
 // Base class for reusable overlays
-class BaseOverlay : public brls::Box {
-public:
+class BaseOverlay : public brls::Box
+{
+  public:
     BaseOverlay();
     ~BaseOverlay() override;
 
@@ -49,7 +51,7 @@ public:
     brls::View* getDefaultFocus() override { return focusDummy; }
     bool isTranslucent() override { return true; }
 
-protected:
+  protected:
     // Panel dimensions
     float panelW = 480.0f;
     float panelH = 544.0f;
@@ -57,22 +59,22 @@ protected:
     float panelY = 0.0f;
 
     // Button dimensions
-    float btnW = 424.0f;
-    float btnH = 56.0f;
+    float btnW       = 424.0f;
+    float btnH       = 56.0f;
     float btnXOffset = 28.0f;
-    float btnYStart = 80.0f;
-    float btnMargin = 12.0f;
+    float btnYStart  = 80.0f;
+    float btnMargin  = 12.0f;
 
     // Colores
-    NVGcolor panelBgColor = nvgRGBA(18, 20, 24, 255);
+    NVGcolor panelBgColor      = nvgRGBA(18, 20, 24, 255);
     NVGcolor btnBgColorFocused = nvgRGBA(100, 180, 255, 240);
-    NVGcolor btnBgColorNormal = nvgRGBA(64, 64, 64, 220);
-    NVGcolor textColor = nvgRGBA(255, 255, 255, 255);
-    NVGcolor borderColor = nvgRGBA(255, 255, 255, 120);
+    NVGcolor btnBgColorNormal  = nvgRGBA(64, 64, 64, 220);
+    NVGcolor textColor         = nvgRGBA(255, 255, 255, 255);
+    NVGcolor borderColor       = nvgRGBA(255, 255, 255, 120);
 
-private:
+  private:
     std::vector<std::string> buttonLabels;
-    int focusedIndex = 0;
+    int focusedIndex       = 0;
     FocusDummy* focusDummy = nullptr;
     std::function<void(int index)> activateCallback;
     std::string headerText;

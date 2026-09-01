@@ -1,18 +1,20 @@
 #pragma once
 
+#include <psp2/ctrl.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
 #include <vector>
 
-#include <psp2/ctrl.h>
-
 #include "shortcuts/shortcut_config.hpp"
 
-namespace shortcuts {
+namespace shortcuts
+{
 
-class ShortcutManager {
-public:
+class ShortcutManager
+{
+  public:
     static ShortcutManager& instance();
 
     bool processPhysicalInput(const SceCtrlData* pad, const SceCtrlData* padOld);
@@ -29,13 +31,14 @@ public:
     bool removeShortcut(std::size_t index, bool persist);
     bool restoreDefaults(bool persist);
 
-private:
+  private:
     ShortcutManager();
 
-    struct ActionRuntimeState {
-        bool tracking = false;
-        bool blockedUntilRelease = false;
-        std::uint32_t seenMask = 0;
+    struct ActionRuntimeState
+    {
+        bool tracking                 = false;
+        bool blockedUntilRelease      = false;
+        std::uint32_t seenMask        = 0;
         std::uint64_t trackingStartUs = 0;
     };
 

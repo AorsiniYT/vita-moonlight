@@ -1,29 +1,33 @@
 #pragma once
 #include <string>
+
+#include "GameStreamClient.hpp"
+#include "Limelight.h"
 #include "borealis.hpp"
 #include "client.h"
-#include "Limelight.h"
-#include "GameStreamClient.hpp"
 
-struct VitaSessionStats {
-    uint64_t videoFrames = 0;
+struct VitaSessionStats
+{
+    uint64_t videoFrames           = 0;
     uint64_t firstFrameTimestampMs = 0;
-    uint32_t windowFrames = 0;
-    uint64_t windowStartMs = 0;
-    uint32_t fps = 0;
+    uint32_t windowFrames          = 0;
+    uint64_t windowStartMs         = 0;
+    uint32_t fps                   = 0;
 };
 
 // Mini snapshot for overlay (added without exposing VitaVideoStats directly)
-struct VitaOverlaySnapshot {
-    uint32_t fps_presented = 0;
-    uint32_t fps_target = 0;
-    uint64_t session_ms = 0;
-    uint32_t frames_decoded = 0;
+struct VitaOverlaySnapshot
+{
+    uint32_t fps_presented    = 0;
+    uint32_t fps_target       = 0;
+    uint64_t session_ms       = 0;
+    uint32_t frames_decoded   = 0;
     uint32_t frames_presented = 0;
 };
 
-class VitaSession {
-public:
+class VitaSession
+{
+  public:
     VitaSession(const std::string& address, int appId, bool isSunshine);
     ~VitaSession();
 
@@ -57,7 +61,7 @@ public:
     // Notify server of gamepad type saved in config
     static void notifyGamepadType();
 
-private:
+  private:
     // Moonlight-Switch style static callbacks
     static void connection_stage_starting(int stage);
     static void connection_stage_complete(int stage);
@@ -82,25 +86,25 @@ private:
     bool internalStart();
     bool restartConnection(bool renegotiateSession);
 
-private:
+  private:
     std::string m_address;
     int m_app_id;
     bool m_is_sunshine;
 
-    STREAM_CONFIGURATION m_config{};
-    CONNECTION_LISTENER_CALLBACKS m_conn_callbacks{};
-    DECODER_RENDERER_CALLBACKS m_video_callbacks{};
-    AUDIO_RENDERER_CALLBACKS m_audio_callbacks{};
+    STREAM_CONFIGURATION m_config {};
+    CONNECTION_LISTENER_CALLBACKS m_conn_callbacks {};
+    DECODER_RENDERER_CALLBACKS m_video_callbacks {};
+    AUDIO_RENDERER_CALLBACKS m_audio_callbacks {};
 
-    bool m_is_active = false;
-    bool m_is_terminated = false;
-    bool m_poor = false;
+    bool m_is_active              = false;
+    bool m_is_terminated          = false;
+    bool m_poor                   = false;
     bool m_allow_resume_reconnect = false;
 
-    int m_reconnect_attempts = 0;
+    int m_reconnect_attempts    = 0;
     const int m_reconnect_limit = 1;
 
-    VitaSessionStats m_stats{};
+    VitaSessionStats m_stats {};
     uint64_t m_startMonotonicMs = 0;
     static uint64_t monotonicMs();
 

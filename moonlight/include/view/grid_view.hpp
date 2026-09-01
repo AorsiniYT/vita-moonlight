@@ -1,14 +1,15 @@
 #pragma once
-#include <vector>
-#include <string>
-#include <functional>
 #include <borealis.hpp>
+#include <functional>
+#include <string>
+#include <vector>
 
 // Improved GridView for Moonlight PSVita/Windows
 // Moonlight-Switch inspired, with focus navigation and limited columns
 
-class GridView : public brls::Box {
-public:
+class GridView : public brls::Box
+{
+  public:
     using ItemSelectCallback = std::function<void(int)>;
 
     GridView();
@@ -31,7 +32,7 @@ public:
     // Improved focus navigation
     brls::View* getNextFocus(brls::FocusDirection direction, brls::View* currentView) override;
 
-private:
+  private:
     int columns;
     std::vector<std::string> itemNames;
     std::vector<std::string> itemIcons;
