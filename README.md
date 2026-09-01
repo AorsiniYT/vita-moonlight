@@ -2,8 +2,8 @@
 
 # Moonlight Vita
 
-Moonlight client for PlayStation Vita, based on Moonlight Embedded. It streams
-games and applications from a Sunshine-compatible host to a PS Vita or PSTV.
+Moonlight Vita is a Moonlight client for PS Vita and PSTV, based on Moonlight
+Embedded. It streams games and applications from a Sunshine-compatible host.
 
 ## Features
 
@@ -29,10 +29,10 @@ games and applications from a Sunshine-compatible host to a PS Vita or PSTV.
 
 ## Building
 
-The same scripts support native Linux, WSL and Windows/MSYS2. VitaSDK must be
-installed before building and `VITASDK/bin` must be available in `PATH`.
+Linux, WSL and Windows/MSYS2 use the same build scripts. Install VitaSDK first
+and make sure `VITASDK/bin` is available in `PATH`.
 
-Clone the repository with its required submodules:
+Clone the repository and its submodules:
 
 ```bash
 git clone --recurse-submodules https://github.com/AorsiniYT/vita-moonlight.git
@@ -96,7 +96,7 @@ export PATH="$VITASDK/bin:$PATH"
 
 ### Dependencies
 
-From Linux, WSL or MSYS2, install the Vita libraries and the FFmpeg-vita fork:
+Install the Vita libraries and the FFmpeg-vita fork:
 
 ```bash
 ./scripts/prepare/install_all.sh
@@ -111,14 +111,14 @@ GLES backend:
 
 ### Compile
 
-For a non-interactive release build using GXM:
+To build a release VPK with GXM without deploying it:
 
 ```bash
 ./makepsv --gxm --release --no-deploy
 ```
 
-Running `./makepsv` without arguments opens the interactive builder. Build
-directories include the host and graphics backend, such as
+Run `./makepsv` without arguments to open the interactive builder. Build
+directory names include the host and graphics backend, such as
 `cmake-build-psv-linux-gxm`, `cmake-build-psv-wsl-gxm` or
 `cmake-build-psv-msys2-gxm`. Set `VITA_BUILD_ROOT` to place these directories
 outside the source tree.
