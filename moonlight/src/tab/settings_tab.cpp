@@ -791,7 +791,7 @@ SettingsTab::SettingsTab()
             extern VideoSettings g_video_settings_snapshot;
             g_video_settings_snapshot.swap_interval = selected;
 
-            brls::Application::setSwapInterval(selected);
+            moonlight::settings::applySwapInterval(selected);
             brls::Application::notify(brls::getStr("moonlight/settings_tab/swap_interval/saved"));
         }
     });
