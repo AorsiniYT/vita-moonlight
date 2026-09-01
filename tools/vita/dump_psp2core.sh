@@ -8,7 +8,7 @@ vita_host_init || exit 1
 BUILD_DIR="$(vita_build_directory "${VITA_BACKEND:-gxm}")"
 IP_FILE="$PROJECT_ROOT/ip_vita.txt"
 PARSE_CORE="$PROJECT_ROOT/reference/vita-parse-core/vita-parse-core"
-MOONLIGHT_BIN="$BUILD_DIR/moonlight_vita.velf"
+MOONLIGHT_BIN="$BUILD_DIR/moonlight.velf"
 FTP_PATH="ux0:/data"
 TEMP_DUMP="$PROJECT_ROOT/psp2core_tmp.psp2dmp"
 

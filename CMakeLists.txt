@@ -23,7 +23,7 @@ cmake_dependent_option(USE_SYSTEM_TWEENY "" OFF "NOT USE_SHARED_LIB" ON)
 include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
 
 # project info
-project(moonlight_vita)
+project(moonlight)
 
 # Keep editor tooling independent of the active host-specific build directory.
 add_custom_target(export-compile-commands ALL
@@ -53,8 +53,8 @@ set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_ALTER "0")
 set(VERSION_BUILD "0")
-set(PSN_TITLE_ID  "MNLHTVITA")
-set(PSN_VERSION  "01.00")
+set(TITLE_ID "XYZZ00002")
+set(PSN_VERSION "01.00")
 set(PROJECT_AUTHOR "AorsiniYT")
 set(PROJECT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/img/demo_icon.jpg)
 set(PROJECT_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resources)
@@ -222,7 +222,7 @@ elseif (PLATFORM_PSV)
         list(APPEND PSV_ASSETS_FILES "${CMAKE_BINARY_DIR}/vendor/SceShaccCg" module)
     endif ()
     # Pass the absolute path to vita_create_vpk so it does not conflict with target naming
-    vita_create_vpk(${PROJECT_NAME}.vpk ${PSN_TITLE_ID} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.self
+    vita_create_vpk(${PROJECT_NAME}.vpk ${TITLE_ID} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.self
             VERSION ${PSN_VERSION}
             NAME ${TITLE}
             FILE ${PSV_ASSETS_FILES}

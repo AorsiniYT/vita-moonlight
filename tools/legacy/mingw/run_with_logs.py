@@ -7,7 +7,7 @@ from pathlib import Path
 
 project_root = Path(sys.argv[1] if len(sys.argv) > 1 else Path.cwd()).resolve()
 build_dir = project_root / "build_mingw"
-executable = build_dir / "moonlight_vita.exe"
+executable = build_dir / "moonlight.exe"
 log_dir = project_root / "logs"
 
 if not executable.is_file():

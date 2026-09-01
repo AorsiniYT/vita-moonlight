@@ -3,7 +3,7 @@ setlocal
 
 for %%I in ("%~dp0\..\..\..") do set "PROJECT_ROOT=%%~fI"
 set "BUILD_DIR=%PROJECT_ROOT%\build_mingw"
-set "APP_NAME=moonlight_vita.exe"
+set "APP_NAME=moonlight.exe"
 
 if not exist "%BUILD_DIR%\%APP_NAME%" (
     echo Executable not found: %BUILD_DIR%\%APP_NAME%
