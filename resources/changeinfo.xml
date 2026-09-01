@@ -1,11 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <changeinfo>
+<changes app_ver="01.00"><![CDATA[
+## 1.0.0<br>
+<br>
+### ✨ Major Features<br>
+<br>
+- Rebuilt the client around the Borealis interface with native controller and touch navigation.<br>
+- Added low-latency Vita hardware decoding through both the legacy and FFmpeg-vita paths.<br>
+- Added direct GXM video presentation, decoder low-delay mode and stale-frame recovery to keep playback close to real time.<br>
+- Added configurable stream resolutions from 848x480 through 1366x768, automatic bitrate selection, aspect-ratio controls and live display settings.<br>
+- Added host discovery, pairing, editing, Wake-on-LAN and automatic stream reconnection after resuming the application.<br>
+- Added DS4 touchpad, absolute mouse and Sunshine tablet modes, configurable front and rear touch zones, gyroscope controls and user-defined shortcuts.<br>
+- Added legacy and modern virtual keyboards with configurable layouts.<br>
+- Added Moonmic microphone forwarding, host monitor resolution control and microphone diagnostics.<br>
+- Added English, Spanish, French, Japanese, Brazilian Portuguese, Russian and Traditional Chinese interfaces.<br>
+<br>
+### 🔧 Core Improvements<br>
+<br>
+- Reduced video latency and micro-stuttering with direct frame submission, frame pacing, startup resynchronization and latest-frame presentation.<br>
+- Restored local audio handling and improved Opus playback, variable frame sizes and stream audio lifecycle management.<br>
+- Added an in-stream settings overlay with adjustable background opacity, brightness control and an option to prevent screen dimming.<br>
+- Fixed touchscreen input across the supported input modes and separated active touch zones from normal touch input.<br>
+- Added a reconnecting overlay and controller-state recovery when returning from suspend.<br>
+- Added asynchronous logging and network diagnostics without blocking video decoding.<br>
+- Limited encoded stream resolutions to modes the Vita AVC decoder can sustain without accumulating delay.<br>
+<br>
+### ⚙️ Under the Hood<br>
+<br>
+- Added a shared build flow for Linux, WSL and Windows/MSYS2.<br>
+- Added project dependency installation through VitaSDK packages and the pinned FFmpeg-vita hardware-decoder fork.<br>
+- Moved the Borealis Vita changes into a CMake-applied patch instead of modifying the submodule.<br>
+- Separated visible video dimensions from aligned decoder storage to handle non-native resolutions safely.<br>
+- Removed obsolete platform code, duplicate build files and unused dependencies.<br>
+<br>
+Full Changelog: `0.13.2...1.0.0`
+]]></changes>
 <changes app_ver="00.13"><![CDATA[
+## 0.13.2<br>
+<br>
+* added PS button capture<br>
+  - when enabled, double-pressing the PS button will open the menu, single press is passed as PS/Xbox button to Sunshine<br>
+  - This required disabling the safe (-s) flag in `vita-make-fself` and adding the `SceShell` permission (0x2800000000000001)<br>
+* allow enabling/disabling touch zones independent of touch mode (separate setting)<br>
+  - allows using front screen touch zones regardless of touch input mode. when a touch zone is pressed, the touch input is ignored. unused touch zones are ignored and function as normal touch area.<br>
+<br>
+Bug fixes:<br>
+* fixed front touch zone L2/R2 special keys not working<br>
+<br>
+Feature:<br>
+* feat: Implement MAC address handling for devices and remove deprecated MAC retrieval functions<br>
+<br>
+Refactor:<br>
+* fix: Update subproject commits for enet, inih, and moonlight-common-c<br>
+* split `vitainput_process` into multiple smaller functions for better code readability<br>
+<br>
 ## 0.13.1<br>
+<br>
 * fix: Split shortcuts into individual files for better code organization and maintainability.<br>
 * fix: Resolved ghost/phantom button presses when handling overlays and shortcuts. Button state is now correctly reset and restored.<br>
 <br>
 ## 0.13.0<br>
+<br>
 * You can now choose between three touchscreen modes: DS4 Touchpad, Absolute Mouse, and Tablet (Sunshine) from the settings menu.<br>
 * "DS4 Touchpad" mode lets you use the Vita screen as a DualShock 4-style multitouch touchpad, compatible with gestures and advanced controls in games and Steam Input.<br>
 * DS4 Touchpad mode is now more sensitive and precise for a smoother experience.<br>
@@ -15,9 +70,11 @@
 * Added Python script (`tools/wol_sniffer.py`) to receive and verify Wake-on-LAN packets on the network, useful for testing without powering off the PC.<br>
 * Minor UI fixes and improved visual feedback in the host management menu.<br>
 * Fixed: Combos like L1+L2 and R1+R2 now work correctly even when used together with either touchscreen or backtouch. Pressing both at the same time no longer causes one to be lifted; both can be held simultaneously as expected.<br>
-* Fixed: In absolute touch mode, special button overlays no longer interfere with touch input. If a special button is detected, the corresponding touchscreen input is ignored, allowing for true absolute touch and making all screen corners usable.<br>
-<br>
+* Fixed: In absolute touch mode, special button overlays no longer interfere with touch input. If a special button is detected, the corresponding touchscreen input is ignored, allowing for true absolute touch and making all screen corners usable.
+]]></changes>
+<changes app_ver="00.12"><![CDATA[
 ## 0.12.3<br>
+<br>
 * Moonlight now automatically selects and creates the best available folder for config and cache (supports ux0:/data/moonlight, ux0:/moonlight, uma0:/data/moonlight, and fallback to ux0:data).<br>
 * The chosen folder location is logged at startup for easier debugging.<br>
 * The config file (moonlight.conf) is always created in the selected folder, improving compatibility for users with missing folders.<br>
@@ -36,6 +93,7 @@
 * Internal refactor: main.c and check_dir.c now use a shared macro for path buffer size and a helper for folder selection.<br>
 <br>
 ## 0.12.2<br>
+<br>
 * Added option to swap L1/R1 and L2/R2 button functions from the settings menu.<br>
 * Added option to select gamepad type: Xbox or PlayStation layout, configurable from the settings menu.<br>
 * Improved host scan logic: scan is always restarted cleanly when returning to the main menu or after leaving any submenu.<br>
@@ -47,16 +105,18 @@
 * Many bugfixes and code cleanups.<br>
 <br>
 ## 0.12.1<br>
+<br>
 * Add support for multi-touch touchscreen mode (Sunshine compatible) and absolute mouse mode.<br>
 * New settings: choose between "Touch Mouse Absolute" (gestures, mouse) and "Touchscreen (Sunshine multitouch)" (tablet mode).<br>
 * In touchscreen mode: true multitouch, native gestures (e.g. zoom), no mouse cursor/ghost, no mouse clicks.<br>
 * In absolute mouse mode: improved gestures (right click with two-finger tap, scroll with two fingers), cursor always follows main finger.<br>
 * Physical controls (gamepad) work in both modes.<br>
 * Improved logic for right click and scroll gestures.<br>
-* Many bugfixes and refinements to touch and gesture experience.<br>
+* Many bugfixes and refinements to touch and gesture experience.
 ]]></changes>
 <changes app_ver="00.11"><![CDATA[
 ## 0.11.4<br>
+<br>
 * Host status indicator dots: green (online), yellow (IP change pending), red (offline/disconnected).<br>
 * Robust host status checking with background scan thread and mDNS sniffer.<br>
 * Manual refresh of host status with TRIANGLE (△) in main menu and device search.<br>
@@ -72,7 +132,9 @@
   * ip3.png: Host offline/disconnected (red).<br>
   * ip4.png: IP change confirmation dialog (shows old/new IP).<br>
   * ip5.png: Search device function showing a found local device.<br>
+<br>
 ## 0.11.2<br>
+<br>
 * More reliable and user-friendly automatic pairing.<br>
 * Experimental absolute touch controls (beta).<br>
 * Floating virtual keyboard that no longer covers the main screen.<br>
@@ -80,14 +142,25 @@
 * New modular UDP mDNS sniffer for device discovery (replaces legacy mdns code).<br>
 * Improved debug logging, especially for device search and reconnect flows.<br>
 * Cleanup of legacy code and dependencies.<br>
+<br>
+## 0.11.0<br>
+<br>
+* The hold L to activate gyro feature has been removed and replaced with gyro reporting.<br>
+This means that the client will try to get Sunshine to emulate a DS5 controller and gyro will<br>
+be reported. This opens up full configurability with steam input. Note this only works on Windows<br>
+or on Linux with Pre-release versions of Sunshine as of 1/10/25. This could be different in the future.<br>
+* Video slicing added back<br>
+* Logging added to pairing for debug<br>
+* An icon to indicate when the double tap sprinting has been enabled has been added
 ]]></changes>
 <changes app_ver="00.10"><![CDATA[
 ## 0.10.1<br>
 * Fix pairing issue (Same one from v0.9.3)<br>
+<br>
 ## 0.10.0<br>
 * Add double tap to sprint option<br>
 * Add motion controls<br>
-* Fork moonlight-common-c and enet<br>
+* Fork moonlight-common-c and enet
 ]]></changes>
 <changes app_ver="00.09"><![CDATA[
 ## 0.9.3<br>
@@ -107,20 +180,20 @@
 * Add a 21:9 resolution (1280x540) to Settings (f1eb931)<br>
 * Properly display stream in the correct display ratio, and place in the middle of the screen (14e3a2c)<br>
 * Since GFE will add blackbars to the stream even when a non-16:9 monitor is using 16:9 resolution,<br>
-there is another option to use along the 21:9 resolution to only display the center 16:9 region (5b7a2cc)<br>
+    there is another option to use along the 21:9 resolution to only display the center 16:9 region (5b7a2cc)<br>
 * Detect supported resolutions (#193)<br>
-* Add new option to enable/disable of the vita vblank waiting (#197)<br>
+* Add new option to enable/disable of the vita vblank waiting (#197)
 ]]></changes>
 <changes app_ver="00.08"><![CDATA[
 ## 0.8.0<br>
 * Add new option for swapping O/X buttons (#168)<br>
 * Add new option for drawing FPS value (#167)<br>
-* Fix `RTSP message too long` (#164, fbe3d06)<br>
+* Fix `RTSP message too long` (#164, fbe3d06)
 ]]></changes>
 <changes app_ver="00.07"><![CDATA[
 ## 0.7.0<br>
 * Support 960x540 resolution (#162, fc7e19c)<br>
-* Support GFE 3.20 (97a6a0b)<br>
+* Support GFE 3.20 (97a6a0b)
 ]]></changes>
 <changes app_ver="00.06"><![CDATA[
 ## 0.6.1<br>
@@ -133,13 +206,13 @@ there is another option to use along the 21:9 resolution to only display the cen
 * Apply SPS changes of moonlight-embedded<br>
 * Use nerdfont instead VITA system font (7e2b682)<br>
 * Use vita2d instead direct framebuffer handling (70330e2)<br>
-* Implement poor network indicator (749aaaf)<br>
+* Implement poor network indicator (749aaaf)
 ]]></changes>
 <changes app_ver="00.05"><![CDATA[
 ## 0.5.0<br>
 * Support to discover stream server via mDNS (#143)<br>
 * Implement frame pacer (#147)<br>
-* Update latest enet & moonlight-common-c (904a5d1, 7f63f0d)<br>
+* Update latest enet & moonlight-common-c (904a5d1, 7f63f0d)
 ]]></changes>
 <changes app_ver="00.04"><![CDATA[
 ## 0.4.1<br>
@@ -148,7 +221,7 @@ there is another option to use along the 21:9 resolution to only display the cen
 ## 0.4.0<br>
 * Sort app list alphabetically (#127)<br>
 * Improve special button settings (#130)<br>
-* Implement video cleanup for fixing connection issue (#131)<br>
+* Implement video cleanup for fixing connection issue (#131)
 ]]></changes>
 <changes app_ver="00.03"><![CDATA[
 ## 0.3.3<br>
@@ -166,13 +239,13 @@ there is another option to use along the 21:9 resolution to only display the cen
 ## 0.3.0<br>
 * Support GFE 3.11<br>
 * New configure option about reference frame invalidation (#89, #91)<br>
-* Fix unset resolution configure (#90)<br>
+* Fix unset resolution configure (#90)
 ]]></changes>
 <changes app_ver="00.02"><![CDATA[
 ## 0.2.0<br>
 * Support newer vitasdk (94988ab)<br>
 * Support forward error correction (f8631b5, 184bdbe)<br>
-* No more build uncompress binary (6fd22e7)<br>
+* No more build uncompress binary (6fd22e7)
 ]]></changes>
 <changes app_ver="00.01"><![CDATA[
 ## 0.1.2<br>
@@ -190,7 +263,7 @@ there is another option to use along the 21:9 resolution to only display the cen
 * Add livearea (#62)<br>
 * Add new option for mouse acceleration (#63)<br>
 * Cleanup codes. (#60)<br>
-* Now remove alpha mark. but still lower version :) (#64)<br>
+* Now remove alpha mark. but still lower version :) (#64)
 ]]></changes>
 <changes app_ver="00.00"><![CDATA[
 ## alpha6<br>
@@ -226,5 +299,6 @@ there is another option to use along the 21:9 resolution to only display the cen
 * Support custom settings; screen resolution, framerate and bitrate (d145403)<br>
 <br>
 ## alpha1<br>
-* Initial release (04a7c1d)]]></changes>
+* Initial release (04a7c1d)
+]]></changes>
 </changeinfo>
