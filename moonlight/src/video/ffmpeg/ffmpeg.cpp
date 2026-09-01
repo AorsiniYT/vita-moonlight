@@ -672,39 +672,48 @@ static void dr_texture_free(dr_texture** p_tex) {
     *p_tex = nullptr;
 }
 
-static void dr_texture_attach(dr_texture* tex, AVFrame* frame) {
+static bool dr_texture_attach(dr_texture* tex, AVFrame* frame) {
     if (!tex || !frame) {
-        return;
+        return false;
     }
 
     const dr_format_spec* spec = get_dr_format_spec((enum AVPixelFormat)frame->format);
     if (!spec) {
-        return;
+        return false;
     }
 
     AVBufferRef* buf = frame->buf[0];
     if (!buf) {
-        return;
+        return false;
     }
 
     int width = FFMAX(FFALIGN(frame->width, 16), 64);
     int height = FFMAX(FFALIGN(frame->height, 16), 64);
 
     std::lock_guard<std::mutex> lock(g_dr_mutex);
-    sceGxmTextureInitLinear(&tex->impl.gxm_tex, buf->data, spec->sce_format, width, height, 0);
-    tex->impl.width = (uint32_t)width;
-    tex->impl.height = (uint32_t)height;
+    if (sceGxmTextureInitLinear(&tex->impl.gxm_tex, buf->data, spec->sce_format, width, height, 0) < 0) {
+        return false;
+    }
+    tex->impl.width = (uint32_t)frame->width;
+    tex->impl.height = (uint32_t)frame->height;
+    tex->impl.storage_width = (uint32_t)width;
+    tex->impl.storage_height = (uint32_t)height;
     tex->impl.stride = (uint32_t)frame->linesize[0];
     tex->impl.data_size = (uint32_t)buf->size;
+    tex->impl.format = spec->sce_format;
     av_frame_unref(&tex->frame);
     // Keep a reference to the frame for DR texture without transferring ownership
     // from the decoder. This avoids freeing the underlying memblock while the
     // decoder still has an active ref and prevents use-after-free in the
     // codec's internal threads (e.g., loop_filter).
     if (av_frame_ref(&tex->frame, frame) < 0) {
-        // Leave tex->frame cleared; decoder still owns the frame
-        return;
+        return false;
     }
+    if (g_perf.published_frames == 0) {
+        VITA_DEBUG_LOG("[FFMPEG][DR] texture visible=%dx%d storage=%dx%d pitch=%d",
+                       frame->width, frame->height, width, height, frame->linesize[0]);
+    }
+    return true;
 }
 #endif // BOREALIS_USE_GXM
 
@@ -995,6 +1004,12 @@ static int ensure_sw_texture(FFmpegVideoContext* ctx, int width, int height, enu
     ctx->sw_last_present_idx = 2;
     ctx->sw_texture = ctx->sw_textures[ctx->sw_last_present_idx];
     ctx->sw_texture_stride = gxm_texture_get_stride(ctx->sw_textures[ctx->sw_write_idx]);
+    VITA_DEBUG_LOG("[FFMPEG][SW] textures visible=%dx%d storage=%ux%u pitch=%u format=0x%08X",
+                   width, height,
+                   gxm_texture_get_storage_width(ctx->sw_textures[0]),
+                   gxm_texture_get_storage_height(ctx->sw_textures[0]),
+                   gxm_texture_get_stride(ctx->sw_textures[0]),
+                   (unsigned)textureFormat);
     return 0;
 #endif
 }
@@ -1169,7 +1184,9 @@ static bool publish_direct_frame(FFmpegVideoContext* ctx, AVFrame* frame) {
 
     // Recycle only the oldest texture slot.
     dr_texture_detach(texSpare);
-    dr_texture_attach(texSpare, frame);
+    if (!dr_texture_attach(texSpare, frame)) {
+        return false;
+    }
 
     int prevFront = ctx->dr_front_idx;
     int prevBack = ctx->dr_back_idx;
@@ -1881,7 +1898,6 @@ static int ffmpeg_video_setup(int videoFormat, int width, int height, int redraw
     wait_for_borealis_gxm_idle();
 #endif
 
-    vitavideo_configure_screen_resolution(width);
     vitavideo_update_scaling_settings(width, height);
     video_fullscreen_stretch = g_video_settings_snapshot.fullscreen;
 
